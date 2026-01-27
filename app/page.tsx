@@ -62,7 +62,7 @@ type Chart =
 type GraphJSON = {
   title: string;
   summary: string;
-  confidence: number;
+  confidence: number; // 0..1
   charts: Chart[];
   checklist: Array<{ action: string; expected_effect: string; priority: "high" | "medium" | "low" }>;
   recap_table: { columns: string[]; rows: (string | number)[][]; note?: string };
@@ -81,7 +81,10 @@ function uid() {
 }
 
 const QUICK_QUESTIONS: Array<{ label: string; text: string }> = [
-  { label: "W260 vs W320", text: "Comparer W260 vs W320 pour fermentation 48h au froid : risques, choix et protocole de contrôle." },
+  {
+    label: "W260 vs W320",
+    text: "Comparer W260 vs W320 pour fermentation 48h au froid : risques, choix et protocole de contrôle.",
+  },
   { label: "Cornicione serré", text: "Cornicione serré, pâte peu extensible : protocole de correction en 48h froid ?" },
   { label: "Levain trop acide", text: "Levain trop acide : comment stabiliser sans perdre la force ?" },
   { label: "Sole trop chaude", text: "Sole trop chaude et dessus pâle : comment équilibrer la cuisson dans un four électrique ?" },
@@ -112,6 +115,7 @@ const ui = {
     margin: "0 auto",
     padding: 16,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    color: "#111",
   } as React.CSSProperties,
   pill: {
     border: "1px solid #ddd",
@@ -121,6 +125,7 @@ const ui = {
     cursor: "pointer",
     fontSize: 13,
     fontWeight: 800,
+    color: "#111",
   } as React.CSSProperties,
   btn: {
     padding: "12px 14px",
@@ -128,6 +133,7 @@ const ui = {
     border: "1px solid #ddd",
     cursor: "pointer",
     background: "white",
+    color: "#111",
     fontSize: 15,
     fontWeight: 900,
   } as React.CSSProperties,
@@ -137,15 +143,60 @@ const ui = {
     borderRadius: 14,
     border: "1px solid #ddd",
     outline: "none",
-    fontSize: 15,
+    fontSize: 16, // evita zoom iOS
+    lineHeight: 1.45,
+    background: "white",
+    color: "#111",
+  } as React.CSSProperties,
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    border: "1px solid #ddd",
+    background: "white",
+    color: "#111",
+    cursor: "pointer",
+    fontSize: 18,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 900,
+    flex: "0 0 auto",
   } as React.CSSProperties,
 };
+
+function startDictation(onText: (txt: string) => void) {
+  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  if (!SR) return null;
+
+  const rec = new SR();
+  rec.lang = "fr-FR"; // cambia in "it-IT" se vuoi
+  rec.interimResults = true;
+  rec.continuous = false;
+
+  rec.onresult = (e: any) => {
+    let txt = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      txt += e.results[i][0].transcript;
+    }
+    onText(txt.trim());
+  };
+
+  rec.start();
+  return () => rec.stop();
+}
 
 export default function Page() {
   const [speed, setSpeed] = useState<Speed>("VITE");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [chat, setChat] = useState<ChatMsg[]>([]);
+
+  // camera + mic
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [dictating, setDictating] = useState(false);
+  const stopDictRef = useRef<null | (() => void)>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const quickRowRef = useRef<HTMLDivElement | null>(null);
@@ -162,20 +213,36 @@ export default function Page() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/tutor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userText,
-          isFirstTurn: chat.length === 0,
-          speed,
-        }),
-      });
+      let res: Response;
+
+      // se c'è foto -> FormData
+      if (selectedImage) {
+        const fd = new FormData();
+        fd.append("message", userText);
+        fd.append("speed", speed);
+        fd.append("isFirstTurn", String(chat.length === 0));
+        fd.append("image", selectedImage);
+
+        res = await fetch("/api/tutor", { method: "POST", body: fd });
+        setSelectedImage(null);
+      } else {
+        // JSON come prima
+        res = await fetch("/api/tutor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: userText,
+            isFirstTurn: chat.length === 0,
+            speed,
+          }),
+        });
+      }
 
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? `Erreur serveur (${res.status})`);
 
-      const text_fr: string = data?.text_fr ?? "";
+      // compat: alcuni backend rispondono con answer_fr
+      const text_fr: string = data?.text_fr ?? data?.answer_fr ?? data?.text ?? "";
       const graph: GraphJSON | null = data?.graph ?? null;
 
       setChat((prev) => [...prev, { id: uid(), role: "ernesto", text: text_fr, graph }]);
@@ -183,7 +250,11 @@ export default function Page() {
     } catch (err: any) {
       setChat((prev) => [
         ...prev,
-        { id: uid(), role: "ernesto", text: `Désolé — erreur technique : ${err?.message ?? "Erreur inconnue"}` },
+        {
+          id: uid(),
+          role: "ernesto",
+          text: `Désolé — erreur technique : ${err?.message ?? "Erreur inconnue"}`,
+        },
       ]);
     } finally {
       setLoading(false);
@@ -193,11 +264,40 @@ export default function Page() {
   function newConversation() {
     setChat([]);
     setMessage("");
+    setSelectedImage(null);
   }
 
   function scrollQuick(dx: number) {
     if (!quickRowRef.current) return;
     quickRowRef.current.scrollBy({ left: dx, behavior: "smooth" });
+  }
+
+  function toggleDictation() {
+    if (dictating) {
+      stopDictRef.current?.();
+      stopDictRef.current = null;
+      setDictating(false);
+      return;
+    }
+
+    const stop = startDictation((txt) => {
+      if (!txt) return;
+      setMessage((prev) => (prev ? `${prev} ${txt}` : txt));
+    });
+
+    if (!stop) {
+      alert("Micro (dictée) non supporté sur ce navigateur. Sur iPhone, c’est fréquent.");
+      return;
+    }
+
+    stopDictRef.current = stop;
+    setDictating(true);
+
+    window.setTimeout(() => {
+      stopDictRef.current?.();
+      stopDictRef.current = null;
+      setDictating(false);
+    }, 12000);
   }
 
   return (
@@ -213,6 +313,7 @@ export default function Page() {
           line-height: 1.55;
           white-space: pre-wrap;
           background: white;
+          color: #111;
         }
         .bubble.user { margin-left: auto; background: #f7f7f7; border-color: #e8e8e8; }
         .bubble.ernesto { margin-right: auto; background: #ffffff; }
@@ -227,10 +328,11 @@ export default function Page() {
           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
           transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
           scroll-snap-align: start;
+          color: #111;
         }
         .quickCard:hover { transform: translateY(-1px); border-color: #c7c7ff; box-shadow: 0 10px 24px rgba(0,0,0,0.08); }
         .quickLabel { font-weight: 950; font-size: 14px; line-height: 1.2; }
-        .quickText { margin-top: 6px; font-size: 12px; line-height: 1.35; opacity: 0.8; }
+        .quickText { margin-top: 6px; font-size: 12px; line-height: 1.35; opacity: 0.85; }
 
         .sectionShell { border-radius: 16px; border: 1px solid #eee; overflow: hidden; background: white; }
         .sectionHeader { padding: 10px 12px; font-weight: 950; font-size: 13px; letter-spacing: 0.2px; }
@@ -242,20 +344,36 @@ export default function Page() {
         .hRecap  { background: rgba(99,102,241,0.12); border-bottom: 1px solid rgba(99,102,241,0.25); }
         .hQues   { background: rgba(245,158,11,0.14); border-bottom: 1px solid rgba(245,158,11,0.28); }
 
-        .composer {
-          position: sticky; bottom: 0;
-          background: rgba(255,255,255,0.92);
-          backdrop-filter: blur(8px);
+        .composer{
+          position: sticky;
+          bottom: 0;
+          z-index: 20;
+          background: rgba(255,255,255,0.98);
           border-top: 1px solid #eee;
-          padding-top: 12px; padding-bottom: 10px;
+          padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
           margin-top: 14px;
         }
+
+        .attachPill {
+          display:flex; align-items:center; gap: 8px;
+          padding: 6px 10px; border: 1px solid #eee; border-radius: 999px;
+          font-size: 12px; background: #fff;
+        }
+        .attachX { border: 1px solid #ddd; border-radius: 999px; width: 22px; height: 22px; cursor: pointer; background: #fff; }
       `}</style>
 
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
         <div>
           <h1 style={{ fontSize: 28, margin: 0 }}>Ernesto — The Pizza, Explained</h1>
-          <div style={{ marginTop: 6, opacity: 0.85 }}>
+          <div style={{ marginTop: 6, opacity: 0.9 }}>
             <div style={{ fontWeight: 650 }}>
               Tuteur virtuel officiel de l’École Professionnelle de Pizza et Panification Naturelle (EPPPN)
             </div>
@@ -265,13 +383,17 @@ export default function Page() {
           </div>
         </div>
 
-        <button onClick={newConversation} style={ui.pill}>Nouvelle conversation</button>
+        <button onClick={newConversation} style={ui.pill}>
+          Nouvelle conversation
+        </button>
       </header>
 
       <section style={{ marginTop: 14 }}>
         <div style={{ fontWeight: 950, marginBottom: 8 }}>Questions fréquentes (clicables)</div>
         <div className="quickWrap">
-          <button className="quickNavBtn" onClick={() => scrollQuick(-320)}>‹</button>
+          <button className="quickNavBtn" onClick={() => scrollQuick(-320)}>
+            ‹
+          </button>
           <div className="quickRow" ref={quickRowRef}>
             {QUICK_QUESTIONS.map((q, idx) => (
               <button key={idx} className="quickCard" onClick={() => setMessage(q.text)}>
@@ -280,7 +402,9 @@ export default function Page() {
               </button>
             ))}
           </div>
-          <button className="quickNavBtn" onClick={() => scrollQuick(320)}>›</button>
+          <button className="quickNavBtn" onClick={() => scrollQuick(320)}>
+            ›
+          </button>
         </div>
       </section>
 
@@ -289,7 +413,11 @@ export default function Page() {
           <div style={{ opacity: 0.75, fontSize: 13 }}>Commence la conversation : elle grandira vers le bas.</div>
         ) : (
           chat.map((m) => (
-            <div key={m.id} className="bubbleWrap" style={{ justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+            <div
+              key={m.id}
+              className="bubbleWrap"
+              style={{ justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
+            >
               <div className={`bubble ${m.role}`}>
                 {m.role === "user" ? <div>{m.text}</div> : null}
 
@@ -311,47 +439,110 @@ export default function Page() {
         <div ref={bottomRef} />
       </section>
 
+      {/* composer */}
       <div className="composer">
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-          <label style={{ fontWeight: 900 }}>Vitesse de raisonnement</label>
-          <select
-            value={speed}
-            onChange={(e) => setSpeed(e.target.value as Speed)}
-            style={{ padding: 10, borderRadius: 14, border: "1px solid #ddd", fontSize: 14 }}
-          >
-            <option value="VITE">Vite : décision & priorités</option>
-            <option value="APPROFONDIE">Approfondie : analyses & graphiques détaillés</option>
-          </select>
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
-            {loading ? "Ernesto réfléchit…" : "Entrée = envoyer · Shift+Entrée = nouvelle ligne"}
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={{ fontWeight: 900 }}>Vitesse</label>
+            <select
+              value={speed}
+              onChange={(e) => setSpeed(e.target.value as Speed)}
+              style={{
+                padding: 10,
+                borderRadius: 14,
+                border: "1px solid #ddd",
+                fontSize: 14,
+                background: "white",
+                color: "#111",
+              }}
+            >
+              <option value="VITE">Vite</option>
+              <option value="APPROFONDIE">Approfondie</option>
+            </select>
+
+            <div style={{ fontSize: 12, opacity: 0.75 }}>
+              {loading ? "Ernesto réfléchit…" : "Entrée = envoyer · Shift+Entrée = nouvelle ligne"}
+            </div>
+
+            {selectedImage ? (
+              <div className="attachPill" title="Photo prête à envoyer">
+                <span>📷</span>
+                <span style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {selectedImage.name}
+                </span>
+                <button className="attachX" type="button" onClick={() => setSelectedImage(null)} aria-label="Retirer la photo">
+                  ×
+                </button>
+              </div>
+            ) : null}
           </div>
-        </div>
 
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              askTutor(message);
-            }
-          }}
-          rows={3}
-          placeholder="Écris ici… (Entrée pour envoyer)"
-          style={ui.textarea}
-        />
+          {/* input file hidden */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) setSelectedImage(f);
+              e.currentTarget.value = "";
+            }}
+          />
 
-        <div style={{ marginTop: 10 }}>
+          {/* mobile grid: mic + textarea + camera */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "44px 1fr 44px",
+              gap: 10,
+              alignItems: "end",
+            }}
+          >
+            <button
+              type="button"
+              onClick={toggleDictation}
+              style={{
+                ...ui.iconBtn,
+                borderColor: dictating ? "#0ea5e9" : "#ddd",
+                background: dictating ? "rgba(14,165,233,0.10)" : "white",
+              }}
+              title="Micro (dictée)"
+            >
+              🎤
+            </button>
+
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  askTutor(message);
+                }
+              }}
+              rows={3}
+              placeholder="Écris ici…"
+              style={ui.textarea}
+            />
+
+            <button type="button" onClick={() => fileRef.current?.click()} style={ui.iconBtn} title="Photo (camera)">
+              📷
+            </button>
+          </div>
+
           <button
             onClick={() => askTutor(message)}
             disabled={loading || !message.trim()}
             style={{
               ...ui.btn,
+              width: "100%",
               opacity: loading || !message.trim() ? 0.6 : 1,
               cursor: loading || !message.trim() ? "not-allowed" : "pointer",
             }}
           >
-            {loading ? "Ernesto réfléchit…" : "Envoyer"}
+            {loading ? "Ernesto réfléchit…" : selectedImage ? "Envoyer + photo" : "Envoyer"}
           </button>
         </div>
       </div>
@@ -364,7 +555,7 @@ function ErnestoPanels({ graph }: { graph: GraphJSON }) {
     <div style={{ display: "grid", gap: 12 }}>
       <Section title="Synthèse & graphiques" headerClass="hSynth">
         <div style={{ fontWeight: 950, fontSize: 15 }}>{graph.title}</div>
-        <div style={{ marginTop: 6, opacity: 0.85 }}>{graph.summary}</div>
+        <div style={{ marginTop: 6, opacity: 0.9 }}>{graph.summary}</div>
 
         <div style={{ display: "grid", gap: 12, marginTop: 10 }}>
           {(graph.charts ?? []).map((c, idx) => (
@@ -385,7 +576,7 @@ function ErnestoPanels({ graph }: { graph: GraphJSON }) {
                   <div style={{ fontWeight: 900 }}>{it.action}</div>
                   <span style={badgeStyle(it.priority)}>{it.priority.toUpperCase()}</span>
                 </div>
-                <div style={{ marginTop: 6, opacity: 0.9 }}>
+                <div style={{ marginTop: 6, opacity: 0.95 }}>
                   <strong>Effet attendu:</strong> {it.expected_effect}
                 </div>
               </div>
@@ -404,7 +595,9 @@ function ErnestoPanels({ graph }: { graph: GraphJSON }) {
         {graph.questions?.length ? (
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {graph.questions.filter(Boolean).map((q, i) => (
-              <li key={i} style={{ marginBottom: 8 }}>{q}</li>
+              <li key={i} style={{ marginBottom: 8 }}>
+                {q}
+              </li>
             ))}
           </ul>
         ) : (
@@ -428,7 +621,7 @@ function ChartCard({ chart }: { chart: Chart }) {
   return (
     <div style={{ border: "1px solid #eee", borderRadius: 16, padding: 12 }}>
       <div style={{ fontWeight: 900 }}>{chart.title}</div>
-      {chart.description && <div style={{ marginTop: 4, opacity: 0.8, fontSize: 13 }}>{chart.description}</div>}
+      {chart.description && <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>{chart.description}</div>}
       <div style={{ marginTop: 10 }}>
         {chart.type === "table" ? <TableChart data={chart.data} /> : null}
         {chart.type === "bar" ? <BarChartWidget data={chart.data} /> : null}
@@ -448,7 +641,10 @@ function TableChart({ data }: { data: { columns: string[]; rows: (string | numbe
           <thead>
             <tr>
               {data.columns.map((c, i) => (
-                <th key={i} style={{ textAlign: "left", padding: 8, borderBottom: "1px solid #eee", whiteSpace: "nowrap" }}>
+                <th
+                  key={i}
+                  style={{ textAlign: "left", padding: 8, borderBottom: "1px solid #eee", whiteSpace: "nowrap" }}
+                >
                   {c}
                 </th>
               ))}
@@ -467,7 +663,11 @@ function TableChart({ data }: { data: { columns: string[]; rows: (string | numbe
           </tbody>
         </table>
       </div>
-      {data.note ? <div style={{ marginTop: 8, fontSize: 12, opacity: 0.75 }}><strong>Note:</strong> {data.note}</div> : null}
+      {data.note ? (
+        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+          <strong>Note:</strong> {data.note}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -493,9 +693,14 @@ function BarChartWidget({ data }: any) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
+      <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
         Unité: {data?.unit ?? "score"}
-        {data?.note ? <> · <strong>Note:</strong> {data.note}</> : null}
+        {data?.note ? (
+          <>
+            {" "}
+            · <strong>Note:</strong> {data.note}
+          </>
+        ) : null}
       </div>
     </div>
   );
@@ -523,14 +728,19 @@ function RadarChartWidget({ data }: any) {
           </RadarChart>
         </ResponsiveContainer>
       </div>
-      {data?.note ? <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}><strong>Note:</strong> {data.note}</div> : null}
+      {data?.note ? (
+        <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
+          <strong>Note:</strong> {data.note}
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function ScatterChartWidget({ data }: any) {
   const pts = Array.isArray(data?.points) ? data.points : [];
-  const safe = pts.filter((p: any) => Number.isFinite(Number(p?.x)) && Number.isFinite(Number(p?.y)))
+  const safe = pts
+    .filter((p: any) => Number.isFinite(Number(p?.x)) && Number.isFinite(Number(p?.y)))
     .map((p: any) => ({ x: Number(p.x), y: Number(p.y), label: p.label ?? "" }));
 
   if (!safe.length) return <div style={{ opacity: 0.75, fontSize: 13 }}>Données insuffisantes pour afficher ce scatter.</div>;
@@ -549,16 +759,17 @@ function ScatterChartWidget({ data }: any) {
           </ScatterChart>
         </ResponsiveContainer>
       </div>
-      <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
-        {data?.note ? <><strong>Note:</strong> {data.note}</> : null}
-      </div>
+      <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>{data?.note ? <><strong>Note:</strong> {data.note}</> : null}</div>
     </div>
   );
 }
 
 function TimelineChart({ data }: any) {
   const steps = Array.isArray(data?.steps) ? data.steps : [];
-  const total = Math.max(1, ...steps.map((s: any) => (Number.isFinite(Number(s?.minutes)) ? Number(s.minutes) : 0)));
+  const total = Math.max(
+    1,
+    ...steps.map((s: any) => (Number.isFinite(Number(s?.minutes)) ? Number(s.minutes) : 0))
+  );
 
   if (!steps.length) return <div style={{ opacity: 0.75, fontSize: 13 }}>Données insuffisantes pour afficher une timeline.</div>;
 
@@ -572,17 +783,21 @@ function TimelineChart({ data }: any) {
             <div key={i} style={{ border: "1px solid #f0f0f0", borderRadius: 14, padding: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                 <div style={{ fontWeight: 900 }}>{s?.label ?? "Étape"}</div>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>{mins} min</div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>{mins} min</div>
               </div>
               <div style={{ marginTop: 6, height: 8, background: "#f3f3f3", borderRadius: 999 }}>
                 <div style={{ width: `${width}%`, height: 8, borderRadius: 999, background: "#22c55e" }} />
               </div>
-              <div style={{ marginTop: 6, fontSize: 13, opacity: 0.85 }}>{s?.purpose ?? ""}</div>
+              <div style={{ marginTop: 6, fontSize: 13, opacity: 0.9 }}>{s?.purpose ?? ""}</div>
             </div>
           );
         })}
       </div>
-      {data?.note ? <div style={{ marginTop: 8, fontSize: 12, opacity: 0.75 }}><strong>Note:</strong> {data.note}</div> : null}
+      {data?.note ? (
+        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+          <strong>Note:</strong> {data.note}
+        </div>
+      ) : null}
     </div>
   );
 }
