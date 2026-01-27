@@ -186,6 +186,37 @@ function startDictation(onText: (txt: string) => void) {
   return () => rec.stop();
 }
 
+async function compressImageToJpeg(
+  file: File,
+  maxW = 1280,
+  quality = 0.72
+): Promise<File> {
+  const img = await createImageBitmap(file);
+
+  const scale = Math.min(1, maxW / img.width);
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not supported");
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const blob: Blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
+      "image/jpeg",
+      quality
+    );
+  });
+
+  return new File([blob], "photo.jpg", { type: "image/jpeg" });
+}
+
+
 export default function Page() {
   const [speed, setSpeed] = useState<Speed>("VITE");
   const [message, setMessage] = useState("");
@@ -477,19 +508,36 @@ export default function Page() {
             ) : null}
           </div>
 
-          {/* input file hidden */}
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
             capture="environment"
             style={{ display: "none" }}
-            onChange={(e) => {
+            onChange={async (e) => {
               const f = e.target.files?.[0];
-              if (f) setSelectedImage(f);
+              if (!f) return;
+
+              try {
+                const MAX_BYTES = 600 * 1024; // 600KB target
+                let out: File = f;
+
+                if (f.size > MAX_BYTES) {
+                  out = await compressImageToJpeg(f, 1280, 0.72);
+                  if (out.size > MAX_BYTES) {
+                    out = await compressImageToJpeg(f, 960, 0.60);
+                  }
+                }
+
+                setSelectedImage(out);
+              } catch {
+                setSelectedImage(f); // fallback se compressione fallisce
+              }
+
               e.currentTarget.value = "";
             }}
           />
+
 
           {/* mobile grid: mic + textarea + camera */}
           <div
