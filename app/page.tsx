@@ -1,5 +1,5 @@
 "use client";
-
+import { createClient } from "@supabase/supabase-js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ResponsiveContainer,
@@ -216,12 +216,60 @@ async function compressImageToJpeg(
   return new File([blob], "photo.jpg", { type: "image/jpeg" });
 }
 
-
 export default function Page() {
   const [speed, setSpeed] = useState<Speed>("VITE");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [chat, setChat] = useState<ChatMsg[]>([]);
+
+  // ---- auth + paywall ----
+  const supabase = useMemo(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    return createClient(url, anon);
+  }, []);
+
+  const [session, setSession] = useState<any>(null);
+  const [email, setEmail] = useState("");
+  const [authInfo, setAuthInfo] = useState<string | null>(null);
+
+  // usage info (for banner)
+  const [usage, setUsage] = useState<null | {
+    used: number;
+    remaining: number;
+    trial_started_at?: string;
+    trial_ends_at?: string;
+    is_pro?: boolean;
+  }>(null);
+
+  // paywall payload (when 402)
+  const [paywall, setPaywall] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, [supabase]);
+
+  async function sendMagicLink() {
+    setAuthInfo(null);
+    const e = email.trim();
+    if (!e) return setAuthInfo("Indique un email.");
+    const { error } = await supabase.auth.signInWithOtp({
+      email: e,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    if (error) return setAuthInfo(error.message);
+    setAuthInfo("Lien envoyé. Ouvre ton email et clique sur le lien de connexion.");
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    setSession(null);
+    setAuthInfo(null);
+    setUsage(null);
+    setPaywall(null);
+  }
 
   // camera + mic
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -240,6 +288,13 @@ export default function Page() {
     const userText = text.trim();
     if (!userText || loading) return;
 
+    // must be logged in (we need bearer token)
+    if (!session?.access_token) {
+      setAuthInfo("Connecte-toi pour utiliser Ernesto (essai gratuit inclus).");
+      return;
+    }
+
+    setPaywall(null); // close paywall on new ask attempt
     setChat((prev) => [...prev, { id: uid(), role: "user", text: userText }]);
     setLoading(true);
 
@@ -254,13 +309,21 @@ export default function Page() {
         fd.append("isFirstTurn", String(chat.length === 0));
         fd.append("image", selectedImage);
 
-        res = await fetch("/api/tutor", { method: "POST", body: fd });
+        res = await fetch("/api/tutor", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: fd,
+        });
+
         setSelectedImage(null);
       } else {
         // JSON come prima
         res = await fetch("/api/tutor", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
           body: JSON.stringify({
             message: userText,
             isFirstTurn: chat.length === 0,
@@ -270,7 +333,24 @@ export default function Page() {
       }
 
       const data = await res.json();
+
+      // 401: not logged / invalid session
+      if (res.status === 401) {
+        setAuthInfo("Session invalide. Reconnecte-toi.");
+        return;
+      }
+
+      // 402: paywall
+      if (res.status === 402 && data?.paywall) {
+        setPaywall(data);
+        if (data?.usage) setUsage(data.usage);
+        return;
+      }
+
       if (!res.ok) throw new Error(data?.error ?? `Erreur serveur (${res.status})`);
+
+      // usage banner update
+      if (data?.usage) setUsage(data.usage);
 
       // compat: alcuni backend rispondono con answer_fr
       const text_fr: string = data?.text_fr ?? data?.answer_fr ?? data?.text ?? "";
@@ -296,6 +376,7 @@ export default function Page() {
     setChat([]);
     setMessage("");
     setSelectedImage(null);
+    setPaywall(null);
   }
 
   function scrollQuick(dx: number) {
@@ -330,6 +411,13 @@ export default function Page() {
       setDictating(false);
     }, 12000);
   }
+
+  const usageLine =
+    usage?.is_pro
+      ? "🟣 Pro: accès illimité."
+      : usage
+      ? `🟢 Gratuit: ${usage.remaining} requêtes restantes (sur 10) — essai jusqu’au ${usage.trial_ends_at ? new Date(usage.trial_ends_at).toLocaleDateString() : "…"}.`
+      : null;
 
   return (
     <main style={ui.page}>
@@ -392,6 +480,63 @@ export default function Page() {
         }
         .attachX { border: 1px solid #ddd; border-radius: 999px; width: 22px; height: 22px; cursor: pointer; background: #fff; }
       `}</style>
+
+      {/* --- AUTH / USAGE BANNER --- */}
+      <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+        {!session ? (
+          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 12 }}>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Connexion</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email"
+                style={{ flex: 1, minWidth: 240, padding: 10, border: "1px solid #ccc", borderRadius: 10 }}
+              />
+              <button onClick={sendMagicLink} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                Envoyer le lien
+              </button>
+            </div>
+            {authInfo && <div style={{ marginTop: 8, opacity: 0.85 }}>{authInfo}</div>}
+          </div>
+        ) : (
+          <div style={{ padding: 12, border: "1px solid #eee", borderRadius: 12, display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 800 }}>
+              {usageLine ?? "Connecté. Pose ta première question pour initialiser l’essai gratuit."}
+            </div>
+            <button onClick={logout} style={{ padding: "10px 14px", borderRadius: 10 }}>
+              Se déconnecter
+            </button>
+          </div>
+        )}
+
+        {paywall?.paywall ? (
+          <div style={{ padding: 12, border: "1px solid #f0c", borderRadius: 12 }}>
+            <div style={{ fontWeight: 950 }}>🔒 Ernesto Pro</div>
+            <div style={{ marginTop: 6 }}>
+              {paywall.reason === "quota_reached"
+                ? "Tu as atteint la limite gratuite (10 requêtes)."
+                : "Ta période d’essai (4 jours) est terminée."}
+            </div>
+            {paywall.usage ? (
+              <div style={{ marginTop: 6, opacity: 0.85 }}>
+                Gratuit: {paywall.usage.used} utilisées — {paywall.usage.remaining} restantes.
+              </div>
+            ) : null}
+            <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                style={{ padding: "10px 14px", borderRadius: 10, fontWeight: 800 }}
+                onClick={() => alert("TODO: intégrer Stripe / achats in-app")}
+              >
+                S’abonner
+              </button>
+              <button onClick={() => setPaywall(null)} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                Plus tard
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       <header
         style={{
@@ -537,7 +682,6 @@ export default function Page() {
               e.currentTarget.value = "";
             }}
           />
-
 
           {/* mobile grid: mic + textarea + camera */}
           <div

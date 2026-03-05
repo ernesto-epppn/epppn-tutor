@@ -53,6 +53,117 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
+        // --- 1bis) Paywall gate (trial + quota + abonnement) ---
+    const authHeader = req.headers.get("authorization") || "";
+    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+    if (!bearer) {
+      return NextResponse.json(
+        { error: "auth_required", paywall: true, reason: "login_required" },
+        { status: 401 }
+      );
+    }
+
+    const { data: userData, error: userErr } = await supabase.auth.getUser(bearer);
+    const user = userData?.user;
+
+    if (userErr || !user) {
+      return NextResponse.json(
+        { error: "invalid_session", paywall: true, reason: "invalid_session" },
+        { status: 401 }
+      );
+    }
+
+    const userId = user.id;
+    const now = new Date();
+
+    // 1) entitlement (Pro)
+    const { data: ent } = await supabase
+      .from("user_entitlements")
+      .select("status,current_period_end")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const isPro =
+      ent?.status === "active" &&
+      (!ent.current_period_end || new Date(ent.current_period_end) > now);
+
+    // 2) free gate
+    const FREE_LIMIT = 10;
+    const TRIAL_DAYS = 4;
+
+    let usageMeta:
+      | { used: number; remaining: number; trial_started_at: string; trial_ends_at: string; is_pro: boolean }
+      | undefined = undefined;
+
+    if (!isPro) {
+      // get or create usage row
+      let { data: usage } = await supabase
+        .from("user_usage")
+        .select("trial_started_at, free_queries_used")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!usage) {
+        const ins = await supabase
+          .from("user_usage")
+          .insert({ user_id: userId })
+          .select("trial_started_at, free_queries_used")
+          .single();
+        usage = ins.data ?? null;
+      }
+
+      const trialStartedAt = usage?.trial_started_at ? new Date(usage.trial_started_at) : now;
+      const trialEndsAt = new Date(trialStartedAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
+      const used = usage?.free_queries_used ?? 0;
+      const remaining = Math.max(0, FREE_LIMIT - used);
+
+      const trialOk = now <= trialEndsAt;
+      const quotaOk = used < FREE_LIMIT;
+
+      usageMeta = {
+        used,
+        remaining,
+        trial_started_at: trialStartedAt.toISOString(),
+        trial_ends_at: trialEndsAt.toISOString(),
+        is_pro: false,
+      };
+
+      if (!trialOk || !quotaOk) {
+        return NextResponse.json(
+          {
+            paywall: true,
+            reason: !trialOk ? "trial_ended" : "quota_reached",
+            usage: usageMeta,
+          },
+          { status: 402 }
+        );
+      }
+
+      // count THIS request
+      const nextUsed = used + 1;
+      const nextRemaining = Math.max(0, FREE_LIMIT - nextUsed);
+
+      await supabase.from("user_usage").update({ free_queries_used: nextUsed }).eq("user_id", userId);
+
+      usageMeta = {
+        used: nextUsed,
+        remaining: nextRemaining,
+        trial_started_at: usageMeta.trial_started_at,
+        trial_ends_at: usageMeta.trial_ends_at,
+        is_pro: false,
+      };
+    } else {
+      usageMeta = {
+        used: 0,
+        remaining: 999999,
+        trial_started_at: now.toISOString(),
+        trial_ends_at: now.toISOString(),
+        is_pro: true,
+      };
+    }
+
     // --- 2) Embed della domanda (solo sul testo) ---
     const emb = await openai.embeddings.create({
       model: "text-embedding-3-small",
@@ -147,6 +258,7 @@ ${message}
     });
 
     return NextResponse.json({
+      usage: usageMeta,
       answer_fr: r.output_text ?? "",
       rag: {
         used: retrieved.length,
