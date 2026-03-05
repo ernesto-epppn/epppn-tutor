@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Ernesto</string>
-    <string name="title_activity_main">Ernesto</string>
-    <string name="package_name">fr.epppn.ernesto</string>
-    <string name="custom_url_scheme">fr.epppn.ernesto</string>
-</resources>
