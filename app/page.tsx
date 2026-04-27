@@ -802,6 +802,16 @@ export default function Page() {
         .mobileOnly { display: none; }
         .desktopOnlyInline { display: inline; }
         .topCompactTitle { display:none; }
+        .brandHeader { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom: 18px; }
+        .brandLogos { display:flex; align-items:center; gap:12px; min-width:0; }
+        .brandLogoEpppn { width: 78px; height:auto; max-height:78px; object-fit:contain; display:block; }
+        .brandLogoErnesto { width: 98px; height:auto; max-height:64px; object-fit:contain; display:block; }
+        .brandFallback { font-weight:950; letter-spacing:-0.03em; font-size:22px; color:#344422; line-height:1; }
+        .brandDivider { width:1px; height:54px; background:rgba(52,68,34,.18); }
+        .brandTag { font-size:11px; font-weight:950; letter-spacing:.12em; text-transform:uppercase; color:#425233; opacity:.72; margin-bottom:4px; }
+        .siteFooter { margin: 24px 0 18px; padding: 15px 4px 0; border-top: 1px solid rgba(52,68,34,.14); color:#425233; display:grid; gap:5px; }
+        .siteFooterTitle { font-weight:950; font-size:13px; letter-spacing:-0.01em; }
+        .siteFooterMeta { font-size:12px; line-height:1.45; opacity:.78; }
         .mobileFaqToggle { display:none; }
         .composerModeRow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
         .composerHint { font-size: 12px; opacity: 0.75; }
@@ -1168,6 +1178,15 @@ export default function Page() {
           .projectRail.open{ transform: translateY(0); opacity: 1; pointer-events: auto; }
           .drawerClose{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:12px; border:1px solid rgba(226,232,240,.9); background:#fff; cursor:pointer; }
           .heroShell{ padding: 13px; border-radius: 20px; margin-top: 6px; box-shadow: 0 10px 28px rgba(15,23,42,0.045); }
+          .brandHeader{ margin-bottom: 12px; align-items:flex-start; }
+          .brandLogos{ gap:9px; }
+          .brandLogoEpppn{ width:54px; max-height:54px; }
+          .brandLogoErnesto{ width:78px; max-height:48px; }
+          .brandFallback{ font-size:18px; }
+          .brandDivider{ height:40px; }
+          .brandTag{ font-size:10px; letter-spacing:.1em; }
+          .siteFooter{ margin: 20px 0 4px; padding-bottom: 6px; }
+          .siteFooterMeta{ font-size:11px; }
           .heroTitle{ font-size: 28px; line-height: 1.06; letter-spacing: -0.035em; }
           .heroIntro{ font-size: 13px; line-height: 1.48; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
           .heroShell .planBadge{ display:none; }
@@ -1497,25 +1516,37 @@ export default function Page() {
       </div>
 
       <header className="heroShell">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
-          <div style={{ maxWidth: 760 }}>
-            <div className="topCompactTitle">EPPPN · assistant de diagnostic</div>
-            <h1 className="heroTitle">Ernesto, The Pizza Explained.</h1>
-            <div className="heroIntro">
-              Basé sur les connaissances et les protocoles transmis à l’EPPPN, Ernesto vous aide à raisonner sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du travail. Il ne donne pas de recettes magiques : il transforme une observation en diagnostic, puis en protocole d’action.
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-              <span className="planBadge">Écrire</span>
-              <span className="planBadge">Parler</span>
-              <span className="planBadge">Analyser une photo</span>
-              <span className="planBadge">Décision & action</span>
-              <span className="planBadge">Analyse & détails</span>
-            </div>
+        <div className="brandHeader">
+          <div className="brandLogos" aria-label="Identité EPPPN et Ernesto">
+            <img className="brandLogoEpppn" src="/LOGOEPPPN21.png" alt="Logo EPPPN" />
+            <div className="brandDivider" aria-hidden="true" />
+            <img
+              className="brandLogoErnesto"
+              src="/logo-ernesto.png"
+              alt="Logo Ernesto"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+            <div className="brandFallback">Ernesto</div>
           </div>
 
           <button onClick={newConversation} style={{ ...ui.pill, fontSize: 14 }}>
             Nouvelle conversation
           </button>
+        </div>
+
+        <div style={{ maxWidth: 820 }}>
+          <div className="brandTag">EPPPN · outil numérique de formation</div>
+          <h1 className="heroTitle">Ernesto, The Pizza Explained.</h1>
+          <div className="heroIntro">
+            Basé sur les connaissances et les protocoles transmis à l’EPPPN, Ernesto vous aide à raisonner sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du travail. Il ne donne pas de recettes magiques : il transforme une observation en diagnostic, puis en protocole d’action.
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+            <span className="planBadge">Écrire</span>
+            <span className="planBadge">Parler</span>
+            <span className="planBadge">Analyser une photo</span>
+            <span className="planBadge">Décision & action</span>
+            <span className="planBadge">Analyse & détails</span>
+          </div>
         </div>
       </header>
 
@@ -1618,6 +1649,13 @@ export default function Page() {
         )}
         <div ref={bottomRef} />
       </section>
+
+      <footer className="siteFooter">
+        <div className="siteFooterTitle">Ernesto — The Pizza Explained. · Version actuelle : V6 · Avril 2026</div>
+        <div className="siteFooterMeta">
+          Conçu et développé par la section « Apprentissage et Informatisation » de l'EPPPN.
+        </div>
+      </footer>
 
       {/* composer */}
       <div className="composer">
