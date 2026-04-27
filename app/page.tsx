@@ -79,8 +79,74 @@ type ChatMsg = {
   sourceMention?: boolean;
 };
 
+type Project = {
+  id: string;
+  title: string;
+  chat: ChatMsg[];
+  updatedAt: number;
+};
+
+type UserPersonalProfile = {
+  age: string;
+  profession: string;
+  level: string;
+  reason: string;
+  preferredLanguage: string;
+};
+
+const PROJECTS_STORAGE_KEY = "ernesto_projects_v1";
+const PROFILE_STORAGE_KEY_BASE = "ernesto_user_profile_v1";
+
+const EMPTY_PROFILE: UserPersonalProfile = {
+  age: "",
+  profession: "",
+  level: "",
+  reason: "",
+  preferredLanguage: "",
+};
+
 function uid() {
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+
+function makeProject(title = "Nouvelle demande"): Project {
+  return { id: uid(), title, chat: [], updatedAt: Date.now() };
+}
+
+function deriveProjectTitle(chat: ChatMsg[], fallback = "Nouvelle demande") {
+  const firstUser = chat.find((m) => m.role === "user" && m.text.trim());
+  if (!firstUser) return fallback;
+  const clean = firstUser.text.replace(/\s+/g, " ").trim();
+  return clean.length > 38 ? `${clean.slice(0, 38)}…` : clean;
+}
+
+function formatProjectDate(ts: number) {
+  try {
+    return new Date(ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+  } catch {
+    return "";
+  }
+}
+
+function profileStorageKey(email?: string | null) {
+  return `${PROFILE_STORAGE_KEY_BASE}:${email || "anonymous"}`;
+}
+
+function subscriptionLabel(usage: any) {
+  if (usage?.is_admin) return "Admin";
+  if (usage?.is_pro) return "Ernesto Plus";
+  return "Essai gratuit";
+}
+
+function buildPersonalContext(profile: UserPersonalProfile, email?: string | null) {
+  const lines: string[] = [];
+  if (email) lines.push(`E-mail utilisateur : ${email}`);
+  if (profile.age.trim()) lines.push(`Âge : ${profile.age.trim()}`);
+  if (profile.profession.trim()) lines.push(`Profession / activité : ${profile.profession.trim()}`);
+  if (profile.level.trim()) lines.push(`Niveau pizza / panification : ${profile.level.trim()}`);
+  if (profile.reason.trim()) lines.push(`Pourquoi l’utilisateur utilise Ernesto : ${profile.reason.trim()}`);
+  if (profile.preferredLanguage.trim()) lines.push(`Langue ou style préféré : ${profile.preferredLanguage.trim()}`);
+  return lines.length ? lines.join("\n") : undefined;
 }
 
 const QUICK_QUESTIONS: Array<{ label: string; text: string; category: string }> = [
@@ -148,13 +214,13 @@ function badgeStyle(p: "high" | "medium" | "low"): React.CSSProperties {
 
 const ui = {
   page: {
-    maxWidth: 1120,
-    margin: "0 auto",
+    width: "100%",
+    minHeight: "100svh",
     padding: 18,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
     background:
-      "radial-gradient(circle at top left, rgba(244,114,182,0.08), transparent 28%), radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 26%)",
+      "radial-gradient(circle at top left, rgba(244,114,182,0.08), transparent 28%), radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 26%), #fffaf5",
   } as React.CSSProperties,
   pill: {
     border: "1px solid #e2e8f0",
@@ -260,6 +326,10 @@ export default function Page() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [chat, setChat] = useState<ChatMsg[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [projectsHydrated, setProjectsHydrated] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(false);
   // 🍕 Loader progress (timeline)
   const [loadingMs, setLoadingMs] = useState(0);
   const [pizzaDone, setPizzaDone] = useState(false);
@@ -293,11 +363,46 @@ export default function Page() {
   // paywall payload (when 402)
   const [paywall, setPaywall] = useState<any>(null);
 
+  // personnalisation légère : stockée localement pour la V1, transmise comme contexte à Ernesto
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [personalProfile, setPersonalProfile] = useState<UserPersonalProfile>(EMPTY_PROFILE);
+  const [profileSavedAt, setProfileSavedAt] = useState<number | null>(null);
+
+  // édition des projets
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingProjectTitle, setEditingProjectTitle] = useState("");
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
+
+  useEffect(() => {
+    if (!session?.user?.email) {
+      setPersonalProfile(EMPTY_PROFILE);
+      setProfileOpen(false);
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(profileStorageKey(session.user.email));
+      const parsed = raw ? JSON.parse(raw) : null;
+      setPersonalProfile({ ...EMPTY_PROFILE, ...(parsed || {}) });
+    } catch {
+      setPersonalProfile(EMPTY_PROFILE);
+    }
+  }, [session?.user?.email]);
+
+  useEffect(() => {
+    if (!session?.user?.email) return;
+    try {
+      window.localStorage.setItem(profileStorageKey(session.user.email), JSON.stringify(personalProfile));
+      setProfileSavedAt(Date.now());
+    } catch {
+      // La personnalisation reste utilisable même si le navigateur refuse localStorage.
+    }
+  }, [personalProfile, session?.user?.email]);
 
   async function sendMagicLink() {
     setAuthInfo(null);
@@ -321,6 +426,7 @@ export default function Page() {
 
   // camera + mic
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [dictating, setDictating] = useState(false);
   const stopDictRef = useRef<null | (() => void)>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -331,6 +437,66 @@ export default function Page() {
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [pauseQuickScroll, setPauseQuickScroll] = useState(false);
   const quickDirectionRef = useRef<1 | -1>(1);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PROJECTS_STORAGE_KEY);
+      const parsed: Project[] = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed) && parsed.length) {
+        const cleaned = parsed
+          .filter((p) => p?.id && typeof p.title === "string")
+          .map((p) => ({ ...p, chat: Array.isArray(p.chat) ? p.chat : [], updatedAt: Number(p.updatedAt) || Date.now() }));
+        setProjects(cleaned);
+        setActiveProjectId(cleaned[0]?.id ?? null);
+        setChat(cleaned[0]?.chat ?? []);
+      } else {
+        const first = makeProject();
+        setProjects([first]);
+        setActiveProjectId(first.id);
+      }
+    } catch {
+      const first = makeProject();
+      setProjects([first]);
+      setActiveProjectId(first.id);
+    } finally {
+      setProjectsHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!projectsHydrated) return;
+    try {
+      window.localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects.slice(0, 30)));
+    } catch {
+      // localStorage can fail in private mode; Ernesto still works without project persistence.
+    }
+  }, [projects, projectsHydrated]);
+
+  useEffect(() => {
+    if (!projectsHydrated || !activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === activeProjectId
+          ? {
+              ...p,
+              chat,
+              title: deriveProjectTitle(chat, p.title),
+              updatedAt: Date.now(),
+            }
+          : p
+      )
+    );
+  }, [chat, activeProjectId, projectsHydrated]);
+
+  useEffect(() => {
+    if (!selectedImage) {
+      setImagePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(selectedImage);
+    setImagePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedImage]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -389,6 +555,8 @@ export default function Page() {
     try {
       let res: Response;
 
+      const contextText = buildPersonalContext(personalProfile, session?.user?.email);
+
       // se c'è foto -> FormData
       if (selectedImage) {
         const fd = new FormData();
@@ -396,6 +564,7 @@ export default function Page() {
         fd.append("speed", speed);
         fd.append("responseIndex", String(responseIndex));
         fd.append("isFirstTurn", String(chat.length === 0));
+        if (contextText) fd.append("contextText", contextText);
         fd.append("image", selectedImage);
 
         res = await fetch("/api/tutor", {
@@ -418,6 +587,7 @@ export default function Page() {
             responseIndex,
             isFirstTurn: chat.length === 0,
             speed,
+            contextText,
           }),
         });
       }
@@ -478,11 +648,76 @@ export default function Page() {
   }
 
   function newConversation() {
+    const p = makeProject();
+    setProjects((prev) => [p, ...prev].slice(0, 30));
+    setActiveProjectId(p.id);
     setChat([]);
     setMessage("");
     setSelectedImage(null);
     setPaywall(null);
     setSelectedQuestion(null);
+    setProjectsOpen(false);
+  }
+
+  function selectProject(id: string) {
+    const p = projects.find((item) => item.id === id);
+    if (!p) return;
+    setActiveProjectId(id);
+    setChat(p.chat ?? []);
+    setMessage("");
+    setSelectedImage(null);
+    setPaywall(null);
+    setSelectedQuestion(null);
+    setProjectsOpen(false);
+  }
+
+  function deleteProject(id: string) {
+    const target = projects.find((p) => p.id === id);
+    const label = target?.title || "ce projet";
+    if (!window.confirm(`Supprimer « ${label} » ?`)) return;
+    setProjects((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      if (!next.length) {
+        const fresh = makeProject();
+        window.setTimeout(() => {
+          setActiveProjectId(fresh.id);
+          setChat([]);
+        }, 0);
+        return [fresh];
+      }
+      if (id === activeProjectId) {
+        window.setTimeout(() => {
+          setActiveProjectId(next[0].id);
+          setChat(next[0].chat ?? []);
+        }, 0);
+      }
+      return next;
+    });
+  }
+
+  function startRenameProject(p: Project) {
+    setEditingProjectId(p.id);
+    setEditingProjectTitle(p.title || "Nouvelle demande");
+  }
+
+  function saveProjectTitle(id: string) {
+    const clean = editingProjectTitle.replace(/\s+/g, " ").trim();
+    if (!clean) return;
+    setProjects((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, title: clean.slice(0, 80), updatedAt: Date.now() } : p))
+    );
+    setEditingProjectId(null);
+    setEditingProjectTitle("");
+  }
+
+  function renameActiveProject() {
+    const active = projects.find((p) => p.id === activeProjectId);
+    if (active) startRenameProject(active);
+    setProjectsOpen(true);
+  }
+
+  function resetPersonalProfile() {
+    setPersonalProfile(EMPTY_PROFILE);
   }
 
   function scrollQuick(dx: number) {
@@ -548,8 +783,161 @@ export default function Page() {
       : 100;
 
   return (
-    <main style={ui.page}>
+    <main className="appRoot" style={ui.page}>
       <style>{`
+        * { box-sizing: border-box; }
+        input, textarea, select, button { font: inherit; color: #0f172a; }
+        input, textarea, select { background: #ffffff; -webkit-text-fill-color: #0f172a; caret-color: #0f172a; color-scheme: light; }
+        button { -webkit-tap-highlight-color: transparent; }
+        .appRoot { overflow-x: hidden; }
+        .appFrame {
+          width: min(100%, 1280px);
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 280px minmax(0, 1fr);
+          gap: 18px;
+          align-items: start;
+        }
+        .workspace { min-width: 0; }
+        .mobileOnly { display: none; }
+        .desktopOnlyInline { display: inline; }
+        .topCompactTitle { display:none; }
+        .mobileFaqToggle { display:none; }
+        .composerModeRow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+        .composerHint { font-size: 12px; opacity: 0.75; }
+        .projectRail {
+          position: sticky;
+          top: 14px;
+          max-height: calc(100svh - 28px);
+          overflow: auto;
+          border: 1px solid rgba(226,232,240,0.88);
+          border-radius: 26px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+          box-shadow: 0 18px 42px rgba(15,23,42,0.06);
+          padding: 14px;
+        }
+        .projectRailHeader { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 10px; }
+        .projectTitleSmall { font-weight: 950; font-size: 16px; letter-spacing: -0.01em; }
+        .projectSub { font-size: 12px; line-height: 1.35; opacity: .68; margin-top: 2px; }
+        .projectNew {
+          width: 100%;
+          padding: 12px 13px;
+          border-radius: 16px;
+          border: 1px solid rgba(15,23,42,0.08);
+          background: #0f172a;
+          color: white;
+          -webkit-text-fill-color: white;
+          font-weight: 900;
+          cursor: pointer;
+          margin: 8px 0 12px;
+        }
+        .projectList { display:grid; gap: 8px; }
+        .projectItem {
+          width: 100%;
+          display:grid;
+          grid-template-columns: 1fr auto;
+          gap: 8px;
+          text-align:left;
+          border: 1px solid rgba(226,232,240,0.92);
+          background: rgba(255,255,255,0.88);
+          border-radius: 18px;
+          padding: 11px;
+          cursor:pointer;
+          box-shadow: 0 8px 20px rgba(15,23,42,0.035);
+        }
+        .projectItem.active {
+          border-color: rgba(244,63,94,0.28);
+          background: linear-gradient(180deg, rgba(255,247,237,.98), rgba(255,255,255,.98));
+        }
+        .projectItemTitle { font-size: 13px; line-height: 1.25; font-weight: 850; color:#0f172a; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+        .projectMeta { font-size: 11px; opacity: .62; margin-top: 5px; }
+        .projectDelete {
+          width: 28px; height: 28px; border-radius: 10px; border: 1px solid rgba(226,232,240,0.9);
+          background: rgba(255,255,255,.9); cursor:pointer; color:#64748b; -webkit-text-fill-color:#64748b;
+        }
+        .projectActions { display:flex; gap:6px; align-items:center; justify-content:flex-end; }
+        .miniBtn {
+          min-height: 30px;
+          padding: 6px 9px;
+          border-radius: 11px;
+          border: 1px solid rgba(226,232,240,0.95);
+          background: rgba(255,255,255,0.92);
+          color:#0f172a;
+          -webkit-text-fill-color:#0f172a;
+          cursor:pointer;
+          font-size: 12px;
+          font-weight: 850;
+        }
+        .projectRenameBox { grid-column: 1 / -1; display:grid; gap:8px; }
+        .projectRenameInput {
+          width:100%;
+          padding: 10px 11px;
+          border-radius: 13px;
+          border: 1px solid #cbd5e1;
+          background:#fff;
+          color:#0f172a;
+          -webkit-text-fill-color:#0f172a;
+          font-size: 15px;
+        }
+        .profileGrid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:12px; }
+        .profileField { display:grid; gap:6px; }
+        .profileLabel { font-size:12px; font-weight:900; opacity:.72; }
+        .profileInput, .profileTextarea {
+          width:100%;
+          border: 1px solid #cbd5e1;
+          border-radius: 14px;
+          background:#fff;
+          color:#0f172a;
+          -webkit-text-fill-color:#0f172a;
+          font-size:16px;
+          padding: 12px 13px;
+          outline:none;
+        }
+        .profileTextarea { min-height: 74px; resize: vertical; line-height:1.45; }
+        .userTopRow { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+        .userEmail { font-weight:950; font-size:16px; word-break:break-word; }
+        .userMeta { margin-top:5px; font-size:13px; opacity:.75; line-height:1.45; }
+        .profilePanel {
+          margin-top: 12px;
+          padding: 13px;
+          border: 1px solid rgba(226,232,240,0.92);
+          border-radius: 18px;
+          background: rgba(255,255,255,0.82);
+        }
+        .activeProjectStrip {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border: 1px solid rgba(226,232,240,0.9);
+          border-radius: 16px;
+          background: rgba(255,255,255,0.76);
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap: 10px;
+        }
+        .mobileProjectBar {
+          display:none;
+          width: min(100%, 1280px);
+          margin: 0 auto 10px;
+          gap: 8px;
+          align-items:center;
+        }
+        .mobileProjectBtn {
+          flex: 1;
+          min-height: 46px;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap: 10px;
+          padding: 10px 12px;
+          border-radius: 16px;
+          border: 1px solid rgba(226,232,240,0.95);
+          background: rgba(255,255,255,0.95);
+          box-shadow: 0 10px 26px rgba(15,23,42,0.05);
+          cursor:pointer;
+          font-weight: 900;
+        }
+        .drawerClose { display:none; }
         .bubbleWrap { display:flex; margin: 12px 0; }
         .bubble {
           max-width: 94%;
@@ -622,7 +1010,14 @@ export default function Page() {
             box-shadow: 0 14px 34px rgba(15,23,42,0.05);
           }
 
-        .sectionBody { padding: 14px; border-top: 1px solid #eee; }
+        .sectionHeader {
+          padding: 12px 14px;
+          font-weight: 950;
+          color: #0f172a;
+          -webkit-text-fill-color: #0f172a;
+          letter-spacing: -0.01em;
+        }
+        .sectionBody { padding: 14px; border-top: 1px solid #eee; color: #0f172a; }
 
         .hAnswer { background: rgba(148,163,184,0.16); border-bottom: 1px solid rgba(148,163,184,0.30); }
         .hSynth  { background: rgba(14,165,233,0.12); border-bottom: 1px solid rgba(14,165,233,0.25); }
@@ -721,32 +1116,201 @@ export default function Page() {
           border-radius: 20px;
           background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
           box-shadow: 0 10px 28px rgba(15,23,42,0.05);
+          color: #0f172a;
         }
+        .authRow { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+        .authInput { flex: 1; min-width: 240px; padding: 13px 14px; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; color:#0f172a; font-size:16px; }
+        .imagePreviewCard{
+          display:grid;
+          grid-template-columns: 74px 1fr auto;
+          gap: 10px;
+          align-items:center;
+          padding: 9px;
+          border: 1px solid rgba(226,232,240,0.95);
+          border-radius: 18px;
+          background: rgba(255,255,255,0.96);
+          box-shadow: 0 8px 22px rgba(15,23,42,0.045);
+        }
+        .imagePreviewCard img{ width:74px; height:74px; object-fit:cover; border-radius:14px; border:1px solid rgba(226,232,240,.9); display:block; }
+        .imagePreviewTitle{ font-weight: 900; font-size: 13px; }
+        .imagePreviewMeta{ font-size: 12px; opacity: .68; margin-top: 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .planBadge{
           display:inline-flex; align-items:center; gap:8px; padding: 7px 11px; border-radius:999px; font-size:12px; font-weight:900; letter-spacing:.02em;
           border:1px solid #e2e8f0; background:rgba(255,255,255,.9);
         }
         .heroTitle{ font-size: 46px; line-height: 1.02; margin: 0; letter-spacing: -0.04em; }
+        .heroIntro{ margin-top: 12px; opacity: 0.88; font-size: 16px; line-height: 1.6; }
+        .mobileAskLabel{ display:none; }
         .responseSelect{ padding: 10px; border-radius: 14px; border: 1px solid #ddd; font-size: 14px; background: white; color: #111; }
         .sourceBadge{ font-size: 12px; line-height: 1.45; color: #7c2d12; background: rgba(255,247,237,.92); border: 1px solid rgba(251,146,60,.24); border-radius: 14px; padding: 10px 12px; font-weight: 750; }
 
-        @media (max-width: 680px){
-          .heroShell{ padding: 16px; border-radius: 22px; }
-          .heroTitle{ font-size: 34px; line-height: 1.06; }
+        @media (max-width: 860px){
+          .appRoot{ padding: 8px; background: #fffaf5; }
+          .mobileOnly { display: inline-flex; }
+          .desktopOnlyInline { display: none; }
+          .mobileProjectBar{ display:flex; position: sticky; top: 0; z-index: 60; padding-top: env(safe-area-inset-top); margin-bottom: 8px; }
+          .appFrame{ display:block; width:100%; }
+          .workspace{ width:100%; min-width:0; padding-bottom: 245px; }
+          .projectRail{
+            position: fixed;
+            z-index: 80;
+            top: calc(10px + env(safe-area-inset-top));
+            left: 10px;
+            right: 10px;
+            max-height: calc(100svh - 20px - env(safe-area-inset-top));
+            transform: translateY(-110%);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 180ms ease, opacity 180ms ease;
+            border-radius: 24px;
+            box-shadow: 0 24px 80px rgba(15,23,42,0.22);
+          }
+          .projectRail.open{ transform: translateY(0); opacity: 1; pointer-events: auto; }
+          .drawerClose{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:12px; border:1px solid rgba(226,232,240,.9); background:#fff; cursor:pointer; }
+          .heroShell{ padding: 13px; border-radius: 20px; margin-top: 6px; box-shadow: 0 10px 28px rgba(15,23,42,0.045); }
+          .heroTitle{ font-size: 28px; line-height: 1.06; letter-spacing: -0.035em; }
+          .heroIntro{ font-size: 13px; line-height: 1.48; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+          .heroShell .planBadge{ display:none; }
+          .topCompactTitle{ display:block; font-size: 11px; font-weight: 950; letter-spacing:.08em; text-transform: uppercase; opacity:.56; margin-bottom: 3px; }
           .quickWrap{ grid-template-columns: 1fr; }
           .quickNavBtn{ display:none; }
-          .quickCard{ width: 82vw; }
-          .bubble{ max-width: 100%; padding: 12px; border-radius: 20px; }
+          .quickCard{ width: 84vw; max-width: 360px; padding: 13px; }
+          .bubble{ max-width: 100%; padding: 11px; border-radius: 20px; }
+          .bubble.ernesto{ border-radius: 22px; }
+          .answerPara{ font-size: 15px; line-height: 1.68; }
+          .sectionHeader{ padding: 11px 12px; }
           .sectionBody{ padding: 12px; }
-          .statusCard{ padding: 14px; }
-          .responseSelect{ width: 100%; }
-          .composer{ padding-left: 0; padding-right: 0; }
+          .statusCard{ padding: 14px; border-radius: 20px; }
+          .authRow{ display:grid; grid-template-columns:1fr; }
+          .authInput{ min-width:0; width:100%; }
+          .responseSelect{ width: 100%; min-height: 46px; }
+          .composer{ padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); }
+          .imagePreviewCard{ grid-template-columns: 64px 1fr auto; }
+          .imagePreviewCard img{ width:64px; height:64px; }
+          table{ font-size:12px !important; }
+          .planBadge{ font-size: 11px; padding: 7px 9px; }
+          .profileGrid{ grid-template-columns: 1fr; }
+          .activeProjectStrip{ align-items:flex-start; flex-direction:column; margin-top: 8px; padding: 9px 10px; border-radius: 14px; }
+          .statusCard{ padding: 11px; border-radius: 18px; }
+          .userTopRow{ gap: 8px; }
+          .userEmail{ font-size: 13px; }
+          .userMeta{ font-size: 12px; line-height: 1.35; }
+          .profilePanel{ padding: 11px; border-radius: 16px; }
+          .mobileFaqToggle{ display:flex; width:100%; min-height:44px; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid rgba(226,232,240,.95); border-radius:16px; background:rgba(255,255,255,.95); font-weight:950; cursor:pointer; }
+          .quickSection{ margin-top: 10px !important; }
+          .quickSectionBody{ display: none; }
+          .quickSection.open .quickSectionBody{ display:block; margin-top: 8px; }
+          .quickSectionHeader{ display:none !important; }
+          .composer{
+            position: fixed;
+            left: 8px;
+            right: 8px;
+            bottom: 0;
+            z-index: 70;
+            border: 1px solid rgba(226,232,240,.95);
+            border-bottom: 0;
+            border-radius: 22px 22px 0 0;
+            padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+            background: rgba(255,255,255,0.97);
+            box-shadow: 0 -18px 50px rgba(15,23,42,.14);
+          }
+          .composerModeRow{ display:grid; grid-template-columns: 1fr; gap: 7px; }
+          .composerHint{ display:none; }
+          .mobileAskLabel{ display:block; font-size: 12px; font-weight:950; opacity:.68; margin-bottom: -2px; }
+        }
+
+        @media (max-width: 420px){
+          .appRoot{ padding: 8px; }
+          .heroTitle{ font-size: 25px; }
+          .heroShell{ padding: 12px; }
+          .quickCard{ width: 86vw; }
+          .pizzaLoad{ padding: 10px; }
+          .pizzaLabel{ font-size:12px; line-height:1.35; }
         }
 
         @keyframes pizzaPulse{ 0%,100%{ transform: translateY(0) scale(1); } 50%{ transform: translateY(-2px) scale(1.02); } }
         @keyframes steamUp{ 0%{ opacity:0.15; transform: translateX(-50%) translateY(6px) scale(0.9); } 55%{ opacity:0.55; } 100%{ opacity:0; transform: translateX(-50%) translateY(-10px) scale(1.15); } }
         @keyframes ernestoIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
       `}</style>
+
+      <div className="mobileProjectBar">
+        <button className="mobileProjectBtn" type="button" onClick={() => setProjectsOpen(true)}>
+          <span>Projets</span>
+          <span style={{ opacity: 0.68, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {projects.find((p) => p.id === activeProjectId)?.title ?? "Nouvelle demande"}
+          </span>
+        </button>
+      </div>
+
+      <div className="appFrame">
+        <aside className={`projectRail ${projectsOpen ? "open" : ""}`}>
+          <div className="projectRailHeader">
+            <div>
+              <div className="projectTitleSmall">Projets</div>
+              <div className="projectSub">Gardez plusieurs fils de travail : levain, cuisson, farine, service.</div>
+            </div>
+            <button className="drawerClose" type="button" onClick={() => setProjectsOpen(false)} aria-label="Fermer les projets">×</button>
+          </div>
+          <button className="projectNew" type="button" onClick={newConversation}>Nouveau projet</button>
+          <div className="projectList">
+            {projects.map((p) => (
+              <div key={p.id} className={`projectItem ${p.id === activeProjectId ? "active" : ""}`}>
+                {editingProjectId === p.id ? (
+                  <div className="projectRenameBox">
+                    <input
+                      className="projectRenameInput"
+                      value={editingProjectTitle}
+                      onChange={(e) => setEditingProjectTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveProjectTitle(p.id);
+                        if (e.key === "Escape") setEditingProjectId(null);
+                      }}
+                      autoFocus
+                      placeholder="Nom du projet"
+                    />
+                    <div className="projectActions" style={{ justifyContent: "flex-start" }}>
+                      <button className="miniBtn" type="button" onClick={() => saveProjectTitle(p.id)}>Enregistrer</button>
+                      <button className="miniBtn" type="button" onClick={() => setEditingProjectId(null)}>Annuler</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => selectProject(p.id)}
+                      style={{ appearance: "none", border: 0, background: "transparent", padding: 0, textAlign: "left", cursor: "pointer", minWidth: 0 }}
+                    >
+                      <div className="projectItemTitle">{p.title || "Nouvelle demande"}</div>
+                      <div className="projectMeta">{p.chat.length} message{p.chat.length > 1 ? "s" : ""} · {formatProjectDate(p.updatedAt)}</div>
+                    </button>
+                    <div className="projectActions">
+                      <button
+                        className="miniBtn"
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); startRenameProject(p); }}
+                        aria-label="Renommer le projet"
+                        title="Renommer"
+                      >
+                        Renommer
+                      </button>
+                      <button
+                        className="projectDelete"
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); deleteProject(p.id); }}
+                        aria-label="Supprimer le projet"
+                        title="Supprimer"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <div className="workspace">
 
       {/* --- AUTH / USAGE BANNER --- */}
       <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
@@ -762,12 +1326,14 @@ export default function Page() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+            <div className="authRow">
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="votre.email@exemple.fr"
-                style={{ flex: 1, minWidth: 240, padding: 12, border: "1px solid #cbd5e1", borderRadius: 14, background: "white" }}
+                className="authInput"
+                inputMode="email"
+                autoComplete="email"
               />
               <button onClick={sendMagicLink} style={{ ...ui.btn, width: "auto" }}>
                 Recevoir le lien magique
@@ -776,25 +1342,111 @@ export default function Page() {
             {authInfo && <div style={{ marginTop: 10, opacity: 0.85 }}>{authInfo}</div>}
           </div>
         ) : (
-          <div className="statusCard" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 260 }}>
-              <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">
-                {usage?.is_admin ? "Admin" : usage?.is_pro ? "Ernesto Plus" : "Essai gratuit"}
+          <div className="statusCard">
+            <div className="userTopRow">
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">
+                  {subscriptionLabel(usage)}
+                </div>
+                <div className="userEmail">{session?.user?.email ?? "Utilisateur Ernesto"}</div>
+                <div className="userMeta">
+                  {usageLine ?? "Connecté. Posez votre première question pour afficher l’état de votre essai gratuit."}
+                  {(personalProfile.profession || personalProfile.reason) ? (
+                    <>
+                      <br />
+                      {personalProfile.profession ? `Profil : ${personalProfile.profession}` : ""}
+                      {personalProfile.profession && personalProfile.reason ? " · " : ""}
+                      {personalProfile.reason ? `Objectif : ${personalProfile.reason}` : ""}
+                    </>
+                  ) : null}
+                </div>
+                {usage && !usage.is_pro && !usage.is_admin ? (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ width: "100%", height: 10, background: "#f1f5f9", borderRadius: 999, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                      <div style={{ width: `${usagePercent}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #f43f5e, #8b5cf6)", transition: "width 0.35s ease" }} />
+                    </div>
+                  </div>
+                ) : null}
               </div>
-              <div style={{ fontWeight: 950, fontSize: 16 }}>
-                {usageLine ?? "Connecté. Posez votre première question pour afficher l’état de votre essai gratuit."}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button onClick={() => setProfileOpen((v) => !v)} style={{ ...ui.pill, alignSelf: "flex-start" }}>
+                  {profileOpen ? "Fermer le profil" : "Profil"}
+                </button>
+                <button onClick={logout} style={{ ...ui.pill, alignSelf: "flex-start" }}>
+                  Se déconnecter
+                </button>
               </div>
-              {usage && !usage.is_pro && !usage.is_admin ? (
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ width: "100%", height: 10, background: "#f1f5f9", borderRadius: 999, overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                    <div style={{ width: `${usagePercent}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #f43f5e, #8b5cf6)", transition: "width 0.35s ease" }} />
+            </div>
+
+            {profileOpen ? (
+              <div className="profilePanel">
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
+                  <div>
+                    <div style={{ fontWeight: 950 }}>Personnalisation</div>
+                    <div style={{ fontSize: 13, opacity: 0.72, marginTop: 3 }}>
+                      Ces informations aident Ernesto à adapter le niveau, les exemples et les priorités de réponse.
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.66 }}>
+                    {profileSavedAt ? "Enregistré localement" : ""}
                   </div>
                 </div>
-              ) : null}
-            </div>
-            <button onClick={logout} style={{ ...ui.pill, alignSelf: "flex-start" }}>
-              Se déconnecter
-            </button>
+
+                <div className="profileGrid">
+                  <label className="profileField">
+                    <span className="profileLabel">Âge</span>
+                    <input
+                      className="profileInput"
+                      value={personalProfile.age}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, age: e.target.value }))}
+                      placeholder="ex. 32"
+                      inputMode="numeric"
+                    />
+                  </label>
+                  <label className="profileField">
+                    <span className="profileLabel">Profession / activité</span>
+                    <input
+                      className="profileInput"
+                      value={personalProfile.profession}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, profession: e.target.value }))}
+                      placeholder="ex. élève EPPPN, pizzaiolo, boulanger, reconversion…"
+                    />
+                  </label>
+                  <label className="profileField">
+                    <span className="profileLabel">Niveau</span>
+                    <input
+                      className="profileInput"
+                      value={personalProfile.level}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, level: e.target.value }))}
+                      placeholder="ex. débutant, pro, formateur, passionné…"
+                    />
+                  </label>
+                  <label className="profileField">
+                    <span className="profileLabel">Langue / style préféré</span>
+                    <input
+                      className="profileInput"
+                      value={personalProfile.preferredLanguage}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, preferredLanguage: e.target.value }))}
+                      placeholder="ex. français simple, italien, très concret…"
+                    />
+                  </label>
+                  <label className="profileField" style={{ gridColumn: "1 / -1" }}>
+                    <span className="profileLabel">Pourquoi utilisez-vous Ernesto ?</span>
+                    <textarea
+                      className="profileTextarea"
+                      value={personalProfile.reason}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, reason: e.target.value }))}
+                      placeholder="ex. préparer un examen, corriger mes pâtes, ouvrir une pizzeria, mieux comprendre le levain…"
+                    />
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                  <button className="miniBtn" type="button" onClick={() => setProfileOpen(false)}>Terminer</button>
+                  <button className="miniBtn" type="button" onClick={resetPersonalProfile}>Réinitialiser</button>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -847,12 +1499,10 @@ export default function Page() {
       <header className="heroShell">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
           <div style={{ maxWidth: 760 }}>
+            <div className="topCompactTitle">EPPPN · assistant de diagnostic</div>
             <h1 className="heroTitle">Ernesto, The Pizza Explained.</h1>
-            <div style={{ marginTop: 12, opacity: 0.88, fontSize: 16, lineHeight: 1.6 }}>
+            <div className="heroIntro">
               Basé sur les connaissances et les protocoles transmis à l’EPPPN, Ernesto vous aide à raisonner sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du travail. Il ne donne pas de recettes magiques : il transforme une observation en diagnostic, puis en protocole d’action.
-            </div>
-            <div style={{ marginTop: 10, opacity: 0.74, fontSize: 14, lineHeight: 1.5 }}>
-              Le tuteur EPPPN pour comprendre, corriger et progresser au banc.
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
               <span className="planBadge">Écrire</span>
@@ -869,13 +1519,31 @@ export default function Page() {
         </div>
       </header>
 
-      <section style={{ marginTop: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-          <div style={{ fontWeight: 950, fontSize: 18 }}>Questions fréquentes</div>
-          <div style={{ fontSize: 13, opacity: 0.68 }}>
-            Nuage de situations réelles · 1 clic pour préremplir · double clic pour envoyer
+      <div className="activeProjectStrip">
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12, opacity: 0.66, fontWeight: 900 }}>Projet actif</div>
+          <div style={{ fontWeight: 950, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {projects.find((p) => p.id === activeProjectId)?.title ?? "Nouvelle demande"}
           </div>
         </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="miniBtn" type="button" onClick={renameActiveProject}>Renommer</button>
+          <button className="miniBtn" type="button" onClick={newConversation}>Nouveau</button>
+        </div>
+      </div>
+
+      <section className={`quickSection ${quickOpen ? "open" : ""}`} style={{ marginTop: 14 }}>
+        <button className="mobileFaqToggle" type="button" onClick={() => setQuickOpen((v) => !v)}>
+          <span>Questions fréquentes</span>
+          <span style={{ opacity: 0.62 }}>{quickOpen ? "Masquer" : "Ouvrir"}</span>
+        </button>
+        <div className="quickSectionBody">
+          <div className="quickSectionHeader" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+            <div style={{ fontWeight: 950, fontSize: 18 }}>Questions fréquentes</div>
+            <div style={{ fontSize: 13, opacity: 0.68 }}>
+              Situations réelles · 1 clic pour préremplir · double clic pour envoyer
+            </div>
+          </div>
 
         <div className="quickWrap">
           <button className="quickNavBtn" onClick={() => scrollQuick(-320)} aria-label="Faire défiler vers la gauche">
@@ -907,6 +1575,7 @@ export default function Page() {
           <button className="quickNavBtn" onClick={() => scrollQuick(320)} aria-label="Faire défiler vers la droite">
             ›
           </button>
+        </div>
         </div>
       </section>
 
@@ -953,7 +1622,7 @@ export default function Page() {
       {/* composer */}
       <div className="composer">
         <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div className="composerModeRow">
             <label style={{ fontWeight: 900 }}>Type de réponse</label>
             <select
               value={speed}
@@ -964,21 +1633,10 @@ export default function Page() {
               <option value="ECOLE">Réponse approfondie — analyse & détails</option>
             </select>
 
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
-              {loading ? "Ernesto consulte les connaissances disponibles…" : "Entrée = envoyer · Shift+Entrée = nouvelle ligne"}
+            <div className="composerHint">
+              {loading ? "Analyse en cours · Ernesto structure la réponse…" : "Entrée = envoyer · Shift+Entrée = nouvelle ligne"}
             </div>
 
-            {selectedImage ? (
-              <div className="attachPill" title="Photo prête à envoyer">
-                <span>📷</span>
-                <span style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {selectedImage.name}
-                </span>
-                <button className="attachX" type="button" onClick={() => setSelectedImage(null)} aria-label="Retirer la photo">
-                  ×
-                </button>
-              </div>
-            ) : null}
           </div>
 
           <input
@@ -1010,6 +1668,19 @@ export default function Page() {
               e.currentTarget.value = "";
             }}
           />
+
+          {selectedImage && imagePreviewUrl ? (
+            <div className="imagePreviewCard">
+              <img src={imagePreviewUrl} alt="Photo sélectionnée pour analyse" />
+              <div style={{ minWidth: 0 }}>
+                <div className="imagePreviewTitle">Photo prête pour l’analyse</div>
+                <div className="imagePreviewMeta">{selectedImage.name} · {(selectedImage.size / 1024).toFixed(0)} Ko</div>
+              </div>
+              <button className="attachX" type="button" onClick={() => setSelectedImage(null)} aria-label="Retirer la photo">×</button>
+            </div>
+          ) : null}
+
+          <div className="mobileAskLabel">Votre question</div>
 
           {/* mobile grid: mic + textarea + camera */}
           <div
@@ -1062,8 +1733,10 @@ export default function Page() {
               cursor: loading || !message.trim() ? "not-allowed" : "pointer",
             }}
           >
-            {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Envoyer à Ernesto"}
+            {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Demander à Ernesto"}
           </button>
+        </div>
+      </div>
         </div>
       </div>
     </main>
@@ -1180,7 +1853,7 @@ function PizzaLoader({ ms, done }: { ms: number; done: boolean }) {
       <div className="pizzaLabel">
         {done
           ? "Réponse prête."
-          : "Recherche dans les connaissances disponibles, puis formulation de la réponse…"}
+          : "Analyse en cours · formulation d’une réponse claire et exploitable…"}
       </div>
     </div>
   );
