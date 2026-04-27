@@ -1200,6 +1200,7 @@ export default function Page() {
           .mobileProjectBar{ display:flex; position: sticky; top: 0; z-index: 60; padding-top: env(safe-area-inset-top); margin-bottom: 8px; }
           .appFrame{ display:block; width:100%; }
           .workspace{ width:100%; min-width:0; padding-bottom: 245px; }
+          .workspace.noComposer{ padding-bottom: 20px; }
           .projectRail{
             position: fixed;
             z-index: 80;
@@ -1380,7 +1381,7 @@ export default function Page() {
           </div>
         </aside>
 
-        <div className="workspace">
+        <div className={`workspace ${session ? "" : "noComposer"}`}>
 
       {/* --- AUTH / USAGE BANNER --- */}
       <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
@@ -1404,6 +1405,7 @@ export default function Page() {
                 className="authInput"
                 inputMode="email"
                 autoComplete="email"
+                onFocus={(e) => setTimeout(() => e.currentTarget.scrollIntoView({ behavior: "smooth", block: "center" }), 250)}
               />
               <button onClick={sendMagicLink} style={{ ...ui.btn, width: "auto" }}>
                 Recevoir le lien magique
@@ -1697,7 +1699,7 @@ export default function Page() {
         </div>
       </footer>
 
-      {/* composer */}
+      {session ? (
       <div className="composer">
         <div style={{ display: "grid", gap: 10 }}>
           <div className="composerModeRow">
@@ -1815,6 +1817,7 @@ export default function Page() {
           </button>
         </div>
       </div>
+      ) : null}
         </div>
       </div>
     </main>
