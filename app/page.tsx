@@ -20,7 +20,7 @@ import {
   ZAxis,
 } from "recharts";
 
-type Speed = "VITE" | "APPROFONDIE";
+type Speed = "BANCO" | "ECOLE";
 
 type Chart =
   | {
@@ -74,25 +74,62 @@ type ChatMsg = {
   role: "user" | "ernesto";
   text: string;
   graph?: GraphJSON | null;
+  rag?: { used?: number } | null;
+  mode?: string | null;
+  sourceMention?: boolean;
 };
 
 function uid() {
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
 
-const QUICK_QUESTIONS: Array<{ label: string; text: string }> = [
-  {
-    label: "W260 vs W320",
-    text: "Comparer W260 vs W320 pour fermentation 48h au froid : risques, choix et protocole de contrôle.",
-  },
-  { label: "Cornicione serré", text: "Cornicione serré, pâte peu extensible : protocole de correction en 48h froid ?" },
-  { label: "Levain trop acide", text: "Levain trop acide : comment stabiliser sans perdre la force ?" },
-  { label: "Sole trop chaude", text: "Sole trop chaude et dessus pâle : comment équilibrer la cuisson dans un four électrique ?" },
-  { label: "Choisir un four", text: "Choisir un four électrique : critères, risques, tests de contrôle à faire ?" },
-  { label: "Marge Margherita", text: "Pourquoi une Margherita est souvent plus rentable qu’une pizza gourmet très garnie ?" },
-  { label: "Hausse farine", text: "Impact d’une hausse de 10% du prix de la farine sur la marge : comment raisonner ?" },
-  { label: "Plan service", text: "Proposer un plan de production (timeline) pour service du soir avec pâte au froid." },
+const QUICK_QUESTIONS: Array<{ label: string; text: string; category: string }> = [
+  { category: "Farines", label: "W260 vs W320", text: "Comparer W260 vs W320 pour fermentation 48h au froid : risques, choix et protocole de contrôle." },
+  { category: "Pâte", label: "Pâte collante", text: "Pourquoi ma pâte colle-t-elle trop au banc, et quels réglages concrets puis-je tester ?" },
+  { category: "Levain", label: "Levain trop acide", text: "Levain trop acide : comment stabiliser sans perdre la force ?" },
+  { category: "Cuisson", label: "Sole trop chaude", text: "Sole trop chaude et dessus pâle : comment équilibrer la cuisson dans un four électrique ?" },
+  { category: "Cornicione", label: "Cornicione serré", text: "Cornicione serré, pâte peu extensible : protocole de correction en 48h froid ?" },
+  { category: "Hydratation", label: "65% ou 70%", text: "Hydratation 65% ou 70% : comment choisir selon farine, service et cuisson ?" },
+  { category: "Fermentation", label: "48h au froid", text: "Comment organiser une fermentation de 48h au froid sans perdre de force ?" },
+  { category: "Production", label: "Plan de service", text: "Proposer un plan de production (timeline) pour service du soir avec pâte au froid." },
+  { category: "Gestion", label: "Choisir un four", text: "Choisir un four électrique : critères, risques, tests de contrôle à faire ?" },
+  { category: "Gestion", label: "Marge Margherita", text: "Pourquoi une Margherita est souvent plus rentable qu’une pizza gourmet très garnie ?" },
+  { category: "Coûts", label: "Hausse farine", text: "Impact d’une hausse de 10% du prix de la farine sur la marge : comment raisonner ?" },
+  { category: "Pâte", label: "Pâte trop élastique", text: "Ma pâte est trop élastique et revient sans cesse : quelles causes probables et quels correctifs ?" },
+  { category: "Pâte", label: "Pâte trop molle", text: "Ma pâte est trop molle en fin d’apprêt : comment corriger le protocole ?" },
+  { category: "Alvéolage", label: "Alvéolage faible", text: "Comment améliorer l’alvéolage sans perdre en tenue ni en régularité ?" },
+  { category: "Apprêt", label: "Temps d’apprêt", text: "Quel temps d’apprêt viser selon la température ambiante et la force de farine ?" },
+  { category: "Sel", label: "Gestion du sel", text: "Quel rôle joue le sel dans la pâte, et comment ajuster son dosage intelligemment ?" },
+  { category: "Cuisson", label: "Pizza trop sèche", text: "Pourquoi ma pizza sort-elle sèche malgré une bonne coloration ?" },
+  { category: "Cuisson", label: "Pizza trop pâle", text: "Pourquoi ma pizza reste-t-elle pâle et comment ajuster la cuisson ?" },
+  { category: "Four", label: "Électrique vs bois", text: "Comparer four électrique et four à bois pour une pizza artisanale régulière." },
+  { category: "Méthode", label: "Autolyse", text: "Autolyse : utile ou non dans mon protocole ?" },
+  { category: "Méthode", label: "24h vs 72h", text: "Comparer une maturation 24h vs 72h : bénéfices, risques et limites." },
+  { category: "Farines", label: "Farines FR vs IT", text: "Farines françaises vs italiennes : comment raisonner au-delà des habitudes ?" },
+  { category: "Formats", label: "Teglia vs napolitaine", text: "Différences de logique entre pizza en teglia et pizza napolitaine." },
+  { category: "Organisation", label: "Gestion du banc", text: "Comment organiser le banc pour garder régularité, vitesse et confort de travail ?" },
+  { category: "Digestibilité", label: "Pizza plus digeste", text: "Quels leviers réels permettent d’améliorer la digestibilité d’une pizza ?" },
+  { category: "Levain", label: "Levain faible", text: "Mon levain manque de force : comment le relancer proprement sans le rendre trop acide ?" },
+  { category: "Service", label: "Rush du soir", text: "Comment préparer le service du soir pour garder régularité et vitesse sans stress ?" },
+  { category: "Boulage", label: "Pâtons irréguliers", text: "Mes pâtons sont irréguliers : quelles conséquences et comment corriger le boulage ?" },
+  { category: "Cornicione", label: "Bulles excessives", text: "Pourquoi ai-je de grosses bulles irrégulières sur le cornicione et comment les maîtriser ?" },
+  { category: "Hydratation", label: "Eau trop chaude", text: "Quel impact a une eau trop chaude sur le pétrissage et la fermentation ?" },
+  { category: "Cuisson", label: "Dessus trop coloré", text: "Pourquoi le dessus colore trop vite alors que le dessous manque encore de cuisson ?" },
+  { category: "Méthode", label: "Frasage trop court", text: "Quels signes montrent qu’un frasage est trop court ou au contraire trop poussé ?" },
+  { category: "Fermentation", label: "Sur-fermentation", text: "Comment reconnaître une sur-fermentation et quelles marges de correction existent ?" },
+  { category: "Organisation", label: "Mise en place", text: "Quelle mise en place conseillez-vous pour garder un service propre et rapide ?" },
+  { category: "Farines", label: "Mélange de farines", text: "Comment construire un mélange de farines cohérent selon l’hydratation et la maturation visées ?" },
+  { category: "Pâte", label: "Pâte qui se déchire", text: "Pourquoi ma pâte se déchire à l’ouverture et quels réglages tester en priorité ?" },
 ];
+
+function shuffleQuestions<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
 
 function badgeStyle(p: "high" | "medium" | "low"): React.CSSProperties {
   const base: React.CSSProperties = {
@@ -111,26 +148,28 @@ function badgeStyle(p: "high" | "medium" | "low"): React.CSSProperties {
 
 const ui = {
   page: {
-    maxWidth: 1050,
+    maxWidth: 1120,
     margin: "0 auto",
-    padding: 16,
+    padding: 18,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-    color: "#111",
+    color: "#0f172a",
+    background:
+      "radial-gradient(circle at top left, rgba(244,114,182,0.08), transparent 28%), radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 26%)",
   } as React.CSSProperties,
   pill: {
-    border: "1px solid #ddd",
+    border: "1px solid #e2e8f0",
     borderRadius: 999,
-    padding: "8px 10px",
-    background: "white",
+    padding: "10px 14px",
+    background: "rgba(255,255,255,0.96)",
     cursor: "pointer",
     fontSize: 13,
     fontWeight: 800,
     color: "#111",
   } as React.CSSProperties,
   btn: {
-    padding: "12px 14px",
-    borderRadius: 14,
-    border: "1px solid #ddd",
+    padding: "13px 15px",
+    borderRadius: 16,
+    border: "1px solid #e2e8f0",
     cursor: "pointer",
     background: "white",
     color: "#111",
@@ -139,9 +178,9 @@ const ui = {
   } as React.CSSProperties,
   textarea: {
     width: "100%",
-    padding: 12,
-    borderRadius: 14,
-    border: "1px solid #ddd",
+    padding: 14,
+    borderRadius: 18,
+    border: "1px solid #e2e8f0",
     outline: "none",
     fontSize: 16, // evita zoom iOS
     lineHeight: 1.45,
@@ -149,10 +188,10 @@ const ui = {
     color: "#111",
   } as React.CSSProperties,
   iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    border: "1px solid #ddd",
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    border: "1px solid #e2e8f0",
     background: "white",
     color: "#111",
     cursor: "pointer",
@@ -170,7 +209,7 @@ function startDictation(onText: (txt: string) => void) {
   if (!SR) return null;
 
   const rec = new SR();
-  rec.lang = "fr-FR"; // cambia in "it-IT" se vuoi
+  rec.lang = navigator.language || "fr-FR";
   rec.interimResults = true;
   rec.continuous = false;
 
@@ -217,10 +256,13 @@ async function compressImageToJpeg(
 }
 
 export default function Page() {
-  const [speed, setSpeed] = useState<Speed>("VITE");
+  const [speed, setSpeed] = useState<Speed>("BANCO");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [chat, setChat] = useState<ChatMsg[]>([]);
+  // 🍕 Loader progress (timeline)
+  const [loadingMs, setLoadingMs] = useState(0);
+  const [pizzaDone, setPizzaDone] = useState(false);
 
   // ---- auth + paywall ----
   const supabase = useMemo(() => {
@@ -239,7 +281,13 @@ export default function Page() {
     remaining: number;
     trial_started_at?: string;
     trial_ends_at?: string;
+    trial_days_total?: number;
+    trial_days_remaining?: number;
+    trial_active?: boolean;
+    safety_limit?: number;
+    usage_cost?: number;
     is_pro?: boolean;
+    is_admin?: boolean;
   }>(null);
 
   // paywall payload (when 402)
@@ -254,13 +302,13 @@ export default function Page() {
   async function sendMagicLink() {
     setAuthInfo(null);
     const e = email.trim();
-    if (!e) return setAuthInfo("Indique un email.");
+    if (!e) return setAuthInfo("Indiquez votre adresse e-mail.");
     const { error } = await supabase.auth.signInWithOtp({
       email: e,
       options: { emailRedirectTo: window.location.origin },
     });
     if (error) return setAuthInfo(error.message);
-    setAuthInfo("Lien envoyé. Ouvre ton email et clique sur le lien de connexion.");
+    setAuthInfo("Lien envoyé. Ouvrez votre boîte mail et cliquez sur le lien de connexion sécurisé.");
   }
 
   async function logout() {
@@ -279,10 +327,48 @@ export default function Page() {
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const quickRowRef = useRef<HTMLDivElement | null>(null);
+  const [quickQuestions, setQuickQuestions] = useState(QUICK_QUESTIONS);
+  const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+  const [pauseQuickScroll, setPauseQuickScroll] = useState(false);
+  const quickDirectionRef = useRef<1 | -1>(1);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat, loading]);
+
+  useEffect(() => {
+    if (!loading) {
+    setLoadingMs(0);
+    return;
+    }
+    const t0 = Date.now();
+    const id = window.setInterval(() => setLoadingMs(Date.now() - t0), 100);
+    return () => window.clearInterval(id);
+  }, [loading]);
+
+  useEffect(() => {
+    setQuickQuestions(shuffleQuestions(QUICK_QUESTIONS));
+  }, []);
+
+  useEffect(() => {
+    const el = quickRowRef.current;
+    if (!el || pauseQuickScroll) return;
+
+    const id = window.setInterval(() => {
+      if (!quickRowRef.current) return;
+      const node = quickRowRef.current;
+      const maxScroll = node.scrollWidth - node.clientWidth;
+
+      if (maxScroll <= 0) return;
+
+      if (node.scrollLeft >= maxScroll - 4) quickDirectionRef.current = -1;
+      if (node.scrollLeft <= 4) quickDirectionRef.current = 1;
+
+      node.scrollBy({ left: quickDirectionRef.current * 0.10, behavior: "auto" });
+    }, 1560);
+
+    return () => window.clearInterval(id);
+  }, [pauseQuickScroll]);
 
   async function askTutor(text: string) {
     const userText = text.trim();
@@ -290,11 +376,13 @@ export default function Page() {
 
     // must be logged in (we need bearer token)
     if (!session?.access_token) {
-      setAuthInfo("Connecte-toi pour utiliser Ernesto (essai gratuit inclus).");
+      setAuthInfo("Connectez-vous pour utiliser Ernesto. L’essai gratuit de 10 jours est inclus.");
       return;
     }
 
     setPaywall(null); // close paywall on new ask attempt
+    const responseIndex = chat.filter((m) => m.role === "ernesto").length + 1;
+    setPizzaDone(false);
     setChat((prev) => [...prev, { id: uid(), role: "user", text: userText }]);
     setLoading(true);
 
@@ -306,6 +394,7 @@ export default function Page() {
         const fd = new FormData();
         fd.append("message", userText);
         fd.append("speed", speed);
+        fd.append("responseIndex", String(responseIndex));
         fd.append("isFirstTurn", String(chat.length === 0));
         fd.append("image", selectedImage);
 
@@ -326,6 +415,7 @@ export default function Page() {
           },
           body: JSON.stringify({
             message: userText,
+            responseIndex,
             isFirstTurn: chat.length === 0,
             speed,
           }),
@@ -336,7 +426,7 @@ export default function Page() {
 
       // 401: not logged / invalid session
       if (res.status === 401) {
-        setAuthInfo("Session invalide. Reconnecte-toi.");
+        setAuthInfo("Session invalide. Reconnectez-vous avec le lien magique.");
         return;
       }
 
@@ -356,7 +446,19 @@ export default function Page() {
       const text_fr: string = data?.text_fr ?? data?.answer_fr ?? data?.text ?? "";
       const graph: GraphJSON | null = data?.graph ?? null;
 
-      setChat((prev) => [...prev, { id: uid(), role: "ernesto", text: text_fr, graph }]);
+      setPizzaDone(true);
+      setChat((prev) => [
+        ...prev,
+        {
+          id: uid(),
+          role: "ernesto",
+          text: text_fr,
+          graph,
+          rag: data?.rag ?? null,
+          mode: data?.mode ?? speed,
+          sourceMention: Boolean(data?.source_mention),
+        },
+      ]);
       setMessage("");
     } catch (err: any) {
       setChat((prev) => [
@@ -368,7 +470,10 @@ export default function Page() {
         },
       ]);
     } finally {
-      setLoading(false);
+      window.setTimeout(() => {
+        setLoading(false);
+        setPizzaDone(false);
+      }, 620);
     }
   }
 
@@ -377,11 +482,24 @@ export default function Page() {
     setMessage("");
     setSelectedImage(null);
     setPaywall(null);
+    setSelectedQuestion(null);
   }
 
   function scrollQuick(dx: number) {
     if (!quickRowRef.current) return;
+    quickDirectionRef.current = dx > 0 ? 1 : -1;
     quickRowRef.current.scrollBy({ left: dx, behavior: "smooth" });
+  }
+
+  function handleQuestionClick(q: { label: string; text: string; category: string }) {
+    setSelectedQuestion(q.label);
+    setMessage(q.text);
+  }
+
+  async function handleQuestionDoubleClick(q: { label: string; text: string; category: string }) {
+    setSelectedQuestion(q.label);
+    setMessage(q.text);
+    await askTutor(q.text);
   }
 
   function toggleDictation() {
@@ -398,7 +516,7 @@ export default function Page() {
     });
 
     if (!stop) {
-      alert("Micro (dictée) non supporté sur ce navigateur. Sur iPhone, c’est fréquent.");
+      alert("La dictée vocale n’est pas prise en charge par ce navigateur.");
       return;
     }
 
@@ -412,50 +530,99 @@ export default function Page() {
     }, 12000);
   }
 
+  const trialDaysTotal = usage?.trial_days_total ?? 10;
+  const trialDaysRemaining = usage?.trial_days_remaining ?? null;
+
   const usageLine =
-    usage?.is_pro
-      ? "🟣 Pro: accès illimité."
+    usage?.is_admin
+      ? "Mode administrateur — accès illimité"
+      : usage?.is_pro
+      ? "Ernesto Plus activé — accès illimité"
       : usage
-      ? `🟢 Gratuit: ${usage.remaining} requêtes restantes (sur 10) — essai jusqu’au ${usage.trial_ends_at ? new Date(usage.trial_ends_at).toLocaleDateString() : "…"}.`
+      ? `Essai gratuit : ${trialDaysRemaining ?? "—"} jour${trialDaysRemaining === 1 ? "" : "s"} restant${trialDaysRemaining === 1 ? "" : "s"}${usage.trial_ends_at ? ` — jusqu’au ${new Date(usage.trial_ends_at).toLocaleDateString("fr-FR")}` : ""}`
       : null;
+
+  const usagePercent =
+    usage && !usage.is_pro && !usage.is_admin
+      ? Math.max(0, Math.min(100, ((trialDaysRemaining ?? trialDaysTotal) / trialDaysTotal) * 100))
+      : 100;
 
   return (
     <main style={ui.page}>
       <style>{`
-        .bubbleWrap { display:flex; margin: 10px 0; }
+        .bubbleWrap { display:flex; margin: 12px 0; }
         .bubble {
-          max-width: 92%;
-          border-radius: 18px;
-          padding: 12px;
-          border: 1px solid #eee;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-          line-height: 1.55;
+          max-width: 94%;
+          border-radius: 24px;
+          padding: 14px;
+          border: 1px solid #ececf3;
+          box-shadow: 0 14px 34px rgba(15,23,42,0.05);
+          line-height: 1.6;
           white-space: pre-wrap;
           background: white;
           color: #111;
         }
-        .bubble.user { margin-left: auto; background: #f7f7f7; border-color: #e8e8e8; }
-        .bubble.ernesto { margin-right: auto; background: #ffffff; }
-
-        .quickWrap { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
-        .quickNavBtn { border: 1px solid #ddd; background: white; width: 38px; height: 38px; border-radius: 12px; cursor: pointer; font-weight: 900; }
-        .quickRow { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; padding-left: 2px; padding-right: 2px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; }
-        .quickCard {
-          flex: 0 0 auto; width: 250px; border-radius: 16px; padding: 12px 14px; cursor: pointer; text-align: left;
-          border: 1px solid #e6e6f5;
-          background: linear-gradient(180deg, rgba(79, 70, 229, 0.10), rgba(14, 165, 233, 0.08));
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
-          transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
-          scroll-snap-align: start;
-          color: #111;
+        .bubble.user {
+          margin-left: auto;
+          background: linear-gradient(180deg, #ffffff, #f8fafc);
+          border-color: #e2e8f0;
         }
-        .quickCard:hover { transform: translateY(-1px); border-color: #c7c7ff; box-shadow: 0 10px 24px rgba(0,0,0,0.08); }
-        .quickLabel { font-weight: 950; font-size: 14px; line-height: 1.2; }
-        .quickText { margin-top: 6px; font-size: 12px; line-height: 1.35; opacity: 0.85; }
+        .bubble.ernesto {
+          margin-right: auto;
+          max-width: 100%;
+          width: 100%;
+          background: linear-gradient(180deg, rgba(255,252,246,0.99), rgba(255,247,237,0.96));
+          border-color: rgba(251,146,60,0.24);
+          animation: ernestoIn 280ms ease;
+        }
+        .answerText { display: grid; gap: 8px; }
+        .answerPara { margin: 0; font-size: 15px; line-height: 1.75; color: #0f172a; }
+        .answerHeading {
+          margin-top: 6px;
+          font-weight: 950;
+          font-size: 15px;
+          letter-spacing: -0.01em;
+          color: #7c2d12;
+        }
+        .quickWrap { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+        .quickNavBtn {
+          border: 1px solid #e2e8f0; background: rgba(255,255,255,0.96); width: 42px; height: 42px; border-radius: 14px; cursor: pointer; font-weight: 900;
+          box-shadow: 0 8px 24px rgba(15,23,42,0.05);
+        }
+        .quickRow { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; padding-left: 2px; padding-right: 2px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; scrollbar-width: none; }
+        .quickRow::-webkit-scrollbar { display: none; }
+        .quickCard {
+          flex: 0 0 auto; width: 258px; border-radius: 22px; padding: 14px 15px; cursor: pointer; text-align: left;
+          border: 1px solid rgba(139,92,246,0.14);
+          background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96));
+          box-shadow: 0 12px 30px rgba(15,23,42,0.05);
+          transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+          scroll-snap-align: start; color: #111;
+        }
+        .quickCard:hover { transform: translateY(-2px); border-color: rgba(244,63,94,0.22); box-shadow: 0 18px 38px rgba(15,23,42,0.09); }
+        .quickCard.selected {
+          background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96));
+          border-color: rgba(15,23,42,0.92);
+          color: white;
+          box-shadow: 0 18px 40px rgba(15,23,42,0.18);
+          transform: translateY(-1px) scale(1.01);
+        }
+        .quickCard.selected .quickKicker,
+        .quickCard.selected .quickText { opacity: 0.82; color: rgba(255,255,255,0.88); }
+        .quickCard.selected .quickLabel { color: white; }
+        .quickKicker { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; opacity: .52; }
+        .quickLabel { font-weight: 950; font-size: 16px; line-height: 1.2; margin-top: 8px; }
+        .quickText { margin-top: 8px; font-size: 12px; line-height: 1.45; opacity: 0.82; }
 
-        .sectionShell { border-radius: 16px; border: 1px solid #eee; overflow: hidden; background: white; }
-        .sectionHeader { padding: 10px 12px; font-weight: 950; font-size: 13px; letter-spacing: 0.2px; }
-        .sectionBody { padding: 12px; border-top: 1px solid #eee; }
+        .sectionShell {
+            border-radius: 22px;
+            border: 1px solid #e9edf3;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,252,0.98));
+            box-shadow: 0 14px 34px rgba(15,23,42,0.05);
+          }
+
+        .sectionBody { padding: 14px; border-top: 1px solid #eee; }
 
         .hAnswer { background: rgba(148,163,184,0.16); border-bottom: 1px solid rgba(148,163,184,0.30); }
         .hSynth  { background: rgba(14,165,233,0.12); border-bottom: 1px solid rgba(14,165,233,0.25); }
@@ -467,70 +634,209 @@ export default function Page() {
           position: sticky;
           bottom: 0;
           z-index: 20;
-          background: rgba(255,255,255,0.98);
-          border-top: 1px solid #eee;
-          padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
-          margin-top: 14px;
+          background: rgba(255,255,255,0.90);
+          backdrop-filter: blur(10px);
+          border-top: 1px solid rgba(226,232,240,0.85);
+          padding: 14px 0 calc(14px + env(safe-area-inset-bottom));
+          margin-top: 18px;
         }
 
         .attachPill {
           display:flex; align-items:center; gap: 8px;
-          padding: 6px 10px; border: 1px solid #eee; border-radius: 999px;
-          font-size: 12px; background: #fff;
+          padding: 7px 11px; border: 1px solid #e2e8f0; border-radius: 999px;
+          font-size: 12px; background: rgba(255,255,255,0.96);
+          box-shadow: 0 6px 16px rgba(15,23,42,0.04);
         }
         .attachX { border: 1px solid #ddd; border-radius: 999px; width: 22px; height: 22px; cursor: pointer; background: #fff; }
+
+        .pizzaLoad{
+          display:grid;
+          gap:8px;
+          padding:12px 14px;
+          border: 1px solid rgba(251,146,60,0.30);
+          background: linear-gradient(180deg, rgba(255,247,237,0.96), rgba(255,237,213,0.82));
+          border-radius: 18px;
+          box-shadow: 0 10px 30px rgba(154,52,18,0.10);
+          overflow: hidden;
+        }
+        .pizzaRunway{
+          position: relative;
+          height: 42px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.72);
+          border: 1px solid rgba(251,146,60,0.18);
+          overflow: hidden;
+        }
+        .pizzaMotion{
+          position:absolute;
+          top:50%;
+          transform: translate(-50%, -50%);
+          transition: left 180ms linear;
+          z-index:2;
+        }
+        .pizzaTrack{
+          position: absolute;
+          left: 18px;
+          right: 18px;
+          top: 50%;
+          height: 10px;
+          transform: translateY(-50%);
+          background: rgba(255,255,255,0.82);
+          border-radius: 999px;
+          overflow: hidden;
+          border: 1px solid rgba(251,146,60,0.16);
+        }
+        .pizzaFill{ height: 100%; border-radius: 999px; background: linear-gradient(90deg, #fb923c, #f43f5e); transition: width 180ms linear; }
+        .pizzaLabel{ font-size: 13px; font-weight: 800; color: #7c2d12; letter-spacing: 0.1px; }
+        .pizzaIcon{
+          width: 34px; height: 34px; border-radius: 999px; position: relative;
+          background: radial-gradient(circle at 50% 50%, rgba(252, 211, 77, 1) 0%, rgba(251, 191, 36, 1) 62%, rgba(194, 65, 12, 1) 78%, rgba(154, 52, 18, 1) 100%);
+          box-shadow: 0 12px 24px rgba(154, 52, 18, 0.18); animation: pizzaPulse 900ms ease-in-out infinite; overflow: hidden;
+        }
+        .pizzaIcon::before{
+          content:""; position:absolute; inset: 4px; border-radius: 999px;
+          background:
+            radial-gradient(circle at 28% 32%, rgba(34,197,94,0.95) 0 10%, transparent 11%),
+            radial-gradient(circle at 70% 62%, rgba(34,197,94,0.95) 0 9%, transparent 10%),
+            radial-gradient(circle at 36% 58%, rgba(255,255,255,0.95) 0 12%, transparent 13%),
+            radial-gradient(circle at 62% 40%, rgba(255,255,255,0.95) 0 10%, transparent 11%),
+            radial-gradient(circle at 55% 72%, rgba(255,255,255,0.95) 0 9%, transparent 10%),
+            radial-gradient(circle at 50% 50%, rgba(239,68,68,0.95) 0 70%, rgba(239,68,68,0.85) 71% 100%);
+        }
+        .pizzaIcon::after{
+          content:""; position:absolute; left: 50%; top: -16px; width: 28px; height: 28px; transform: translateX(-50%); border-radius: 999px;
+          background: radial-gradient(circle at 50% 60%, rgba(148,163,184,0.35), transparent 70%); filter: blur(1.2px); animation: steamUp 1000ms ease-in-out infinite;
+        }
+        .heroShell{
+          margin-top: 6px;
+          padding: 22px;
+          border-radius: 26px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+          border: 1px solid rgba(226,232,240,0.86);
+          box-shadow: 0 18px 42px rgba(15,23,42,0.06);
+        }
+        .statusCard{
+          padding: 16px;
+          border: 1px solid #ece7ff;
+          border-radius: 20px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+          box-shadow: 0 10px 28px rgba(15,23,42,0.05);
+        }
+        .planBadge{
+          display:inline-flex; align-items:center; gap:8px; padding: 7px 11px; border-radius:999px; font-size:12px; font-weight:900; letter-spacing:.02em;
+          border:1px solid #e2e8f0; background:rgba(255,255,255,.9);
+        }
+        .heroTitle{ font-size: 46px; line-height: 1.02; margin: 0; letter-spacing: -0.04em; }
+        .responseSelect{ padding: 10px; border-radius: 14px; border: 1px solid #ddd; font-size: 14px; background: white; color: #111; }
+        .sourceBadge{ font-size: 12px; line-height: 1.45; color: #7c2d12; background: rgba(255,247,237,.92); border: 1px solid rgba(251,146,60,.24); border-radius: 14px; padding: 10px 12px; font-weight: 750; }
+
+        @media (max-width: 680px){
+          .heroShell{ padding: 16px; border-radius: 22px; }
+          .heroTitle{ font-size: 34px; line-height: 1.06; }
+          .quickWrap{ grid-template-columns: 1fr; }
+          .quickNavBtn{ display:none; }
+          .quickCard{ width: 82vw; }
+          .bubble{ max-width: 100%; padding: 12px; border-radius: 20px; }
+          .sectionBody{ padding: 12px; }
+          .statusCard{ padding: 14px; }
+          .responseSelect{ width: 100%; }
+          .composer{ padding-left: 0; padding-right: 0; }
+        }
+
+        @keyframes pizzaPulse{ 0%,100%{ transform: translateY(0) scale(1); } 50%{ transform: translateY(-2px) scale(1.02); } }
+        @keyframes steamUp{ 0%{ opacity:0.15; transform: translateX(-50%) translateY(6px) scale(0.9); } 55%{ opacity:0.55; } 100%{ opacity:0; transform: translateX(-50%) translateY(-10px) scale(1.15); } }
+        @keyframes ernestoIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
       `}</style>
 
       {/* --- AUTH / USAGE BANNER --- */}
-      <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+      <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
         {!session ? (
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 12 }}>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Connexion</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="statusCard">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <div>
+                <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">Essai gratuit de 10 jours</div>
+                <div style={{ fontWeight: 950, fontSize: 18 }}>Connectez-vous avec votre e-mail</div>
+                <div style={{ marginTop: 6, opacity: 0.78, maxWidth: 700 }}>
+                  Recevez un lien de connexion sécurisé. Aucun mot de passe n’est nécessaire. L’essai commence au premier accès par lien magique.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="email"
-                style={{ flex: 1, minWidth: 240, padding: 10, border: "1px solid #ccc", borderRadius: 10 }}
+                placeholder="votre.email@exemple.fr"
+                style={{ flex: 1, minWidth: 240, padding: 12, border: "1px solid #cbd5e1", borderRadius: 14, background: "white" }}
               />
-              <button onClick={sendMagicLink} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                Envoyer le lien
+              <button onClick={sendMagicLink} style={{ ...ui.btn, width: "auto" }}>
+                Recevoir le lien magique
               </button>
             </div>
-            {authInfo && <div style={{ marginTop: 8, opacity: 0.85 }}>{authInfo}</div>}
+            {authInfo && <div style={{ marginTop: 10, opacity: 0.85 }}>{authInfo}</div>}
           </div>
         ) : (
-          <div style={{ padding: 12, border: "1px solid #eee", borderRadius: 12, display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 800 }}>
-              {usageLine ?? "Connecté. Pose ta première question pour initialiser l’essai gratuit."}
+          <div className="statusCard" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">
+                {usage?.is_admin ? "Admin" : usage?.is_pro ? "Ernesto Plus" : "Essai gratuit"}
+              </div>
+              <div style={{ fontWeight: 950, fontSize: 16 }}>
+                {usageLine ?? "Connecté. Posez votre première question pour afficher l’état de votre essai gratuit."}
+              </div>
+              {usage && !usage.is_pro && !usage.is_admin ? (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ width: "100%", height: 10, background: "#f1f5f9", borderRadius: 999, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                    <div style={{ width: `${usagePercent}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #f43f5e, #8b5cf6)", transition: "width 0.35s ease" }} />
+                  </div>
+                </div>
+              ) : null}
             </div>
-            <button onClick={logout} style={{ padding: "10px 14px", borderRadius: 10 }}>
+            <button onClick={logout} style={{ ...ui.pill, alignSelf: "flex-start" }}>
               Se déconnecter
             </button>
           </div>
         )}
 
         {paywall?.paywall ? (
-          <div style={{ padding: 12, border: "1px solid #f0c", borderRadius: 12 }}>
-            <div style={{ fontWeight: 950 }}>🔒 Ernesto Pro</div>
-            <div style={{ marginTop: 6 }}>
-              {paywall.reason === "quota_reached"
-                ? "Tu as atteint la limite gratuite (10 requêtes)."
-                : "Ta période d’essai (4 jours) est terminée."}
+          <div
+            style={{
+              padding: 16,
+              border: "1px solid rgba(244,63,94,0.22)",
+              borderRadius: 20,
+              background: "linear-gradient(180deg, rgba(255,245,247,0.98), rgba(255,241,242,0.95))",
+              boxShadow: "0 14px 34px rgba(244,63,94,0.08)",
+            }}
+          >
+            <div style={{ fontWeight: 950, fontSize: 18 }}>Activer Ernesto Plus</div>
+            <div style={{ marginTop: 8, lineHeight: 1.5 }}>
+              {paywall.reason === "usage_limit_reached"
+                ? "Votre essai gratuit a atteint sa limite de sécurité."
+                : "Votre essai gratuit de 10 jours est terminé."}
             </div>
-            {paywall.usage ? (
-              <div style={{ marginTop: 6, opacity: 0.85 }}>
-                Gratuit: {paywall.usage.used} utilisées — {paywall.usage.remaining} restantes.
+            <div style={{ marginTop: 10, opacity: 0.88 }}>
+              Continuez à travailler sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du banc.
+            </div>
+            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+              <div style={{ padding: 12, border: "1px solid rgba(244,63,94,0.14)", borderRadius: 16, background: "white" }}>
+                <div style={{ fontSize: 13, opacity: .7 }}>Mensuel</div>
+                <div style={{ fontSize: 24, fontWeight: 950 }}>19 € <span style={{ fontSize: 13, fontWeight: 800 }}>/ mois</span></div>
               </div>
-            ) : null}
-            <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                style={{ padding: "10px 14px", borderRadius: 10, fontWeight: 800 }}
-                onClick={() => alert("TODO: intégrer Stripe / achats in-app")}
-              >
-                S’abonner
+              <div style={{ padding: 12, border: "1px solid rgba(139,92,246,0.18)", borderRadius: 16, background: "white" }}>
+                <div style={{ fontSize: 13, opacity: .7 }}>Annuel</div>
+                <div style={{ fontSize: 24, fontWeight: 950 }}>149 € <span style={{ fontSize: 13, fontWeight: 800 }}>/ an</span></div>
+              </div>
+            </div>
+            <div style={{ marginTop: 12, display: "grid", gap: 6, fontSize: 14 }}>
+              <div>• questions écrites, messages audio et analyse d’images</div>
+              <div>• réponses rapides ou analyses approfondies</div>
+              <div>• accès aux raisonnements pédagogiques EPPPN</div>
+            </div>
+            <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button style={{ padding: "11px 15px", borderRadius: 14, fontWeight: 900, border: "1px solid rgba(244,63,94,0.2)", background: "linear-gradient(90deg, #f43f5e, #8b5cf6)", color: "white", cursor: "pointer" }} onClick={() => alert("Paiement à brancher : Stripe mensuel 19 € / annuel 149 €.")}>
+                Activer Ernesto Plus
               </button>
-              <button onClick={() => setPaywall(null)} style={{ padding: "10px 14px", borderRadius: 10 }}>
+              <button onClick={() => setPaywall(null)} style={{ padding: "11px 15px", borderRadius: 14, border: "1px solid #ddd", background: "white", cursor: "pointer" }}>
                 Plus tard
               </button>
             </div>
@@ -538,47 +844,67 @@ export default function Page() {
         ) : null}
       </div>
 
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: 28, margin: 0 }}>Ernesto — The Pizza, Explained</h1>
-          <div style={{ marginTop: 6, opacity: 0.9 }}>
-            <div style={{ fontWeight: 650 }}>
-              Tuteur virtuel officiel de l’École Professionnelle de Pizza et Panification Naturelle (EPPPN)
+      <header className="heroShell">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ maxWidth: 760 }}>
+            <h1 className="heroTitle">Ernesto, The Pizza Explained.</h1>
+            <div style={{ marginTop: 12, opacity: 0.88, fontSize: 16, lineHeight: 1.6 }}>
+              Basé sur les connaissances et les protocoles transmis à l’EPPPN, Ernesto vous aide à raisonner sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du travail. Il ne donne pas de recettes magiques : il transforme une observation en diagnostic, puis en protocole d’action.
             </div>
-            <div style={{ marginTop: 2 }}>
-              Pose une question → Ernesto répond avec diagnostic + actions + graphiques scientifiques.
+            <div style={{ marginTop: 10, opacity: 0.74, fontSize: 14, lineHeight: 1.5 }}>
+              Le tuteur EPPPN pour comprendre, corriger et progresser au banc.
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+              <span className="planBadge">Écrire</span>
+              <span className="planBadge">Parler</span>
+              <span className="planBadge">Analyser une photo</span>
+              <span className="planBadge">Décision & action</span>
+              <span className="planBadge">Analyse & détails</span>
             </div>
           </div>
-        </div>
 
-        <button onClick={newConversation} style={ui.pill}>
-          Nouvelle conversation
-        </button>
+          <button onClick={newConversation} style={{ ...ui.pill, fontSize: 14 }}>
+            Nouvelle conversation
+          </button>
+        </div>
       </header>
 
       <section style={{ marginTop: 14 }}>
-        <div style={{ fontWeight: 950, marginBottom: 8 }}>Questions fréquentes (clicables)</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+          <div style={{ fontWeight: 950, fontSize: 18 }}>Questions fréquentes</div>
+          <div style={{ fontSize: 13, opacity: 0.68 }}>
+            Nuage de situations réelles · 1 clic pour préremplir · double clic pour envoyer
+          </div>
+        </div>
+
         <div className="quickWrap">
-          <button className="quickNavBtn" onClick={() => scrollQuick(-320)}>
+          <button className="quickNavBtn" onClick={() => scrollQuick(-320)} aria-label="Faire défiler vers la gauche">
             ‹
           </button>
-          <div className="quickRow" ref={quickRowRef}>
-            {QUICK_QUESTIONS.map((q, idx) => (
-              <button key={idx} className="quickCard" onClick={() => setMessage(q.text)}>
+          <div
+            className="quickRow"
+            ref={quickRowRef}
+            onMouseEnter={() => setPauseQuickScroll(true)}
+            onMouseLeave={() => setPauseQuickScroll(false)}
+            onTouchStart={() => setPauseQuickScroll(true)}
+            onTouchEnd={() => setPauseQuickScroll(false)}
+          >
+            {quickQuestions.map((q, idx) => (
+              <button
+                key={`${q.label}-${idx}`}
+                className={`quickCard ${selectedQuestion === q.label ? "selected" : ""}`}
+                onClick={() => handleQuestionClick(q)}
+                onDoubleClick={() => handleQuestionDoubleClick(q)}
+                aria-pressed={selectedQuestion === q.label}
+                title="1 clic : préremplir · 2 clics : envoyer à Ernesto"
+              >
+                <div className="quickKicker">{q.category}</div>
                 <div className="quickLabel">{q.label}</div>
                 <div className="quickText">{q.text}</div>
               </button>
             ))}
           </div>
-          <button className="quickNavBtn" onClick={() => scrollQuick(320)}>
+          <button className="quickNavBtn" onClick={() => scrollQuick(320)} aria-label="Faire défiler vers la droite">
             ›
           </button>
         </div>
@@ -586,7 +912,7 @@ export default function Page() {
 
       <section style={{ marginTop: 16 }}>
         {chat.length === 0 ? (
-          <div style={{ opacity: 0.75, fontSize: 13 }}>Commence la conversation : elle grandira vers le bas.</div>
+          <div style={{ opacity: 0.72, fontSize: 14, padding: "8px 2px" }}>Commencez par une situation concrète : une pâte qui colle, un levain trop acide, une cuisson irrégulière, une photo de cornicione ou une question d’organisation au banc.</div>
         ) : (
           chat.map((m) => (
             <div
@@ -600,9 +926,18 @@ export default function Page() {
                 {m.role === "ernesto" ? (
                   <div style={{ display: "grid", gap: 12 }}>
                     {m.text?.trim() ? (
-                      <Section title="Réponse d’Ernesto" headerClass="hAnswer">
-                        <div style={{ whiteSpace: "pre-wrap" }}>{m.text}</div>
-                      </Section>
+                      <>
+                        <Section title="Réponse Ernesto" headerClass="hAnswer">
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: 12,
+                          }}
+                        >
+                          <AnswerText text={m.text} />
+                        </div>
+                        </Section>
+                      </>
                     ) : null}
 
                     {m.graph ? <ErnestoPanels graph={m.graph} /> : null}
@@ -619,25 +954,18 @@ export default function Page() {
       <div className="composer">
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <label style={{ fontWeight: 900 }}>Vitesse</label>
+            <label style={{ fontWeight: 900 }}>Type de réponse</label>
             <select
               value={speed}
               onChange={(e) => setSpeed(e.target.value as Speed)}
-              style={{
-                padding: 10,
-                borderRadius: 14,
-                border: "1px solid #ddd",
-                fontSize: 14,
-                background: "white",
-                color: "#111",
-              }}
+              className="responseSelect"
             >
-              <option value="VITE">Vite</option>
-              <option value="APPROFONDIE">Approfondie</option>
+              <option value="BANCO">Réponse rapide — décision & action</option>
+              <option value="ECOLE">Réponse approfondie — analyse & détails</option>
             </select>
 
             <div style={{ fontSize: 12, opacity: 0.75 }}>
-              {loading ? "Ernesto réfléchit…" : "Entrée = envoyer · Shift+Entrée = nouvelle ligne"}
+              {loading ? "Ernesto consulte les connaissances disponibles…" : "Entrée = envoyer · Shift+Entrée = nouvelle ligne"}
             </div>
 
             {selectedImage ? (
@@ -700,7 +1028,7 @@ export default function Page() {
                 borderColor: dictating ? "#0ea5e9" : "#ddd",
                 background: dictating ? "rgba(14,165,233,0.10)" : "white",
               }}
-              title="Micro (dictée)"
+              title="Parler à Ernesto"
             >
               🎤
             </button>
@@ -715,11 +1043,11 @@ export default function Page() {
                 }
               }}
               rows={3}
-              placeholder="Écris ici…"
+              placeholder="Écrivez votre question, décrivez un problème ou ajoutez une photo…"
               style={ui.textarea}
             />
 
-            <button type="button" onClick={() => fileRef.current?.click()} style={ui.iconBtn} title="Photo (camera)">
+            <button type="button" onClick={() => fileRef.current?.click()} style={ui.iconBtn} title="Analyser une photo">
               📷
             </button>
           </div>
@@ -734,11 +1062,135 @@ export default function Page() {
               cursor: loading || !message.trim() ? "not-allowed" : "pointer",
             }}
           >
-            {loading ? "Ernesto réfléchit…" : selectedImage ? "Envoyer + photo" : "Envoyer"}
+            {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Envoyer à Ernesto"}
           </button>
         </div>
       </div>
     </main>
+  );
+}
+
+
+function AnswerText({ text }: { text: string }) {
+  const headingPatterns = [
+    /^#{1,3}\s+/,
+    /^(Réponse Ernesto|Diagnostic|Diagnostic raisonné|Diagnostic probable|Analyse|Variables à contrôler|Ce qu’il faut faire maintenant|Protocole conseillé|Point de vigilance|Erreur à éviter|Erreurs fréquentes|Synthèse|Questions utiles|Questions)\b/i,
+    /^\d+\.\s+(Diagnostic|Analyse|Variables|Protocole|Erreur|Questions|Ce qu)/i,
+  ];
+
+  const blocks = splitAnswerBlocks(text);
+
+  return (
+    <div className="answerText">
+      {blocks.map((block, i) => {
+        if (block.kind === "table") {
+          return <TableChart key={i} data={block.data} />;
+        }
+
+        const raw = block.text ?? "";
+        const line = raw.trimEnd();
+        const clean = line.replace(/^#{1,3}\s+/, "").replace(/\*\*/g, "");
+        if (!clean.trim()) return <div key={i} style={{ height: 2 }} />;
+        const isHeading = headingPatterns.some((rx) => rx.test(clean.trim()));
+        if (isHeading) {
+          return (
+            <div key={i} className="answerHeading">
+              {clean.trim()}
+            </div>
+          );
+        }
+        if (/^[-•]\s+/.test(clean.trim())) {
+          return (
+            <div key={i} className="answerPara" style={{ paddingLeft: 10 }}>
+              {clean.trim()}
+            </div>
+          );
+        }
+        return (
+          <p key={i} className="answerPara">
+            {clean}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+type AnswerBlock =
+  | { kind: "text"; text: string }
+  | { kind: "table"; data: { columns: string[]; rows: (string | number)[][]; note?: string } };
+
+function splitAnswerBlocks(text: string): AnswerBlock[] {
+  const lines = text.replace(/```json[\s\S]*?```/gi, "").replace(/```[\s\S]*?```/g, "").split("\n");
+  const blocks: AnswerBlock[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const next = lines[i + 1] ?? "";
+    if (isMarkdownTableHeader(line, next)) {
+      const tableLines = [line, next];
+      i += 2;
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) {
+        tableLines.push(lines[i]);
+        i += 1;
+      }
+      const parsed = parseMarkdownTable(tableLines);
+      if (parsed) blocks.push({ kind: "table", data: parsed });
+      continue;
+    }
+    blocks.push({ kind: "text", text: line });
+    i += 1;
+  }
+
+  return blocks;
+}
+
+function isMarkdownTableHeader(line: string, next: string) {
+  return /^\s*\|.*\|\s*$/.test(line) && /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(next);
+}
+
+function parseMarkdownTable(lines: string[]) {
+  const rows = lines
+    .filter((_, idx) => idx !== 1)
+    .map((l) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim()))
+    .filter((r) => r.length > 0);
+
+  if (rows.length < 2) return null;
+  const columns = rows[0];
+  const body = rows.slice(1).map((r) => columns.map((_, i) => r[i] ?? ""));
+  return { columns, rows: body };
+}
+
+function PizzaLoader({ ms, done }: { ms: number; done: boolean }) {
+  const expected = 12000;
+  const p = done ? 1 : Math.min(0.96, ms / expected);
+  const pct = Math.round(p * 100);
+
+  return (
+    <div className={`pizzaLoad ${done ? "done" : ""}`} aria-label="Ernesto prépare votre réponse">
+      <div className="pizzaRunway">
+        <div className="pizzaTrack">
+          <div className="pizzaFill" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="pizzaMotion" style={{ left: `${Math.max(5, Math.min(95, pct))}%` }}>
+          <div className="pizzaIcon" />
+        </div>
+      </div>
+      <div className="pizzaLabel">
+        {done
+          ? "Réponse prête."
+          : "Recherche dans les connaissances disponibles, puis formulation de la réponse…"}
+      </div>
+    </div>
+  );
+}
+
+function SourceBadge() {
+  return (
+    <div className="sourceBadge">
+      Ernesto s’appuie prioritairement sur les connaissances et protocoles EPPPN, puis complète avec l’IA lorsque c’est utile.
+    </div>
   );
 }
 
