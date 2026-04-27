@@ -806,7 +806,6 @@ export default function Page() {
         .brandLogos { display:flex; align-items:center; gap:12px; min-width:0; }
         .brandLogoEpppn { width: 78px; height:auto; max-height:78px; object-fit:contain; display:block; }
         .brandLogoErnesto { width: 98px; height:auto; max-height:64px; object-fit:contain; display:block; }
-        .brandFallback { font-weight:950; letter-spacing:-0.03em; font-size:22px; color:#344422; line-height:1; }
         .brandDivider { width:1px; height:54px; background:rgba(52,68,34,.18); }
         .brandTag { font-size:11px; font-weight:950; letter-spacing:.12em; text-transform:uppercase; color:#425233; opacity:.72; margin-bottom:4px; }
         .siteFooter { margin: 24px 0 18px; padding: 15px 4px 0; border-top: 1px solid rgba(52,68,34,.14); color:#425233; display:grid; gap:5px; }
@@ -822,8 +821,8 @@ export default function Page() {
           overflow: auto;
           border: 1px solid rgba(226,232,240,0.88);
           border-radius: 26px;
-          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
-          box-shadow: 0 18px 42px rgba(15,23,42,0.06);
+          background: linear-gradient(180deg, rgba(247,250,239,0.98), rgba(255,255,255,0.96));
+          box-shadow: 0 18px 42px rgba(52,68,34,0.08);
           padding: 14px;
         }
         .projectRailHeader { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 10px; }
@@ -859,6 +858,35 @@ export default function Page() {
           border-color: rgba(244,63,94,0.28);
           background: linear-gradient(180deg, rgba(255,247,237,.98), rgba(255,255,255,.98));
         }
+        .sidebarBrand {
+          margin-top: 16px;
+          padding: 16px 12px 12px;
+          border-top: 1px solid rgba(52,68,34,.14);
+          display: grid;
+          gap: 14px;
+          justify-items: center;
+        }
+        .sidebarLogoEpppn { width: 176px; max-width: 92%; height:auto; object-fit:contain; display:block; }
+        .sidebarLogoErnesto { width: 176px; max-width: 92%; height:auto; object-fit:contain; display:block; }
+        .editIconBtn {
+          width: 30px;
+          height: 30px;
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          border-radius: 11px;
+          border: 1px solid rgba(52,68,34,.16);
+          background: rgba(255,255,255,.9);
+          color:#344422;
+          -webkit-text-fill-color:#344422;
+          cursor:pointer;
+          font-size: 15px;
+          font-weight: 950;
+          line-height: 1;
+        }
+        .editIconBtn:hover { background: rgba(240,253,244,.96); border-color: rgba(52,68,34,.28); }
+        .activeProjectTitleRow { display:flex; align-items:center; gap:8px; min-width:0; }
+        .activeProjectTitleText { font-weight: 950; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .projectItemTitle { font-size: 13px; line-height: 1.25; font-weight: 850; color:#0f172a; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
         .projectMeta { font-size: 11px; opacity: .62; margin-top: 5px; }
         .projectDelete {
@@ -866,6 +894,7 @@ export default function Page() {
           background: rgba(255,255,255,.9); cursor:pointer; color:#64748b; -webkit-text-fill-color:#64748b;
         }
         .projectActions { display:flex; gap:6px; align-items:center; justify-content:flex-end; }
+        .projectActions .editIconBtn { width: 28px; height: 28px; border-radius: 10px; font-size: 14px; }
         .miniBtn {
           min-height: 30px;
           padding: 6px 9px;
@@ -912,14 +941,16 @@ export default function Page() {
           padding: 13px;
           border: 1px solid rgba(226,232,240,0.92);
           border-radius: 18px;
-          background: rgba(255,255,255,0.82);
+          background: linear-gradient(180deg, rgba(250,245,255,0.95), rgba(255,255,255,0.95));
+          border-color: rgba(139,92,246,0.18);
         }
         .activeProjectStrip {
           margin-top: 12px;
           padding: 10px 12px;
           border: 1px solid rgba(226,232,240,0.9);
           border-radius: 16px;
-          background: rgba(255,255,255,0.76);
+          background: linear-gradient(180deg, rgba(255,247,237,0.95), rgba(255,255,255,0.95));
+          border-color: rgba(251,146,60,0.22);
           display:flex;
           align-items:center;
           justify-content:space-between;
@@ -1128,6 +1159,14 @@ export default function Page() {
           box-shadow: 0 10px 28px rgba(15,23,42,0.05);
           color: #0f172a;
         }
+        .statusCard.authCard{
+          border-color: rgba(14,165,233,0.18);
+          background: linear-gradient(180deg, rgba(240,249,255,0.98), rgba(255,255,255,0.97));
+        }
+        .statusCard.userCard{
+          border-color: rgba(52,68,34,0.18);
+          background: linear-gradient(180deg, rgba(247,250,239,0.98), rgba(255,255,255,0.97));
+        }
         .authRow { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
         .authInput { flex: 1; min-width: 240px; padding: 13px 14px; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; color:#0f172a; font-size:16px; }
         .imagePreviewCard{
@@ -1176,13 +1215,16 @@ export default function Page() {
             box-shadow: 0 24px 80px rgba(15,23,42,0.22);
           }
           .projectRail.open{ transform: translateY(0); opacity: 1; pointer-events: auto; }
+          .sidebarBrand{ margin-top: 12px; padding: 12px 8px 6px; gap: 10px; }
+          .sidebarLogoEpppn{ width: 136px; }
+          .sidebarLogoErnesto{ width: 136px; }
+          .editIconBtn{ width: 34px; height: 34px; }
           .drawerClose{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:12px; border:1px solid rgba(226,232,240,.9); background:#fff; cursor:pointer; }
           .heroShell{ padding: 13px; border-radius: 20px; margin-top: 6px; box-shadow: 0 10px 28px rgba(15,23,42,0.045); }
           .brandHeader{ margin-bottom: 12px; align-items:flex-start; }
           .brandLogos{ gap:9px; }
           .brandLogoEpppn{ width:54px; max-height:54px; }
           .brandLogoErnesto{ width:78px; max-height:48px; }
-          .brandFallback{ font-size:18px; }
           .brandDivider{ height:40px; }
           .brandTag{ font-size:10px; letter-spacing:.1em; }
           .siteFooter{ margin: 20px 0 4px; padding-bottom: 6px; }
@@ -1304,13 +1346,13 @@ export default function Page() {
                     </button>
                     <div className="projectActions">
                       <button
-                        className="miniBtn"
+                        className="editIconBtn"
                         type="button"
                         onClick={(e) => { e.stopPropagation(); startRenameProject(p); }}
                         aria-label="Renommer le projet"
-                        title="Renommer"
+                        title="Renommer le projet"
                       >
-                        Renommer
+                        ✎
                       </button>
                       <button
                         className="projectDelete"
@@ -1327,6 +1369,15 @@ export default function Page() {
               </div>
             ))}
           </div>
+          <div className="sidebarBrand" aria-label="Identité EPPPN et Ernesto">
+            <img className="sidebarLogoEpppn" src="/LOGOEPPPN21.png" alt="Logo EPPPN" />
+            <img
+              className="sidebarLogoErnesto"
+              src="/logo-ernesto.png"
+              alt="Logo Ernesto"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+          </div>
         </aside>
 
         <div className="workspace">
@@ -1334,7 +1385,7 @@ export default function Page() {
       {/* --- AUTH / USAGE BANNER --- */}
       <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
         {!session ? (
-          <div className="statusCard">
+          <div className="statusCard authCard">
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
               <div>
                 <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">Essai gratuit de 10 jours</div>
@@ -1361,7 +1412,7 @@ export default function Page() {
             {authInfo && <div style={{ marginTop: 10, opacity: 0.85 }}>{authInfo}</div>}
           </div>
         ) : (
-          <div className="statusCard">
+          <div className="statusCard userCard">
             <div className="userTopRow">
               <div style={{ flex: 1, minWidth: 240 }}>
                 <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">
@@ -1516,26 +1567,13 @@ export default function Page() {
       </div>
 
       <header className="heroShell">
-        <div className="brandHeader">
-          <div className="brandLogos" aria-label="Identité EPPPN et Ernesto">
-            <img className="brandLogoEpppn" src="/LOGOEPPPN21.png" alt="Logo EPPPN" />
-            <div className="brandDivider" aria-hidden="true" />
-            <img
-              className="brandLogoErnesto"
-              src="/logo-ernesto.png"
-              alt="Logo Ernesto"
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
-            />
-            <div className="brandFallback">Ernesto</div>
-          </div>
-
+        <div className="brandHeader" style={{ justifyContent: "flex-end" }}>
           <button onClick={newConversation} style={{ ...ui.pill, fontSize: 14 }}>
             Nouvelle conversation
           </button>
         </div>
 
         <div style={{ maxWidth: 820 }}>
-          <div className="brandTag">EPPPN · outil numérique de formation</div>
           <h1 className="heroTitle">Ernesto, The Pizza Explained.</h1>
           <div className="heroIntro">
             Basé sur les connaissances et les protocoles transmis à l’EPPPN, Ernesto vous aide à raisonner sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du travail. Il ne donne pas de recettes magiques : il transforme une observation en diagnostic, puis en protocole d’action.
@@ -1551,14 +1589,16 @@ export default function Page() {
       </header>
 
       <div className="activeProjectStrip">
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 12, opacity: 0.66, fontWeight: 900 }}>Projet actif</div>
-          <div style={{ fontWeight: 950, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {projects.find((p) => p.id === activeProjectId)?.title ?? "Nouvelle demande"}
+          <div className="activeProjectTitleRow">
+            <div className="activeProjectTitleText">
+              {projects.find((p) => p.id === activeProjectId)?.title ?? "Nouvelle demande"}
+            </div>
+            <button className="editIconBtn" type="button" onClick={renameActiveProject} aria-label="Renommer le projet actif" title="Renommer le projet actif">✎</button>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="miniBtn" type="button" onClick={renameActiveProject}>Renommer</button>
           <button className="miniBtn" type="button" onClick={newConversation}>Nouveau</button>
         </div>
       </div>
@@ -1651,7 +1691,7 @@ export default function Page() {
       </section>
 
       <footer className="siteFooter">
-        <div className="siteFooterTitle">Ernesto — The Pizza Explained. · Version actuelle : V6 · Avril 2026</div>
+        <div className="siteFooterTitle">Ernesto — The Pizza Explained. · Version actuelle : V6 · 27 avril 2026</div>
         <div className="siteFooterMeta">
           Conçu et développé par la section « Apprentissage et Informatisation » de l'EPPPN.
         </div>
