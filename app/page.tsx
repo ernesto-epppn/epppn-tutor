@@ -21,6 +21,7 @@ import {
 } from "recharts";
 
 type Speed = "BANCO" | "ECOLE";
+type BillingPlan = "monthly" | "yearly";
 
 type Chart =
   | {
@@ -344,6 +345,7 @@ export default function Page() {
   const [session, setSession] = useState<any>(null);
   const [email, setEmail] = useState("");
   const [authInfo, setAuthInfo] = useState<string | null>(null);
+  const [payingPlan, setPayingPlan] = useState<null | BillingPlan>(null);
 
   // usage info (for banner)
   const [usage, setUsage] = useState<null | {
@@ -378,6 +380,20 @@ export default function Page() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    if (payment === "success") {
+      setAuthInfo("Paiement reçu. L’activation peut prendre quelques secondes, le temps que Stripe confirme l’abonnement.");
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    if (payment === "cancel") {
+      setAuthInfo("Paiement annulé. Vous pouvez reprendre l’abonnement à tout moment.");
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     if (!session?.user?.email) {
@@ -422,6 +438,34 @@ export default function Page() {
     setAuthInfo(null);
     setUsage(null);
     setPaywall(null);
+  }
+
+
+  async function startCheckout(plan: BillingPlan) {
+    if (!session?.access_token) {
+      setAuthInfo("Connectez-vous par e-mail avant d’activer Ernesto Plus.");
+      return;
+    }
+    setPayingPlan(plan);
+    setAuthInfo(null);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error || "Impossible de créer la session de paiement.");
+      }
+      window.location.href = data.url;
+    } catch (err: any) {
+      setAuthInfo(err?.message || "Erreur pendant l’ouverture du paiement Stripe.");
+      setPayingPlan(null);
+    }
   }
 
   // camera + mic
@@ -1527,42 +1571,74 @@ export default function Page() {
             style={{
               padding: 16,
               border: "1px solid rgba(244,63,94,0.22)",
-              borderRadius: 20,
-              background: "linear-gradient(180deg, rgba(255,245,247,0.98), rgba(255,241,242,0.95))",
-              boxShadow: "0 14px 34px rgba(244,63,94,0.08)",
+              borderRadius: 24,
+              background: "linear-gradient(180deg, rgba(255,248,242,0.98), rgba(255,241,242,0.95))",
+              boxShadow: "0 18px 42px rgba(244,63,94,0.10)",
             }}
           >
-            <div style={{ fontWeight: 950, fontSize: 18 }}>Activer Ernesto Plus</div>
-            <div style={{ marginTop: 8, lineHeight: 1.5 }}>
-              {paywall.reason === "usage_limit_reached"
-                ? "Votre essai gratuit a atteint sa limite de sécurité."
-                : "Votre essai gratuit de 10 jours est terminé."}
-            </div>
-            <div style={{ marginTop: 10, opacity: 0.88 }}>
-              Continuez à travailler sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du banc.
-            </div>
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
-              <div style={{ padding: 12, border: "1px solid rgba(244,63,94,0.14)", borderRadius: 16, background: "white" }}>
-                <div style={{ fontSize: 13, opacity: .7 }}>Mensuel</div>
-                <div style={{ fontSize: 24, fontWeight: 950 }}>19 € <span style={{ fontSize: 13, fontWeight: 800 }}>/ mois</span></div>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 950, fontSize: 19 }}>Continuer avec Ernesto Plus</div>
+                <div style={{ marginTop: 7, lineHeight: 1.5, color: "#334155" }}>
+                  {paywall.reason === "usage_limit_reached"
+                    ? "Votre essai gratuit a atteint sa limite de sécurité."
+                    : "Votre essai gratuit de 10 jours est terminé."}
+                </div>
               </div>
-              <div style={{ padding: 12, border: "1px solid rgba(139,92,246,0.18)", borderRadius: 16, background: "white" }}>
-                <div style={{ fontSize: 13, opacity: .7 }}>Annuel</div>
-                <div style={{ fontSize: 24, fontWeight: 950 }}>149 € <span style={{ fontSize: 13, fontWeight: 800 }}>/ an</span></div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setPaywall(null)}
+                aria-label="Fermer"
+                style={{ width: 34, height: 34, borderRadius: 999, border: "1px solid rgba(15,23,42,0.12)", background: "white", cursor: "pointer", fontWeight: 900 }}
+              >
+                ×
+              </button>
             </div>
-            <div style={{ marginTop: 12, display: "grid", gap: 6, fontSize: 14 }}>
-              <div>• questions écrites, messages audio et analyse d’images</div>
+
+            <div style={{ marginTop: 11, color: "#475569", lineHeight: 1.5 }}>
+              Abonnement sécurisé par Stripe. Apple Pay ou Google Pay peuvent apparaître automatiquement selon l’appareil, le navigateur et la configuration du wallet.
+            </div>
+
+            <div className="pricingGrid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => startCheckout("monthly")}
+                disabled={Boolean(payingPlan)}
+                style={{ textAlign: "left", padding: 15, border: "1px solid rgba(244,63,94,0.22)", borderRadius: 20, background: "white", cursor: payingPlan ? "wait" : "pointer", boxShadow: "0 12px 28px rgba(15,23,42,0.06)" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                  <div style={{ fontSize: 13, fontWeight: 850, color: "#be123c" }}>Mensuel</div>
+                  <div style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: "#fff1f2", color: "#9f1239", fontWeight: 850 }}>flexible</div>
+                </div>
+                <div style={{ marginTop: 7, fontSize: 28, fontWeight: 950, letterSpacing: -0.7 }}>19 € <span style={{ fontSize: 13, fontWeight: 850 }}>/ mois</span></div>
+                <div style={{ marginTop: 8, fontSize: 13, color: "#64748b" }}>Pour tester Ernesto Plus sans engagement long.</div>
+                <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 14, color: "white", background: "linear-gradient(90deg,#f43f5e,#8b5cf6)", textAlign: "center", fontWeight: 950 }}>
+                  {payingPlan === "monthly" ? "Ouverture du paiement…" : "Choisir le mensuel"}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => startCheckout("yearly")}
+                disabled={Boolean(payingPlan)}
+                style={{ textAlign: "left", padding: 15, border: "1px solid rgba(139,92,246,0.24)", borderRadius: 20, background: "linear-gradient(180deg,#ffffff,#faf7ff)", cursor: payingPlan ? "wait" : "pointer", boxShadow: "0 12px 28px rgba(15,23,42,0.06)" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                  <div style={{ fontSize: 13, fontWeight: 850, color: "#6d28d9" }}>Annuel</div>
+                  <div style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: "#f3e8ff", color: "#6d28d9", fontWeight: 850 }}>recommandé</div>
+                </div>
+                <div style={{ marginTop: 7, fontSize: 28, fontWeight: 950, letterSpacing: -0.7 }}>149 € <span style={{ fontSize: 13, fontWeight: 850 }}>/ an</span></div>
+                <div style={{ marginTop: 8, fontSize: 13, color: "#64748b" }}>Le meilleur tarif pour accompagner l’apprentissage sur la durée.</div>
+                <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 14, color: "white", background: "linear-gradient(90deg,#7c3aed,#0f172a)", textAlign: "center", fontWeight: 950 }}>
+                  {payingPlan === "yearly" ? "Ouverture du paiement…" : "Choisir l’annuel"}
+                </div>
+              </button>
+            </div>
+
+            <div style={{ marginTop: 12, display: "grid", gap: 6, fontSize: 14, color: "#334155" }}>
+              <div>• questions écrites, dictée vocale et analyse d’images</div>
               <div>• réponses rapides ou analyses approfondies</div>
-              <div>• accès aux raisonnements pédagogiques EPPPN</div>
-            </div>
-            <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button style={{ padding: "11px 15px", borderRadius: 14, fontWeight: 900, border: "1px solid rgba(244,63,94,0.2)", background: "linear-gradient(90deg, #f43f5e, #8b5cf6)", color: "white", cursor: "pointer" }} onClick={() => alert("Paiement à brancher : Stripe mensuel 19 € / annuel 149 €.")}>
-                Activer Ernesto Plus
-              </button>
-              <button onClick={() => setPaywall(null)} style={{ padding: "11px 15px", borderRadius: 14, border: "1px solid #ddd", background: "white", cursor: "pointer" }}>
-                Plus tard
-              </button>
+              <div>• projets, profil utilisateur et accompagnement pédagogique</div>
             </div>
           </div>
         ) : null}
