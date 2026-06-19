@@ -85,6 +85,8 @@ type Project = {
   title: string;
   chat: ChatMsg[];
   updatedAt: number;
+  color?: string;
+  objective?: string;
 };
 
 type UserPersonalProfile = {
@@ -95,8 +97,18 @@ type UserPersonalProfile = {
   preferredLanguage: string;
 };
 
+type WorkContext = {
+  activity: string;
+  situation: string;
+  equipment: string;
+  productionTarget: string;
+  dominantWork: string;
+  currentGoal: string;
+};
+
 const PROJECTS_STORAGE_KEY = "ernesto_projects_v1";
 const PROFILE_STORAGE_KEY_BASE = "ernesto_user_profile_v1";
+const WORK_CONTEXT_STORAGE_KEY_BASE = "ernesto_work_context_v13";
 
 const EMPTY_PROFILE: UserPersonalProfile = {
   age: "",
@@ -106,15 +118,44 @@ const EMPTY_PROFILE: UserPersonalProfile = {
   preferredLanguage: "",
 };
 
+const EMPTY_WORK_CONTEXT: WorkContext = {
+  activity: "",
+  situation: "",
+  equipment: "",
+  productionTarget: "",
+  dominantWork: "",
+  currentGoal: "",
+};
+
+const PROJECT_COLORS = [
+  { name: "Olive", value: "#6F7D3C" },
+  { name: "Terracotta", value: "#B4684D" },
+  { name: "Bleu nuit", value: "#26384D" },
+  { name: "Ocre", value: "#B88A35" },
+  { name: "Bordeaux", value: "#7B3E46" },
+  { name: "Ardoise", value: "#5E6A72" },
+  { name: "Sable", value: "#C2A56B" },
+];
+const DEFAULT_PROJECT_COLOR = PROJECT_COLORS[0].value;
+
+function projectColor(project?: Project | null) {
+  return project?.color || DEFAULT_PROJECT_COLOR;
+}
+
+function shouldAutoRenameProject(title?: string) {
+  const clean = (title || "").trim();
+  return !clean || clean === "Nouvelle demande" || clean === "Dossier général";
+}
+
 function uid() {
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
 
-function makeProject(title = "Nouvelle demande"): Project {
-  return { id: uid(), title, chat: [], updatedAt: Date.now() };
+function makeProject(title = "Dossier général", color = DEFAULT_PROJECT_COLOR, objective = ""): Project {
+  return { id: uid(), title, color, objective, chat: [], updatedAt: Date.now() };
 }
 
-function deriveProjectTitle(chat: ChatMsg[], fallback = "Nouvelle demande") {
+function deriveProjectTitle(chat: ChatMsg[], fallback = "Dossier général") {
   const firstUser = chat.find((m) => m.role === "user" && m.text.trim());
   if (!firstUser) return fallback;
   const clean = firstUser.text.replace(/\s+/g, " ").trim();
@@ -133,13 +174,17 @@ function profileStorageKey(email?: string | null) {
   return `${PROFILE_STORAGE_KEY_BASE}:${email || "anonymous"}`;
 }
 
+function workContextStorageKey(email?: string | null) {
+  return `${WORK_CONTEXT_STORAGE_KEY_BASE}:${email || "anonymous"}`;
+}
+
 function subscriptionLabel(usage: any) {
   if (usage?.is_admin) return "Admin";
   if (usage?.is_pro) return "Ernesto Plus";
   return "Essai gratuit";
 }
 
-function buildPersonalContext(profile: UserPersonalProfile, email?: string | null) {
+function buildPersonalContext(profile: UserPersonalProfile, workContext: WorkContext, email?: string | null) {
   const lines: string[] = [];
   if (email) lines.push(`E-mail utilisateur : ${email}`);
   if (profile.age.trim()) lines.push(`Âge : ${profile.age.trim()}`);
@@ -147,6 +192,16 @@ function buildPersonalContext(profile: UserPersonalProfile, email?: string | nul
   if (profile.level.trim()) lines.push(`Niveau pizza / panification : ${profile.level.trim()}`);
   if (profile.reason.trim()) lines.push(`Pourquoi l’utilisateur utilise Ernesto : ${profile.reason.trim()}`);
   if (profile.preferredLanguage.trim()) lines.push(`Langue ou style préféré : ${profile.preferredLanguage.trim()}`);
+
+  const workLines: string[] = [];
+  if (workContext.activity.trim()) workLines.push(`Activité : ${workContext.activity.trim()}`);
+  if (workContext.situation.trim()) workLines.push(`Situation : ${workContext.situation.trim()}`);
+  if (workContext.equipment.trim()) workLines.push(`Matériel principal : ${workContext.equipment.trim()}`);
+  if (workContext.productionTarget.trim()) workLines.push(`Production visée : ${workContext.productionTarget.trim()}`);
+  if (workContext.dominantWork.trim()) workLines.push(`Travail dominant : ${workContext.dominantWork.trim()}`);
+  if (workContext.currentGoal.trim()) workLines.push(`Objectif actuel : ${workContext.currentGoal.trim()}`);
+  if (workLines.length) lines.push(`Contexte de travail :\n${workLines.join("\n")}`);
+
   return lines.length ? lines.join("\n") : undefined;
 }
 
@@ -370,10 +425,19 @@ export default function Page() {
   const [quickOpen, setQuickOpen] = useState(false);
   const [personalProfile, setPersonalProfile] = useState<UserPersonalProfile>(EMPTY_PROFILE);
   const [profileSavedAt, setProfileSavedAt] = useState<number | null>(null);
+  const [workContext, setWorkContext] = useState<WorkContext>(EMPTY_WORK_CONTEXT);
+  const [workContextOpen, setWorkContextOpen] = useState(false);
+
+  const [createDossierOpen, setCreateDossierOpen] = useState(false);
+  const [newDossierTitle, setNewDossierTitle] = useState("");
+  const [newDossierObjective, setNewDossierObjective] = useState("");
+  const [newDossierColor, setNewDossierColor] = useState(DEFAULT_PROJECT_COLOR);
 
   // édition des projets
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectTitle, setEditingProjectTitle] = useState("");
+  const [editingProjectObjective, setEditingProjectObjective] = useState("");
+  const [editingProjectColor, setEditingProjectColor] = useState(DEFAULT_PROJECT_COLOR);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -419,6 +483,30 @@ export default function Page() {
       // La personnalisation reste utilisable même si le navigateur refuse localStorage.
     }
   }, [personalProfile, session?.user?.email]);
+
+  useEffect(() => {
+    if (!session?.user?.email) {
+      setWorkContext(EMPTY_WORK_CONTEXT);
+      setWorkContextOpen(false);
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(workContextStorageKey(session.user.email));
+      const parsed = raw ? JSON.parse(raw) : null;
+      setWorkContext({ ...EMPTY_WORK_CONTEXT, ...(parsed || {}) });
+    } catch {
+      setWorkContext(EMPTY_WORK_CONTEXT);
+    }
+  }, [session?.user?.email]);
+
+  useEffect(() => {
+    if (!session?.user?.email) return;
+    try {
+      window.localStorage.setItem(workContextStorageKey(session.user.email), JSON.stringify(workContext));
+    } catch {
+      // Contexte utilisable même sans persistance locale.
+    }
+  }, [workContext, session?.user?.email]);
 
   async function sendMagicLink() {
     setAuthInfo(null);
@@ -489,7 +577,14 @@ export default function Page() {
       if (Array.isArray(parsed) && parsed.length) {
         const cleaned = parsed
           .filter((p) => p?.id && typeof p.title === "string")
-          .map((p) => ({ ...p, chat: Array.isArray(p.chat) ? p.chat : [], updatedAt: Number(p.updatedAt) || Date.now() }));
+          .map((p, idx) => ({
+            ...p,
+            title: typeof p.title === "string" && p.title.trim() ? p.title : "Dossier général",
+            color: typeof p.color === "string" && p.color ? p.color : PROJECT_COLORS[idx % PROJECT_COLORS.length].value,
+            objective: typeof p.objective === "string" ? p.objective : "",
+            chat: Array.isArray(p.chat) ? p.chat : [],
+            updatedAt: Number(p.updatedAt) || Date.now(),
+          }));
         setProjects(cleaned);
         setActiveProjectId(cleaned[0]?.id ?? null);
         setChat(cleaned[0]?.chat ?? []);
@@ -524,7 +619,7 @@ export default function Page() {
           ? {
               ...p,
               chat,
-              title: deriveProjectTitle(chat, p.title),
+              title: shouldAutoRenameProject(p.title) ? deriveProjectTitle(chat, p.title) : p.title,
               updatedAt: Date.now(),
             }
           : p
@@ -599,7 +694,7 @@ export default function Page() {
     try {
       let res: Response;
 
-      const contextText = buildPersonalContext(personalProfile, session?.user?.email);
+      const contextText = buildPersonalContext(personalProfile, workContext, session?.user?.email);
 
       // se c'è foto -> FormData
       if (selectedImage) {
@@ -691,8 +786,10 @@ export default function Page() {
     }
   }
 
-  function newConversation() {
-    const p = makeProject();
+  function createDossierFromDraft() {
+    const cleanTitle = newDossierTitle.replace(/\s+/g, " ").trim() || "Dossier général";
+    const cleanObjective = newDossierObjective.replace(/\s+/g, " ").trim();
+    const p = makeProject(cleanTitle.slice(0, 80), newDossierColor, cleanObjective.slice(0, 140));
     setProjects((prev) => [p, ...prev].slice(0, 30));
     setActiveProjectId(p.id);
     setChat([]);
@@ -700,7 +797,16 @@ export default function Page() {
     setSelectedImage(null);
     setPaywall(null);
     setSelectedQuestion(null);
+    setCreateDossierOpen(false);
+    setNewDossierTitle("");
+    setNewDossierObjective("");
+    setNewDossierColor(DEFAULT_PROJECT_COLOR);
     setProjectsOpen(false);
+  }
+
+  function newConversation() {
+    setCreateDossierOpen(true);
+    setProjectsOpen(true);
   }
 
   function selectProject(id: string) {
@@ -717,8 +823,8 @@ export default function Page() {
 
   function deleteProject(id: string) {
     const target = projects.find((p) => p.id === id);
-    const label = target?.title || "ce projet";
-    if (!window.confirm(`Supprimer « ${label} » ?`)) return;
+    const label = target?.title || "ce dossier";
+    if (!window.confirm(`Supprimer le dossier « ${label} » ?`)) return;
     setProjects((prev) => {
       const next = prev.filter((p) => p.id !== id);
       if (!next.length) {
@@ -741,17 +847,26 @@ export default function Page() {
 
   function startRenameProject(p: Project) {
     setEditingProjectId(p.id);
-    setEditingProjectTitle(p.title || "Nouvelle demande");
+    setEditingProjectTitle(p.title || "Dossier général");
+    setEditingProjectObjective(p.objective || "");
+    setEditingProjectColor(projectColor(p));
   }
 
   function saveProjectTitle(id: string) {
     const clean = editingProjectTitle.replace(/\s+/g, " ").trim();
     if (!clean) return;
+    const objective = editingProjectObjective.replace(/\s+/g, " ").trim();
     setProjects((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, title: clean.slice(0, 80), updatedAt: Date.now() } : p))
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, title: clean.slice(0, 80), objective: objective.slice(0, 140), color: editingProjectColor, updatedAt: Date.now() }
+          : p
+      )
     );
     setEditingProjectId(null);
     setEditingProjectTitle("");
+    setEditingProjectObjective("");
+    setEditingProjectColor(DEFAULT_PROJECT_COLOR);
   }
 
   function renameActiveProject() {
@@ -762,6 +877,10 @@ export default function Page() {
 
   function resetPersonalProfile() {
     setPersonalProfile(EMPTY_PROFILE);
+  }
+
+  function resetWorkContext() {
+    setWorkContext(EMPTY_WORK_CONTEXT);
   }
 
   function scrollQuick(dx: number) {
@@ -826,563 +945,651 @@ export default function Page() {
       ? Math.max(0, Math.min(100, ((trialDaysRemaining ?? trialDaysTotal) / trialDaysTotal) * 100))
       : 100;
 
-  const activeProject = projects.find((p) => p.id === activeProjectId);
-  const questionByLabel = (label: string) =>
-    quickQuestions.find((q) => q.label === label) || QUICK_QUESTIONS.find((q) => q.label === label);
-  const starterGroups = [
-    {
-      eyebrow: "Qualité produit",
-      title: "Stabiliser la pâte",
-      text: "Pour diagnostiquer les problèmes de tenue, d’extensibilité, de fermentation ou de cornicione.",
-      items: ["Pâte collante", "Sur-fermentation", "Cornicione serré", "Alvéolage faible"],
-    },
-    {
-      eyebrow: "Four & service",
-      title: "Gagner en régularité",
-      text: "Pour raisonner cuisson, matériel, débit de service et confort de travail au banc.",
-      items: ["Choisir un four", "Électrique vs bois", "Gestion du banc", "Rush du soir"],
-    },
-    {
-      eyebrow: "Activité",
-      title: "Piloter le restaurant",
-      text: "Pour relier les choix techniques à l’organisation, aux coûts, aux marges et à l’ouverture d’une activité.",
-      items: ["Marge Margherita", "Hausse farine", "Plan de service", "Mise en place"],
-    },
-  ].map((group) => ({
-    ...group,
-    questions: group.items.map(questionByLabel).filter(Boolean) as Array<{ label: string; text: string; category: string }>,
-  }));
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
+  const activeProjectColor = projectColor(activeProject);
+  const activeProjectObjective = activeProject?.objective || "";
+  const workContextSummary = [
+    workContext.activity,
+    workContext.situation,
+    workContext.equipment,
+    workContext.productionTarget,
+    workContext.dominantWork,
+    workContext.currentGoal ? `objectif : ${workContext.currentGoal}` : "",
+  ].filter((v) => v && v.trim()).join(" · ");
 
   return (
     <main className="appRoot" style={ui.page}>
       <style>{`
-        :root { color-scheme: light; }
         * { box-sizing: border-box; }
-        input, textarea, select, button { font: inherit; color: #172033; }
-        input, textarea, select { background: #ffffff; -webkit-text-fill-color: #172033; caret-color: #172033; color-scheme: light; }
+        input, textarea, select, button { font: inherit; color: #0f172a; }
+        input, textarea, select { background: #ffffff; -webkit-text-fill-color: #0f172a; caret-color: #0f172a; color-scheme: light; }
         button { -webkit-tap-highlight-color: transparent; }
-        button:disabled { cursor: not-allowed; }
-        .appRoot {
-          min-height: 100svh;
-          overflow-x: hidden;
-          background:
-            radial-gradient(circle at 5% 0%, rgba(81, 99, 58, 0.09), transparent 34%),
-            radial-gradient(circle at 96% 8%, rgba(190, 124, 68, 0.10), transparent 30%),
-            linear-gradient(180deg, #fbfaf6 0%, #f7f3ea 100%) !important;
-        }
+        .appRoot { overflow-x: hidden; }
         .appFrame {
-          width: min(100%, 1360px);
+          width: min(100%, 1280px);
           margin: 0 auto;
           display: grid;
-          grid-template-columns: 260px minmax(0, 1fr);
-          gap: 20px;
+          grid-template-columns: 280px minmax(0, 1fr);
+          gap: 18px;
           align-items: start;
         }
-        .workspace {
-          min-width: 0;
-          display: grid;
-          gap: 14px;
-        }
-        .workspace.noComposer { padding-bottom: 0; }
+        .workspace { min-width: 0; }
         .mobileOnly { display: none; }
         .desktopOnlyInline { display: inline; }
-
+        .topCompactTitle { display:none; }
+        .brandHeader { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom: 18px; }
+        .brandLogos { display:flex; align-items:center; gap:12px; min-width:0; }
+        .brandLogoEpppn { width: 78px; height:auto; max-height:78px; object-fit:contain; display:block; }
+        .brandLogoErnesto { width: 98px; height:auto; max-height:64px; object-fit:contain; display:block; }
+        .brandDivider { width:1px; height:54px; background:rgba(52,68,34,.18); }
+        .brandTag { font-size:11px; font-weight:950; letter-spacing:.12em; text-transform:uppercase; color:#425233; opacity:.72; margin-bottom:4px; }
+        .siteFooter { margin: 24px 0 18px; padding: 15px 4px 0; border-top: 1px solid rgba(52,68,34,.14); color:#425233; display:grid; gap:5px; }
+        .siteFooterTitle { font-weight:950; font-size:13px; letter-spacing:-0.01em; }
+        .siteFooterMeta { font-size:12px; line-height:1.45; opacity:.78; }
+        .mobileFaqToggle { display:none; }
+        .composerModeRow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+        .composerHint { font-size: 12px; opacity: 0.75; }
         .projectRail {
           position: sticky;
-          top: 18px;
-          height: calc(100svh - 36px);
-          overflow: hidden;
-          display: grid;
-          grid-template-rows: auto auto 1fr auto;
-          border: 1px solid rgba(86, 96, 67, 0.16);
-          border-radius: 28px;
-          background: rgba(255, 254, 250, 0.86);
-          backdrop-filter: blur(18px);
-          box-shadow: 0 20px 60px rgba(35, 41, 28, 0.08);
+          top: 14px;
+          max-height: calc(100svh - 28px);
+          overflow: auto;
+          border: 1px solid rgba(226,232,240,0.88);
+          border-radius: 26px;
+          background: linear-gradient(180deg, rgba(247,250,239,0.98), rgba(255,255,255,0.96));
+          box-shadow: 0 18px 42px rgba(52,68,34,0.08);
           padding: 14px;
         }
-        .railBrand {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 4px 2px 14px;
-          border-bottom: 1px solid rgba(86,96,67,.12);
-        }
-        .railBrandMark {
-          width: 42px;
-          height: 42px;
-          border-radius: 14px;
-          display: grid;
-          place-items: center;
-          background: #344422;
-          color: #fff;
-          -webkit-text-fill-color: #fff;
-          font-weight: 950;
-          letter-spacing: -0.08em;
-        }
-        .railBrandText { min-width: 0; }
-        .railBrandTitle { font-size: 14px; font-weight: 950; letter-spacing: -0.02em; }
-        .railBrandSub { margin-top: 2px; font-size: 11px; line-height: 1.28; color: #6a725f; font-weight: 750; }
-        .projectRailHeader { padding: 14px 2px 8px; }
-        .projectTitleSmall { font-size: 12px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; color: #64705a; }
-        .projectSub { font-size: 12px; line-height: 1.35; color: #7a8172; margin-top: 4px; }
+        .projectRailHeader { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 10px; }
+        .projectTitleSmall { font-weight: 950; font-size: 16px; letter-spacing: -0.01em; }
+        .projectSub { font-size: 12px; line-height: 1.35; opacity: .68; margin-top: 2px; }
         .projectNew {
-          width: 100%;
-          min-height: 44px;
-          padding: 12px 14px;
-          border-radius: 16px;
-          border: 1px solid rgba(52,68,34,0.16);
-          background: #172033;
-          color: white;
-          -webkit-text-fill-color: white;
-          font-weight: 900;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          width: auto;
+          min-height: 36px;
+          padding: 8px 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(52,68,34,0.18);
+          background: rgba(255,255,255,0.92);
+          color: #26384D;
+          -webkit-text-fill-color: #26384D;
+          font-weight: 950;
+          font-size: 13px;
           cursor: pointer;
-          box-shadow: 0 12px 28px rgba(23,32,51,.14);
-          margin: 4px 0 12px;
+          margin: 8px 0 12px;
         }
-        .projectList {
-          min-height: 0;
-          overflow: auto;
-          display: grid;
-          align-content: start;
-          gap: 8px;
-          padding-right: 2px;
-        }
-        .projectList::-webkit-scrollbar { width: 6px; }
-        .projectList::-webkit-scrollbar-thumb { background: rgba(86,96,67,.18); border-radius: 999px; }
+        .projectNew:hover { background: rgba(247,250,239,0.98); border-color: rgba(52,68,34,0.30); }
+        .projectList { display:grid; gap: 8px; }
         .projectItem {
           width: 100%;
-          display: grid;
+          display:grid;
           grid-template-columns: 1fr auto;
           gap: 8px;
-          text-align: left;
-          border: 1px solid transparent;
-          background: rgba(255,255,255,0.64);
+          text-align:left;
+          border: 1px solid rgba(226,232,240,0.92);
+          background: rgba(255,255,255,0.88);
           border-radius: 18px;
-          padding: 10px;
-          cursor: pointer;
-          transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+          padding: 11px;
+          cursor:pointer;
+          box-shadow: 0 8px 20px rgba(15,23,42,0.035);
         }
-        .projectItem:hover { background: rgba(255,255,255,.94); border-color: rgba(86,96,67,.13); transform: translateY(-1px); }
         .projectItem.active {
-          border-color: rgba(52,68,34,0.22);
-          background: linear-gradient(180deg, rgba(241,245,230,.94), rgba(255,255,255,.86));
+          border-color: rgba(244,63,94,0.28);
+          background: linear-gradient(180deg, rgba(255,247,237,.98), rgba(255,255,255,.98));
         }
-        .projectItemTitle { font-size: 13px; line-height: 1.25; font-weight: 850; color:#172033; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-        .projectMeta { font-size: 11px; color: #7a8172; margin-top: 5px; }
-        .projectActions { display:flex; gap:6px; align-items:flex-start; justify-content:flex-end; }
-        .editIconBtn,
-        .projectDelete,
-        .drawerClose {
-          width: 30px; height: 30px; display:inline-flex; align-items:center; justify-content:center;
-          border-radius: 11px; border: 1px solid rgba(86,96,67,.14); background: rgba(255,255,255,.82);
-          color:#566043; -webkit-text-fill-color:#566043; cursor:pointer; font-size: 14px; font-weight: 950; line-height: 1;
+        .sidebarBrand {
+          margin-top: 16px;
+          padding: 16px 12px 12px;
+          border-top: 1px solid rgba(52,68,34,.14);
+          display: grid;
+          gap: 14px;
+          justify-items: center;
         }
-        .projectDelete { color:#9a3412; -webkit-text-fill-color:#9a3412; }
-        .drawerClose { display:none; }
+        .sidebarLogoEpppn { width: 176px; max-width: 92%; height:auto; object-fit:contain; display:block; }
+        .sidebarLogoErnesto { width: 176px; max-width: 92%; height:auto; object-fit:contain; display:block; }
+        .editIconBtn {
+          width: 30px;
+          height: 30px;
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          border-radius: 11px;
+          border: 1px solid rgba(52,68,34,.16);
+          background: rgba(255,255,255,.9);
+          color:#344422;
+          -webkit-text-fill-color:#344422;
+          cursor:pointer;
+          font-size: 15px;
+          font-weight: 950;
+          line-height: 1;
+        }
+        .editIconBtn:hover { background: rgba(240,253,244,.96); border-color: rgba(52,68,34,.28); }
+        .activeProjectTitleRow { display:flex; align-items:center; gap:8px; min-width:0; }
+        .activeProjectTitleText { font-weight: 950; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .projectItemTitle { font-size: 13px; line-height: 1.25; font-weight: 850; color:#0f172a; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+        .projectMeta { font-size: 11px; opacity: .62; margin-top: 5px; }
+        .projectDelete {
+          width: 28px; height: 28px; border-radius: 10px; border: 1px solid rgba(226,232,240,0.9);
+          background: rgba(255,255,255,.9); cursor:pointer; color:#64748b; -webkit-text-fill-color:#64748b;
+        }
+        .projectActions { display:flex; gap:6px; align-items:center; justify-content:flex-end; }
+        .projectActions .editIconBtn { width: 28px; height: 28px; border-radius: 10px; font-size: 14px; }
         .miniBtn {
-          min-height: 32px;
-          padding: 7px 10px;
-          border-radius: 12px;
-          border: 1px solid rgba(86,96,67,0.16);
-          background: rgba(255,255,255,0.84);
-          color:#172033;
-          -webkit-text-fill-color:#172033;
+          min-height: 30px;
+          padding: 6px 9px;
+          border-radius: 11px;
+          border: 1px solid rgba(226,232,240,0.95);
+          background: rgba(255,255,255,0.92);
+          color:#0f172a;
+          -webkit-text-fill-color:#0f172a;
           cursor:pointer;
           font-size: 12px;
           font-weight: 850;
         }
         .projectRenameBox { grid-column: 1 / -1; display:grid; gap:8px; }
         .projectRenameInput {
-          width:100%; padding: 10px 11px; border-radius: 13px; border: 1px solid rgba(86,96,67,.22);
-          background:#fff; color:#172033; -webkit-text-fill-color:#172033; font-size: 15px;
+          width:100%;
+          padding: 10px 11px;
+          border-radius: 13px;
+          border: 1px solid #cbd5e1;
+          background:#fff;
+          color:#0f172a;
+          -webkit-text-fill-color:#0f172a;
+          font-size: 15px;
         }
-        .sidebarBrand {
-          margin-top: 14px;
-          padding: 14px 8px 8px;
-          border-top: 1px solid rgba(86,96,67,.12);
-          display: grid;
-          gap: 12px;
-          justify-items: center;
-        }
-        .sidebarLogoEpppn { width: 132px; max-width: 88%; height:auto; object-fit:contain; display:block; opacity: .82; }
-        .sidebarLogoErnesto { width: 132px; max-width: 88%; height:auto; object-fit:contain; display:block; opacity: .82; }
-        .railFooterNote { font-size: 11px; line-height: 1.35; color: #7a8172; text-align: center; }
-
-        .mobileProjectBar { display:none; }
-        .mobileProjectBtn {
-          flex: 1; min-height: 46px; display:flex; align-items:center; justify-content:space-between; gap: 10px;
-          padding: 10px 12px; border-radius: 16px; border: 1px solid rgba(86,96,67,.16);
-          background: rgba(255,255,255,.9); box-shadow: 0 10px 26px rgba(15,23,42,0.05); cursor:pointer; font-weight: 900;
-        }
-
-        .topBar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          border: 1px solid rgba(86,96,67,.14);
-          background: rgba(255,255,255,.78);
-          backdrop-filter: blur(16px);
-          border-radius: 24px;
-          padding: 12px 14px;
-          box-shadow: 0 18px 46px rgba(35,41,28,.06);
-        }
-        .statusCluster { display:flex; align-items:center; gap: 11px; min-width: 0; }
-        .planBadge,
-        .softBadge {
-          display:inline-flex; align-items:center; gap:8px; padding: 7px 11px; border-radius:999px; font-size:12px; font-weight:900; letter-spacing:.01em;
-          border:1px solid rgba(86,96,67,.16); background:rgba(255,255,255,.82); color:#172033; -webkit-text-fill-color:#172033;
-        }
-        .planBadge.green { background:#eef4e6; border-color: rgba(52,68,34,.18); color:#344422; -webkit-text-fill-color:#344422; }
-        .userEmail { font-weight: 950; font-size: 14px; word-break: break-word; }
-        .userMeta { margin-top: 3px; font-size: 12px; color: #6a725f; line-height:1.35; }
-        .topActions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-
-        .profilePanel,
-        .statusCard {
-          border: 1px solid rgba(86,96,67,.14);
-          border-radius: 24px;
-          background: rgba(255,255,255,.82);
-          backdrop-filter: blur(16px);
-          box-shadow: 0 18px 46px rgba(35,41,28,.06);
-          color: #172033;
-          padding: 16px;
-        }
-        .profilePanel { display:grid; gap: 10px; }
-        .profileGrid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; }
+        .profileGrid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:12px; }
         .profileField { display:grid; gap:6px; }
-        .profileLabel { font-size:12px; font-weight:900; color:#6a725f; }
+        .profileLabel { font-size:12px; font-weight:900; opacity:.72; }
         .profileInput, .profileTextarea {
-          width:100%; border: 1px solid rgba(86,96,67,.18); border-radius: 14px; background:#fff; color:#172033;
-          -webkit-text-fill-color:#172033; font-size:16px; padding: 12px 13px; outline:none;
+          width:100%;
+          border: 1px solid #cbd5e1;
+          border-radius: 14px;
+          background:#fff;
+          color:#0f172a;
+          -webkit-text-fill-color:#0f172a;
+          font-size:16px;
+          padding: 12px 13px;
+          outline:none;
         }
         .profileTextarea { min-height: 74px; resize: vertical; line-height:1.45; }
-
-        .heroShell {
-          position: relative;
-          overflow: hidden;
-          border: 1px solid rgba(86,96,67,.14);
-          border-radius: 34px;
-          padding: 30px;
-          background:
-            linear-gradient(135deg, rgba(255,255,255,.94), rgba(255,252,244,.88)),
-            radial-gradient(circle at 84% 20%, rgba(190,124,68,.14), transparent 32%);
-          box-shadow: 0 26px 70px rgba(35,41,28,.08);
-        }
-        .heroShell::after {
-          content: "";
-          position: absolute;
-          right: -120px;
-          top: -140px;
-          width: 330px;
-          height: 330px;
-          border-radius: 999px;
-          border: 1px solid rgba(190,124,68,.14);
-          background: rgba(255,255,255,.22);
-          pointer-events: none;
-        }
-        .heroKicker { font-size: 12px; font-weight: 950; letter-spacing: .13em; text-transform: uppercase; color:#566043; }
-        .heroTitle { max-width: 900px; font-size: clamp(42px, 6vw, 76px); line-height: .92; margin: 12px 0 0; letter-spacing: -0.07em; color:#101827; }
-        .heroIntro { max-width: 820px; margin-top: 18px; color: #3d465a; font-size: 17px; line-height: 1.62; }
-        .heroActionRow { display:flex; align-items:center; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
-        .primaryHeroBtn {
-          min-height: 44px;
-          padding: 12px 16px;
-          border-radius: 999px;
-          border: 1px solid #172033;
-          background: #172033;
-          color: white;
-          -webkit-text-fill-color: white;
-          font-weight: 950;
-          cursor: pointer;
-          box-shadow: 0 14px 30px rgba(23,32,51,.16);
-        }
-        .heroProof {
-          display:grid;
-          grid-template-columns: repeat(3, minmax(0,1fr));
-          gap: 10px;
-          margin-top: 24px;
-        }
-        .proofItem {
-          border: 1px solid rgba(86,96,67,.13);
+        .userTopRow { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+        .userEmail { font-weight:950; font-size:16px; word-break:break-word; }
+        .userMeta { margin-top:5px; font-size:13px; opacity:.75; line-height:1.45; }
+        .profilePanel {
+          margin-top: 12px;
+          padding: 13px;
+          border: 1px solid rgba(226,232,240,0.92);
           border-radius: 18px;
-          background: rgba(255,255,255,.62);
-          padding: 12px;
+          background: linear-gradient(180deg, rgba(250,245,255,0.95), rgba(255,255,255,0.95));
+          border-color: rgba(139,92,246,0.18);
         }
-        .proofTitle { font-size: 13px; font-weight: 950; color:#172033; }
-        .proofText { font-size: 12px; line-height: 1.42; color:#68715f; margin-top: 5px; }
-
         .activeProjectStrip {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border: 1px solid rgba(226,232,240,0.9);
+          border-radius: 16px;
+          background: linear-gradient(180deg, rgba(255,247,237,0.95), rgba(255,255,255,0.95));
+          border-color: rgba(251,146,60,0.22);
           display:flex;
           align-items:center;
           justify-content:space-between;
-          gap: 12px;
-          border: 1px solid rgba(86,96,67,.13);
-          border-radius: 20px;
-          background: rgba(255,255,255,.72);
-          padding: 11px 13px;
+          gap: 10px;
         }
-        .activeProjectTitleRow { display:flex; align-items:center; gap:8px; min-width:0; }
-        .activeProjectTitleText { font-weight: 950; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-        .starterPanel {
-          border: 1px solid rgba(86,96,67,.13);
-          border-radius: 28px;
-          background: rgba(255,255,255,.72);
-          box-shadow: 0 18px 50px rgba(35,41,28,.055);
-          padding: 18px;
+        .mobileProjectBar {
+          display:none;
+          width: min(100%, 1280px);
+          margin: 0 auto 10px;
+          gap: 8px;
+          align-items:center;
         }
-        .sectionEyebrow { font-size: 12px; font-weight:950; letter-spacing:.11em; text-transform: uppercase; color:#566043; }
-        .sectionTitleRow { display:flex; justify-content:space-between; align-items:flex-end; gap: 16px; flex-wrap:wrap; }
-        .sectionTitle { font-size: 22px; line-height: 1.05; font-weight: 950; letter-spacing: -0.035em; color:#172033; }
-        .sectionHelp { font-size: 13px; color:#7a8172; }
-        .starterGrid { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-top: 14px; }
-        .starterCard {
-          display:grid;
-          align-content: space-between;
-          min-height: 210px;
-          border: 1px solid rgba(86,96,67,.13);
-          border-radius: 24px;
-          background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(250,248,242,.82));
-          padding: 16px;
-          box-shadow: 0 12px 32px rgba(35,41,28,.05);
-        }
-        .starterCardKicker { font-size: 11px; text-transform: uppercase; letter-spacing:.12em; color:#8b5e34; font-weight:950; }
-        .starterCardTitle { font-size: 20px; line-height: 1.05; font-weight:950; letter-spacing:-.035em; margin-top: 9px; color:#172033; }
-        .starterCardText { font-size: 13px; line-height:1.48; color:#626a59; margin-top: 9px; }
-        .starterPills { display:flex; gap: 7px; flex-wrap: wrap; margin-top: 16px; }
-        .starterPill {
-          border: 1px solid rgba(86,96,67,.14);
-          background: rgba(255,255,255,.86);
-          border-radius: 999px;
-          padding: 8px 10px;
-          cursor: pointer;
-          font-size: 12px;
-          font-weight: 850;
-          color:#172033;
-          -webkit-text-fill-color:#172033;
-        }
-        .starterPill:hover { background:#172033; color:#fff; -webkit-text-fill-color:#fff; }
-
-        .quickSection { border: 1px solid rgba(86,96,67,.12); border-radius: 24px; background: rgba(255,255,255,.58); padding: 14px; }
-        .quickSectionHeader { display:flex; justify-content:space-between; align-items:baseline; gap: 12px; flex-wrap:wrap; margin-bottom: 12px; }
-        .mobileFaqToggle { display:none; }
-        .quickWrap { display:grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items:center; }
-        .quickNavBtn {
-          border: 1px solid rgba(86,96,67,.14); background: rgba(255,255,255,0.86); width: 38px; height: 38px; border-radius: 13px; cursor: pointer; font-weight: 950;
-        }
-        .quickRow { display:flex; gap: 10px; overflow-x:auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .quickRow::-webkit-scrollbar { display:none; }
-        .quickCard {
-          flex: 0 0 222px;
-          border-radius: 18px;
-          padding: 12px;
+        .mobileProjectBtn {
+          flex: 1;
+          min-height: 46px;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap: 10px;
+          padding: 10px 12px;
+          border-radius: 16px;
+          border: 1px solid rgba(226,232,240,0.95);
+          background: rgba(255,255,255,0.95);
+          box-shadow: 0 10px 26px rgba(15,23,42,0.05);
           cursor:pointer;
-          text-align:left;
-          border: 1px solid rgba(86,96,67,.13);
-          background: rgba(255,255,255,.82);
-          color:#172033;
-          -webkit-text-fill-color:#172033;
-          transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+          font-weight: 900;
         }
-        .quickCard:hover { transform: translateY(-1px); background:#fff; border-color: rgba(86,96,67,.22); }
-        .quickCard.selected { background:#172033; color:#fff; -webkit-text-fill-color:#fff; border-color:#172033; }
-        .quickKicker { font-size:10px; font-weight:950; letter-spacing:.1em; text-transform:uppercase; opacity:.62; }
-        .quickLabel { font-weight:950; font-size:14px; margin-top:7px; line-height:1.2; }
-        .quickText { margin-top:7px; font-size:12px; line-height:1.42; opacity:.76; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-
-        .conversationShell {
-          min-height: 280px;
-          border: 1px solid rgba(86,96,67,.12);
-          border-radius: 28px;
-          background: rgba(255,255,255,.55);
-          padding: 14px;
-        }
-        .emptyHint { color:#6a725f; font-size: 14px; line-height:1.5; padding: 8px 4px; }
+        .drawerClose { display:none; }
         .bubbleWrap { display:flex; margin: 12px 0; }
         .bubble {
-          max-width: 86%;
+          max-width: 94%;
           border-radius: 24px;
           padding: 14px;
-          border: 1px solid rgba(86,96,67,.12);
-          box-shadow: 0 14px 34px rgba(35,41,28,.045);
-          line-height: 1.62;
+          border: 1px solid #ececf3;
+          box-shadow: 0 14px 34px rgba(15,23,42,0.05);
+          line-height: 1.6;
           white-space: pre-wrap;
-          background: rgba(255,255,255,.86);
-          color:#172033;
+          background: white;
+          color: #111;
         }
-        .bubble.user { margin-left:auto; background:#172033; color:white; -webkit-text-fill-color:white; border-color:#172033; max-width: 78%; }
-        .bubble.ernesto { margin-right:auto; max-width:100%; width:100%; background:rgba(255,255,255,.88); animation: ernestoIn 260ms ease; }
-        .answerText { display:grid; gap:8px; }
-        .answerPara { margin:0; font-size:15px; line-height:1.75; color:#172033; }
-        .answerHeading { margin-top:8px; font-weight:950; font-size:15px; color:#344422; letter-spacing:-.01em; }
+        .bubble.user {
+          margin-left: auto;
+          background: linear-gradient(180deg, #ffffff, #f8fafc);
+          border-color: #e2e8f0;
+        }
+        .bubble.ernesto {
+          margin-right: auto;
+          max-width: 100%;
+          width: 100%;
+          background: linear-gradient(180deg, rgba(255,252,246,0.99), rgba(255,247,237,0.96));
+          border-color: rgba(251,146,60,0.24);
+          animation: ernestoIn 280ms ease;
+        }
+        .answerText { display: grid; gap: 8px; }
+        .answerPara { margin: 0; font-size: 15px; line-height: 1.75; color: #0f172a; }
+        .answerHeading {
+          margin-top: 6px;
+          font-weight: 950;
+          font-size: 15px;
+          letter-spacing: -0.01em;
+          color: #7c2d12;
+        }
+        .quickWrap { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+        .quickNavBtn {
+          border: 1px solid #e2e8f0; background: rgba(255,255,255,0.96); width: 42px; height: 42px; border-radius: 14px; cursor: pointer; font-weight: 900;
+          box-shadow: 0 8px 24px rgba(15,23,42,0.05);
+        }
+        .quickRow { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; padding-left: 2px; padding-right: 2px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; scrollbar-width: none; }
+        .quickRow::-webkit-scrollbar { display: none; }
+        .quickCard {
+          flex: 0 0 auto; width: 258px; border-radius: 22px; padding: 14px 15px; cursor: pointer; text-align: left;
+          border: 1px solid rgba(139,92,246,0.14);
+          background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96));
+          box-shadow: 0 12px 30px rgba(15,23,42,0.05);
+          transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+          scroll-snap-align: start; color: #111;
+        }
+        .quickCard:hover { transform: translateY(-2px); border-color: rgba(244,63,94,0.22); box-shadow: 0 18px 38px rgba(15,23,42,0.09); }
+        .quickCard.selected {
+          background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96));
+          border-color: rgba(15,23,42,0.92);
+          color: white;
+          box-shadow: 0 18px 40px rgba(15,23,42,0.18);
+          transform: translateY(-1px) scale(1.01);
+        }
+        .quickCard.selected .quickKicker,
+        .quickCard.selected .quickText { opacity: 0.82; color: rgba(255,255,255,0.88); }
+        .quickCard.selected .quickLabel { color: white; }
+        .quickKicker { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; opacity: .52; }
+        .quickLabel { font-weight: 950; font-size: 16px; line-height: 1.2; margin-top: 8px; }
+        .quickText { margin-top: 8px; font-size: 12px; line-height: 1.45; opacity: 0.82; }
 
         .sectionShell {
-          border-radius: 22px;
-          border: 1px solid rgba(86,96,67,.12);
-          overflow: hidden;
-          background: rgba(255,255,255,.86);
-          box-shadow: 0 12px 32px rgba(35,41,28,.045);
-        }
-        .sectionHeader { padding: 12px 14px; font-weight:950; color:#172033; letter-spacing:-.01em; }
-        .sectionBody { padding: 14px; border-top: 1px solid rgba(86,96,67,.10); color:#172033; }
-        .hAnswer { background:#eef4e6; border-bottom:1px solid rgba(52,68,34,.14); }
-        .hSynth  { background:rgba(232,237,244,.95); border-bottom:1px solid rgba(86,96,67,.13); }
-        .hCheck  { background:rgba(241,245,230,.95); border-bottom:1px solid rgba(86,96,67,.13); }
-        .hRecap  { background:rgba(250,248,242,.95); border-bottom:1px solid rgba(86,96,67,.13); }
-        .hQues   { background:rgba(255,247,237,.95); border-bottom:1px solid rgba(190,124,68,.13); }
+            border-radius: 22px;
+            border: 1px solid #e9edf3;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,252,0.98));
+            box-shadow: 0 14px 34px rgba(15,23,42,0.05);
+          }
 
-        .composer {
+        .sectionHeader {
+          padding: 12px 14px;
+          font-weight: 950;
+          color: #0f172a;
+          -webkit-text-fill-color: #0f172a;
+          letter-spacing: -0.01em;
+        }
+        .sectionBody { padding: 14px; border-top: 1px solid #eee; color: #0f172a; }
+
+        .hAnswer { background: rgba(148,163,184,0.16); border-bottom: 1px solid rgba(148,163,184,0.30); }
+        .hSynth  { background: rgba(14,165,233,0.12); border-bottom: 1px solid rgba(14,165,233,0.25); }
+        .hCheck  { background: rgba(34,197,94,0.12); border-bottom: 1px solid rgba(34,197,94,0.25); }
+        .hRecap  { background: rgba(99,102,241,0.12); border-bottom: 1px solid rgba(99,102,241,0.25); }
+        .hQues   { background: rgba(245,158,11,0.14); border-bottom: 1px solid rgba(245,158,11,0.28); }
+
+        .composer{
           position: sticky;
           bottom: 0;
           z-index: 20;
-          padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
-          background: linear-gradient(180deg, rgba(247,243,234,0), rgba(247,243,234,.98) 22%);
+          background: rgba(255,255,255,0.90);
+          backdrop-filter: blur(10px);
+          border-top: 1px solid rgba(226,232,240,0.85);
+          padding: 14px 0 calc(14px + env(safe-area-inset-bottom));
+          margin-top: 18px;
         }
-        .composerPanel {
-          border: 1px solid rgba(86,96,67,.16);
+
+        .attachPill {
+          display:flex; align-items:center; gap: 8px;
+          padding: 7px 11px; border: 1px solid #e2e8f0; border-radius: 999px;
+          font-size: 12px; background: rgba(255,255,255,0.96);
+          box-shadow: 0 6px 16px rgba(15,23,42,0.04);
+        }
+        .attachX { border: 1px solid #ddd; border-radius: 999px; width: 22px; height: 22px; cursor: pointer; background: #fff; }
+
+        .pizzaLoad{
+          display:grid;
+          gap:8px;
+          padding:12px 14px;
+          border: 1px solid rgba(251,146,60,0.30);
+          background: linear-gradient(180deg, rgba(255,247,237,0.96), rgba(255,237,213,0.82));
+          border-radius: 18px;
+          box-shadow: 0 10px 30px rgba(154,52,18,0.10);
+          overflow: hidden;
+        }
+        .pizzaRunway{
+          position: relative;
+          height: 42px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.72);
+          border: 1px solid rgba(251,146,60,0.18);
+          overflow: hidden;
+        }
+        .pizzaMotion{
+          position:absolute;
+          top:50%;
+          transform: translate(-50%, -50%);
+          transition: left 180ms linear;
+          z-index:2;
+        }
+        .pizzaTrack{
+          position: absolute;
+          left: 18px;
+          right: 18px;
+          top: 50%;
+          height: 10px;
+          transform: translateY(-50%);
+          background: rgba(255,255,255,0.82);
+          border-radius: 999px;
+          overflow: hidden;
+          border: 1px solid rgba(251,146,60,0.16);
+        }
+        .pizzaFill{ height: 100%; border-radius: 999px; background: linear-gradient(90deg, #fb923c, #f43f5e); transition: width 180ms linear; }
+        .pizzaLabel{ font-size: 13px; font-weight: 800; color: #7c2d12; letter-spacing: 0.1px; }
+        .pizzaIcon{
+          width: 34px; height: 34px; border-radius: 999px; position: relative;
+          background: radial-gradient(circle at 50% 50%, rgba(252, 211, 77, 1) 0%, rgba(251, 191, 36, 1) 62%, rgba(194, 65, 12, 1) 78%, rgba(154, 52, 18, 1) 100%);
+          box-shadow: 0 12px 24px rgba(154, 52, 18, 0.18); animation: pizzaPulse 900ms ease-in-out infinite; overflow: hidden;
+        }
+        .pizzaIcon::before{
+          content:""; position:absolute; inset: 4px; border-radius: 999px;
+          background:
+            radial-gradient(circle at 28% 32%, rgba(34,197,94,0.95) 0 10%, transparent 11%),
+            radial-gradient(circle at 70% 62%, rgba(34,197,94,0.95) 0 9%, transparent 10%),
+            radial-gradient(circle at 36% 58%, rgba(255,255,255,0.95) 0 12%, transparent 13%),
+            radial-gradient(circle at 62% 40%, rgba(255,255,255,0.95) 0 10%, transparent 11%),
+            radial-gradient(circle at 55% 72%, rgba(255,255,255,0.95) 0 9%, transparent 10%),
+            radial-gradient(circle at 50% 50%, rgba(239,68,68,0.95) 0 70%, rgba(239,68,68,0.85) 71% 100%);
+        }
+        .pizzaIcon::after{
+          content:""; position:absolute; left: 50%; top: -16px; width: 28px; height: 28px; transform: translateX(-50%); border-radius: 999px;
+          background: radial-gradient(circle at 50% 60%, rgba(148,163,184,0.35), transparent 70%); filter: blur(1.2px); animation: steamUp 1000ms ease-in-out infinite;
+        }
+        .heroShell{
+          margin-top: 6px;
+          padding: 22px;
           border-radius: 26px;
-          background: rgba(255,255,255,.92);
-          backdrop-filter: blur(18px);
-          box-shadow: 0 -10px 60px rgba(35,41,28,.10);
+          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+          border: 1px solid rgba(226,232,240,0.86);
+          box-shadow: 0 18px 42px rgba(15,23,42,0.06);
+        }
+        .statusCard{
+          padding: 16px;
+          border: 1px solid #ece7ff;
+          border-radius: 20px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+          box-shadow: 0 10px 28px rgba(15,23,42,0.05);
+          color: #0f172a;
+        }
+        .statusCard.authCard{
+          border-color: rgba(14,165,233,0.18);
+          background: linear-gradient(180deg, rgba(240,249,255,0.98), rgba(255,255,255,0.97));
+        }
+        .statusCard.userCard{
+          border-color: rgba(52,68,34,0.18);
+          background: linear-gradient(180deg, rgba(247,250,239,0.98), rgba(255,255,255,0.97));
+        }
+        .authRow { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+        .authInput { flex: 1; min-width: 240px; padding: 13px 14px; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; color:#0f172a; font-size:16px; }
+        .imagePreviewCard{
+          display:grid;
+          grid-template-columns: 74px 1fr auto;
+          gap: 10px;
+          align-items:center;
+          padding: 9px;
+          border: 1px solid rgba(226,232,240,0.95);
+          border-radius: 18px;
+          background: rgba(255,255,255,0.96);
+          box-shadow: 0 8px 22px rgba(15,23,42,0.045);
+        }
+        .imagePreviewCard img{ width:74px; height:74px; object-fit:cover; border-radius:14px; border:1px solid rgba(226,232,240,.9); display:block; }
+        .imagePreviewTitle{ font-weight: 900; font-size: 13px; }
+        .imagePreviewMeta{ font-size: 12px; opacity: .68; margin-top: 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .planBadge{
+          display:inline-flex; align-items:center; gap:8px; padding: 7px 11px; border-radius:999px; font-size:12px; font-weight:900; letter-spacing:.02em;
+          border:1px solid #e2e8f0; background:rgba(255,255,255,.9);
+        }
+        .heroTitle{ font-size: 46px; line-height: 1.02; margin: 0; letter-spacing: -0.04em; }
+        .heroIntro{ margin-top: 12px; opacity: 0.88; font-size: 16px; line-height: 1.6; }
+        .mobileAskLabel{ display:none; }
+        .responseSelect{ padding: 10px; border-radius: 14px; border: 1px solid #ddd; font-size: 14px; background: white; color: #111; }
+        .sourceBadge{ font-size: 12px; line-height: 1.45; color: #7c2d12; background: rgba(255,247,237,.92); border: 1px solid rgba(251,146,60,.24); border-radius: 14px; padding: 10px 12px; font-weight: 750; }
+
+
+        .dossierCreatePanel {
+          margin: 8px 0 12px;
           padding: 12px;
+          border-radius: 18px;
+          border: 1px solid rgba(52,68,34,.16);
+          background: rgba(255,255,255,.94);
+          box-shadow: 0 12px 28px rgba(15,23,42,.06);
           display: grid;
           gap: 10px;
         }
-        .composerModeRow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; }
-        .composerHint { font-size: 12px; color:#7a8172; }
-        .responseSelect { padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(86,96,67,.16); font-size: 14px; background:#fff; color:#172033; }
-        .mobileAskLabel { display:none; }
-        .askGrid { display:grid; grid-template-columns: 46px 1fr 46px; gap: 10px; align-items:end; }
-        .appRoot textarea {
-          border-color: rgba(86,96,67,.18) !important;
-          border-radius: 18px !important;
-          box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+        .dossierCreateTitle { font-weight: 950; font-size: 13px; letter-spacing: -0.01em; }
+        .dossierInput {
+          width: 100%; border: 1px solid rgba(203,213,225,.95); border-radius: 13px;
+          padding: 10px 11px; background: #fff; color:#0f172a; -webkit-text-fill-color:#0f172a; font-size: 15px; outline: none;
         }
-        .sendButton {
-          width:100%; min-height: 48px; border-radius: 18px; border:1px solid #172033; background:#172033; color:#fff; -webkit-text-fill-color:#fff;
-          font-weight:950; cursor:pointer;
+        .dossierObjectiveInput { min-height: 58px; resize: vertical; line-height: 1.4; }
+        .colorPicker { display:flex; gap:7px; flex-wrap:wrap; }
+        .colorDotBtn { width: 24px; height: 24px; border-radius: 999px; border: 2px solid rgba(255,255,255,.95); box-shadow: 0 0 0 1px rgba(15,23,42,.16); cursor: pointer; }
+        .colorDotBtn.active { box-shadow: 0 0 0 3px rgba(15,23,42,.18); transform: scale(1.04); }
+        .projectColorDot { width: 10px; height: 10px; border-radius: 999px; flex: 0 0 auto; margin-top: 3px; box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 0 0 3px rgba(15,23,42,.08); }
+        .contextPanel {
+          margin-top: 16px; padding: 16px; border-radius: 22px; border: 1px solid rgba(52,68,34,.14);
+          background: linear-gradient(180deg, rgba(247,250,239,.96), rgba(255,255,255,.96));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.78);
         }
-        .imagePreviewCard {
-          display:grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items:center;
-          padding: 9px; border: 1px solid rgba(86,96,67,.14); border-radius: 18px; background: rgba(255,255,255,.88);
-        }
-        .imagePreviewCard img { width:64px; height:64px; object-fit:cover; border-radius:14px; border:1px solid rgba(86,96,67,.12); display:block; }
-        .imagePreviewTitle { font-weight:900; font-size:13px; }
-        .imagePreviewMeta { font-size:12px; color:#7a8172; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .attachX { border:1px solid rgba(86,96,67,.14); border-radius:999px; width:28px; height:28px; cursor:pointer; background:#fff; }
+        .contextHeader { display:flex; justify-content:space-between; align-items:flex-start; gap: 12px; flex-wrap:wrap; }
+        .contextTitle { font-weight: 950; font-size: 17px; letter-spacing: -0.02em; }
+        .contextIntro { margin-top: 4px; color:#425233; opacity:.78; font-size: 13px; line-height:1.45; max-width: 760px; }
+        .contextSummary { margin-top: 12px; padding: 11px 12px; border-radius: 16px; border: 1px solid rgba(52,68,34,.13); background: rgba(255,255,255,.88); color:#0f172a; font-weight: 760; font-size: 13px; line-height:1.45; }
+        .contextGrid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+        .contextActions { display:flex; gap:8px; flex-wrap:wrap; margin-top: 10px; }
+        .contextCompactBtn { min-height: 36px; padding: 8px 11px; border-radius: 13px; border: 1px solid rgba(52,68,34,.16); background: rgba(255,255,255,.94); cursor:pointer; font-weight:900; font-size: 12px; }
+        .activeProjectStrip.v13 { border-left: 5px solid var(--project-color); background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96)); }
+        .activeProjectKicker { display:flex; align-items:center; gap:8px; font-size:12px; opacity:.7; font-weight:950; text-transform:uppercase; letter-spacing:.06em; }
+        .activeProjectDot { width: 10px; height: 10px; border-radius:999px; background: var(--project-color); box-shadow: 0 0 0 3px rgba(255,255,255,.9), 0 0 0 4px rgba(15,23,42,.08); }
+        .responseModeSwitch { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+        .responseModeBtn { text-align:left; padding: 12px 13px; border-radius: 16px; border: 1px solid rgba(226,232,240,.96); background:#fff; cursor:pointer; color:#0f172a; -webkit-text-fill-color:#0f172a; }
+        .responseModeBtn.active { background: #26384D; border-color:#26384D; color:white; -webkit-text-fill-color:white; box-shadow:0 12px 28px rgba(38,56,77,.18); }
+        .responseModeBtn.active .modeHelp { color:rgba(255,255,255,.76); -webkit-text-fill-color:rgba(255,255,255,.76); }
+        .modeName { display:block; font-weight:950; font-size: 14px; }
+        .modeHelp { display:block; margin-top:4px; font-size: 12px; opacity:.72; line-height:1.35; }
+        .questionTickerMask { position:relative; overflow:hidden; }
+        .quickCard.v13chip { width:auto; min-width: 220px; max-width: 320px; border-radius:999px; padding: 10px 14px; box-shadow:none; background: rgba(255,255,255,.92); border-color:rgba(52,68,34,.14); }
+        .quickCard.v13chip .quickKicker { display:none; }
+        .quickCard.v13chip .quickLabel { display:none; }
+        .quickCard.v13chip .quickText { margin-top:0; font-size:13px; line-height:1.35; opacity:.9; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
+        .quickCard.v13chip.selected { background:#26384D; color:white; border-color:#26384D; }
+        .quickCard.v13chip.selected .quickText { color:rgba(255,255,255,.9); }
+        .bubble.ernesto.v13color { border-left: 5px solid var(--project-color); }
 
-        .pizzaLoad{ display:grid; gap:8px; padding:12px 14px; border: 1px solid rgba(251,146,60,0.30); background: linear-gradient(180deg, rgba(255,247,237,0.96), rgba(255,237,213,0.82)); border-radius: 18px; box-shadow: 0 10px 30px rgba(154,52,18,0.10); overflow: hidden; }
-        .pizzaRunway{ position: relative; height: 42px; border-radius: 999px; background: rgba(255,255,255,0.72); border: 1px solid rgba(251,146,60,0.18); overflow: hidden; }
-        .pizzaMotion{ position:absolute; top:50%; transform: translate(-50%, -50%); transition: left 180ms linear; z-index:2; }
-        .pizzaTrack{ position:absolute; left:18px; right:18px; top:50%; height:10px; transform:translateY(-50%); background:rgba(255,255,255,.82); border-radius:999px; overflow:hidden; border:1px solid rgba(251,146,60,.16); }
-        .pizzaFill{ height:100%; border-radius:999px; background: linear-gradient(90deg, #fb923c, #f43f5e); transition: width 180ms linear; }
-        .pizzaLabel{ font-size:13px; font-weight:800; color:#7c2d12; letter-spacing:.1px; }
-        .pizzaIcon{ width:34px; height:34px; border-radius:999px; position:relative; background: radial-gradient(circle at 50% 50%, rgba(252,211,77,1) 0%, rgba(251,191,36,1) 62%, rgba(194,65,12,1) 78%, rgba(154,52,18,1) 100%); box-shadow:0 12px 24px rgba(154,52,18,.18); animation:pizzaPulse 900ms ease-in-out infinite; overflow:hidden; }
-        .pizzaIcon::before{ content:""; position:absolute; inset:4px; border-radius:999px; background: radial-gradient(circle at 28% 32%, rgba(34,197,94,.95) 0 10%, transparent 11%), radial-gradient(circle at 70% 62%, rgba(34,197,94,.95) 0 9%, transparent 10%), radial-gradient(circle at 36% 58%, rgba(255,255,255,.95) 0 12%, transparent 13%), radial-gradient(circle at 62% 40%, rgba(255,255,255,.95) 0 10%, transparent 11%), radial-gradient(circle at 55% 72%, rgba(255,255,255,.95) 0 9%, transparent 10%), radial-gradient(circle at 50% 50%, rgba(239,68,68,.95) 0 70%, rgba(239,68,68,.85) 71% 100%); }
-        .pizzaIcon::after{ content:""; position:absolute; left:50%; top:-16px; width:28px; height:28px; transform:translateX(-50%); border-radius:999px; background:radial-gradient(circle at 50% 60%, rgba(148,163,184,.35), transparent 70%); filter: blur(1.2px); animation:steamUp 1000ms ease-in-out infinite; }
-
-        .siteFooter { margin: 10px 0 18px; padding: 12px 4px 0; border-top: 1px solid rgba(86,96,67,.12); color:#7a8172; display:grid; gap:5px; }
-        .siteFooterTitle { font-weight:950; font-size:12px; letter-spacing:-.01em; }
-        .siteFooterMeta { font-size:11px; line-height:1.45; }
-        .sourceBadge{ font-size:12px; line-height:1.45; color:#566043; background:#eef4e6; border:1px solid rgba(52,68,34,.14); border-radius:14px; padding:10px 12px; font-weight:750; }
-
-        @media (max-width: 980px) {
-          .appFrame { grid-template-columns: 230px minmax(0, 1fr); gap: 14px; }
-          .heroProof { grid-template-columns: 1fr; }
-          .starterGrid { grid-template-columns: 1fr; }
-        }
-        @media (max-width: 760px) {
-          .appRoot{ padding: 8px !important; }
+        @media (max-width: 860px){
+          .appRoot{ padding: 8px; background: #fffaf5; }
           .mobileOnly { display: inline-flex; }
           .desktopOnlyInline { display: none; }
-          .mobileProjectBar{ display:flex; position: sticky; top: 0; z-index: 60; padding-top: env(safe-area-inset-top); margin: 0 auto 8px; width:min(100%, 1360px); gap:8px; }
+          .mobileProjectBar{ display:flex; position: sticky; top: 0; z-index: 60; padding-top: env(safe-area-inset-top); margin-bottom: 8px; }
           .appFrame{ display:block; width:100%; }
-          .workspace{ width:100%; min-width:0; gap:10px; padding-bottom: 238px; }
+          .workspace{ width:100%; min-width:0; padding-bottom: 285px; }
           .workspace.noComposer{ padding-bottom: 20px; }
-          .projectRail{ position: fixed; z-index: 80; top: calc(10px + env(safe-area-inset-top)); left: 10px; right: 10px; height: auto; max-height: calc(100svh - 20px - env(safe-area-inset-top)); transform: translateY(-110%); opacity:0; pointer-events:none; transition: transform 180ms ease, opacity 180ms ease; border-radius:24px; box-shadow:0 24px 80px rgba(15,23,42,.22); }
-          .projectRail.open{ transform: translateY(0); opacity:1; pointer-events:auto; }
-          .drawerClose{ display:inline-flex; }
-          .sidebarBrand{ gap: 10px; }
-          .sidebarLogoEpppn,.sidebarLogoErnesto{ width: 118px; }
-          .topBar { border-radius: 18px; padding: 10px; align-items:flex-start; }
-          .statusCluster { align-items:flex-start; }
-          .topActions { width: 100%; justify-content:flex-start; margin-top: 8px; }
-          .heroShell { padding: 18px; border-radius: 24px; }
-          .heroTitle{ font-size: 38px; line-height:.96; }
-          .heroIntro{ font-size: 14px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
-          .heroActionRow { margin-top: 16px; }
-          .heroProof { display:none; }
-          .activeProjectStrip { border-radius: 16px; padding: 10px; }
-          .starterPanel { padding: 13px; border-radius: 22px; }
-          .starterGrid { gap: 9px; }
-          .starterCard { min-height: auto; padding: 13px; border-radius: 20px; }
-          .quickSection{ padding: 10px; border-radius: 20px; }
-          .quickSectionBody{ display:none; }
-          .quickSection.open .quickSectionBody{ display:block; margin-top:8px; }
-          .mobileFaqToggle{ display:flex; width:100%; min-height:44px; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid rgba(86,96,67,.14); border-radius:16px; background:rgba(255,255,255,.86); font-weight:950; cursor:pointer; }
-          .quickSectionHeader{ display:none !important; }
+          .projectRail{
+            position: fixed;
+            z-index: 80;
+            top: calc(10px + env(safe-area-inset-top));
+            left: 10px;
+            right: 10px;
+            max-height: calc(100svh - 20px - env(safe-area-inset-top));
+            transform: translateY(-110%);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 180ms ease, opacity 180ms ease;
+            border-radius: 24px;
+            box-shadow: 0 24px 80px rgba(15,23,42,0.22);
+          }
+          .projectRail.open{ transform: translateY(0); opacity: 1; pointer-events: auto; }
+          .sidebarBrand{ margin-top: 12px; padding: 12px 8px 6px; gap: 10px; }
+          .sidebarLogoEpppn{ width: 136px; }
+          .sidebarLogoErnesto{ width: 136px; }
+          .editIconBtn{ width: 34px; height: 34px; }
+          .drawerClose{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:12px; border:1px solid rgba(226,232,240,.9); background:#fff; cursor:pointer; }
+          .heroShell{ padding: 13px; border-radius: 20px; margin-top: 6px; box-shadow: 0 10px 28px rgba(15,23,42,0.045); }
+          .brandHeader{ margin-bottom: 12px; align-items:flex-start; }
+          .brandLogos{ gap:9px; }
+          .brandLogoEpppn{ width:54px; max-height:54px; }
+          .brandLogoErnesto{ width:78px; max-height:48px; }
+          .brandDivider{ height:40px; }
+          .brandTag{ font-size:10px; letter-spacing:.1em; }
+          .siteFooter{ margin: 20px 0 4px; padding-bottom: 6px; }
+          .siteFooterMeta{ font-size:11px; }
+          .heroTitle{ font-size: 28px; line-height: 1.06; letter-spacing: -0.035em; }
+          .heroIntro{ font-size: 13px; line-height: 1.48; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+          .heroShell .planBadge{ display:none; }
+          .topCompactTitle{ display:block; font-size: 11px; font-weight: 950; letter-spacing:.08em; text-transform: uppercase; opacity:.56; margin-bottom: 3px; }
           .quickWrap{ grid-template-columns: 1fr; }
           .quickNavBtn{ display:none; }
-          .quickCard{ flex-basis: 78vw; max-width: 340px; }
-          .conversationShell { padding: 10px; border-radius: 22px; }
-          .bubble{ max-width:100%; padding: 11px; border-radius: 20px; }
-          .bubble.user{ max-width: 92%; }
-          .answerPara{ font-size:15px; line-height:1.68; }
+          .quickCard{ width: 84vw; max-width: 360px; padding: 13px; }
+          .bubble{ max-width: 100%; padding: 11px; border-radius: 20px; }
+          .bubble.ernesto{ border-radius: 22px; }
+          .answerPara{ font-size: 15px; line-height: 1.68; }
           .sectionHeader{ padding: 11px 12px; }
           .sectionBody{ padding: 12px; }
-          .profileGrid{ grid-template-columns:1fr; }
-          .composer{ position:fixed; left:8px; right:8px; bottom:0; z-index:70; padding: 0 0 env(safe-area-inset-bottom); background: transparent; }
-          .composerPanel{ border-radius: 22px 22px 0 0; padding: 10px; box-shadow: 0 -18px 50px rgba(15,23,42,.14); }
-          .composerModeRow{ display:grid; grid-template-columns:1fr; gap:7px; }
-          .composerHint{ display:none; }
-          .mobileAskLabel{ display:block; font-size:12px; font-weight:950; color:#7a8172; }
-          .responseSelect{ width:100%; min-height:44px; }
-          .askGrid{ grid-template-columns:44px 1fr 44px; }
+          .statusCard{ padding: 14px; border-radius: 20px; }
+          .authRow{ display:grid; grid-template-columns:1fr; }
+          .authInput{ min-width:0; width:100%; }
+          .responseSelect{ width: 100%; min-height: 46px; }
+          .composer{ padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); }
+          .imagePreviewCard{ grid-template-columns: 64px 1fr auto; }
+          .imagePreviewCard img{ width:64px; height:64px; }
           table{ font-size:12px !important; }
+          .planBadge{ font-size: 11px; padding: 7px 9px; }
+          .profileGrid{ grid-template-columns: 1fr; }
+          .contextGrid{ grid-template-columns: 1fr; }
+          .responseModeSwitch{ grid-template-columns: 1fr; }
+          .quickCard.v13chip{ min-width: 260px; max-width: 86vw; }
+          .quickCard.v13chip .quickText{ white-space: normal; }
+          .activeProjectStrip{ align-items:flex-start; flex-direction:column; margin-top: 8px; padding: 9px 10px; border-radius: 14px; }
+          .statusCard{ padding: 11px; border-radius: 18px; }
+          .userTopRow{ gap: 8px; }
+          .userEmail{ font-size: 13px; }
+          .userMeta{ font-size: 12px; line-height: 1.35; }
+          .profilePanel{ padding: 11px; border-radius: 16px; }
+          .mobileFaqToggle{ display:flex; width:100%; min-height:44px; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid rgba(226,232,240,.95); border-radius:16px; background:rgba(255,255,255,.95); font-weight:950; cursor:pointer; }
+          .quickSection{ margin-top: 10px !important; }
+          .quickSectionBody{ display: none; }
+          .quickSection.open .quickSectionBody{ display:block; margin-top: 8px; }
+          .quickSectionHeader{ display:none !important; }
+          .composer{
+            position: fixed;
+            left: 8px;
+            right: 8px;
+            bottom: 0;
+            z-index: 70;
+            border: 1px solid rgba(226,232,240,.95);
+            border-bottom: 0;
+            border-radius: 22px 22px 0 0;
+            padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+            background: rgba(255,255,255,0.97);
+            box-shadow: 0 -18px 50px rgba(15,23,42,.14);
+          }
+          .composerModeRow{ display:grid; grid-template-columns: 1fr; gap: 7px; }
+          .composerHint{ display:none; }
+          .mobileAskLabel{ display:block; font-size: 12px; font-weight:950; opacity:.68; margin-bottom: -2px; }
         }
+
         @media (max-width: 420px){
-          .heroTitle{ font-size: 32px; }
-          .starterPill{ padding: 8px 9px; }
-          .pizzaLoad{ padding:10px; }
+          .appRoot{ padding: 8px; }
+          .heroTitle{ font-size: 25px; }
+          .heroShell{ padding: 12px; }
+          .quickCard{ width: 86vw; }
+          .pizzaLoad{ padding: 10px; }
           .pizzaLabel{ font-size:12px; line-height:1.35; }
         }
+
         @keyframes pizzaPulse{ 0%,100%{ transform: translateY(0) scale(1); } 50%{ transform: translateY(-2px) scale(1.02); } }
-        @keyframes steamUp{ 0%{ opacity:.15; transform:translateX(-50%) translateY(6px) scale(.9); } 55%{ opacity:.55; } 100%{ opacity:0; transform:translateX(-50%) translateY(-10px) scale(1.15); } }
-        @keyframes ernestoIn { from { opacity:0; transform:translateY(8px);} to { opacity:1; transform:translateY(0);} }
+        @keyframes steamUp{ 0%{ opacity:0.15; transform: translateX(-50%) translateY(6px) scale(0.9); } 55%{ opacity:0.55; } 100%{ opacity:0; transform: translateX(-50%) translateY(-10px) scale(1.15); } }
+        @keyframes ernestoIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
       `}</style>
 
       <div className="mobileProjectBar">
         <button className="mobileProjectBtn" type="button" onClick={() => setProjectsOpen(true)}>
-          <span>Projets</span>
+          <span>Dossiers</span>
           <span style={{ opacity: 0.68, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {activeProject?.title ?? "Nouvelle demande"}
+            {activeProject?.title ?? "Dossier général"}
           </span>
         </button>
       </div>
 
       <div className="appFrame">
         <aside className={`projectRail ${projectsOpen ? "open" : ""}`}>
-          <div className="railBrand">
-            <div className="railBrandMark">ER</div>
-            <div className="railBrandText">
-              <div className="railBrandTitle">Ernesto</div>
-              <div className="railBrandSub">Outil pédagogique EPPPN pour la pizza et l’activité de restauration.</div>
-            </div>
-            <button className="drawerClose" type="button" onClick={() => setProjectsOpen(false)} aria-label="Fermer les projets">×</button>
-          </div>
-
           <div className="projectRailHeader">
-            <div className="projectTitleSmall">Ateliers de travail</div>
-            <div className="projectSub">Un fil par sujet : ouverture, four, farine, service, levain, coûts.</div>
+            <div>
+              <div className="projectTitleSmall">Dossiers</div>
+              <div className="projectSub">Pâte, four, service, ouverture ou problème technique.</div>
+            </div>
+            <button className="drawerClose" type="button" onClick={() => setProjectsOpen(false)} aria-label="Fermer les dossiers">×</button>
           </div>
-
-          <button className="projectNew" type="button" onClick={newConversation}>Nouveau projet</button>
-
+          <button className="projectNew" type="button" onClick={() => setCreateDossierOpen((v) => !v)}>
+            + Créer un dossier
+          </button>
+          {createDossierOpen ? (
+            <div className="dossierCreatePanel">
+              <div className="dossierCreateTitle">Créer un dossier de travail</div>
+              <input
+                className="dossierInput"
+                value={newDossierTitle}
+                onChange={(e) => setNewDossierTitle(e.target.value)}
+                placeholder="Ex. Four électrique, Ouverture pizzeria, Pâte au levain"
+              />
+              <textarea
+                className="dossierInput dossierObjectiveInput"
+                value={newDossierObjective}
+                onChange={(e) => setNewDossierObjective(e.target.value)}
+                placeholder="Objectif du dossier — ex. comparer cuisson, débit et régularité"
+              />
+              <div className="colorPicker" aria-label="Couleur du dossier">
+                {PROJECT_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    className={`colorDotBtn ${newDossierColor === c.value ? "active" : ""}`}
+                    style={{ background: c.value }}
+                    onClick={() => setNewDossierColor(c.value)}
+                    title={c.name}
+                    aria-label={`Couleur ${c.name}`}
+                  />
+                ))}
+              </div>
+              <div className="projectActions" style={{ justifyContent: "flex-start" }}>
+                <button className="miniBtn" type="button" onClick={createDossierFromDraft}>Créer</button>
+                <button className="miniBtn" type="button" onClick={() => setCreateDossierOpen(false)}>Annuler</button>
+              </div>
+            </div>
+          ) : null}
           <div className="projectList">
             {projects.map((p) => (
-              <div key={p.id} className={`projectItem ${p.id === activeProjectId ? "active" : ""}`}>
+              <div key={p.id} className={`projectItem ${p.id === activeProjectId ? "active" : ""}`} style={p.id === activeProjectId ? ({ borderLeft: `5px solid ${projectColor(p)}` } as React.CSSProperties) : undefined}>
                 {editingProjectId === p.id ? (
                   <div className="projectRenameBox">
                     <input
@@ -1394,8 +1601,27 @@ export default function Page() {
                         if (e.key === "Escape") setEditingProjectId(null);
                       }}
                       autoFocus
-                      placeholder="Nom du projet"
+                      placeholder="Nom du dossier"
                     />
+                    <textarea
+                      className="projectRenameInput dossierObjectiveInput"
+                      value={editingProjectObjective}
+                      onChange={(e) => setEditingProjectObjective(e.target.value)}
+                      placeholder="Objectif du dossier"
+                    />
+                    <div className="colorPicker">
+                      {PROJECT_COLORS.map((c) => (
+                        <button
+                          key={c.value}
+                          type="button"
+                          className={`colorDotBtn ${editingProjectColor === c.value ? "active" : ""}`}
+                          style={{ background: c.value }}
+                          onClick={() => setEditingProjectColor(c.value)}
+                          title={c.name}
+                          aria-label={`Couleur ${c.name}`}
+                        />
+                      ))}
+                    </div>
                     <div className="projectActions" style={{ justifyContent: "flex-start" }}>
                       <button className="miniBtn" type="button" onClick={() => saveProjectTitle(p.id)}>Enregistrer</button>
                       <button className="miniBtn" type="button" onClick={() => setEditingProjectId(null)}>Annuler</button>
@@ -1406,304 +1632,561 @@ export default function Page() {
                     <button
                       type="button"
                       onClick={() => selectProject(p.id)}
-                      style={{ appearance: "none", border: 0, background: "transparent", padding: 0, textAlign: "left", cursor: "pointer", minWidth: 0 }}
+                      style={{ appearance: "none", border: 0, background: "transparent", padding: 0, textAlign: "left", cursor: "pointer", minWidth: 0, display: "flex", gap: 9 }}
                     >
-                      <div className="projectItemTitle">{p.title || "Nouvelle demande"}</div>
-                      <div className="projectMeta">{p.chat.length} message{p.chat.length > 1 ? "s" : ""} · {formatProjectDate(p.updatedAt)}</div>
+                      <span className="projectColorDot" style={{ background: projectColor(p) }} />
+                      <span style={{ minWidth: 0 }}>
+                        <div className="projectItemTitle">{p.title || "Dossier général"}</div>
+                        {p.objective ? <div className="projectMeta" style={{ marginTop: 4 }}>{p.objective}</div> : null}
+                        <div className="projectMeta">{p.chat.length} message{p.chat.length > 1 ? "s" : ""} · {formatProjectDate(p.updatedAt)}</div>
+                      </span>
                     </button>
                     <div className="projectActions">
-                      <button className="editIconBtn" type="button" onClick={(e) => { e.stopPropagation(); startRenameProject(p); }} aria-label="Renommer le projet" title="Renommer le projet">✎</button>
-                      <button className="projectDelete" type="button" onClick={(e) => { e.stopPropagation(); deleteProject(p.id); }} aria-label="Supprimer le projet" title="Supprimer">×</button>
+                      <button
+                        className="projectDelete"
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); startRenameProject(p); }}
+                        aria-label="Modifier le dossier"
+                        title="Modifier le dossier"
+                      >
+                        ⋯
+                      </button>
+                      <button
+                        className="projectDelete"
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); deleteProject(p.id); }}
+                        aria-label="Supprimer le dossier"
+                        title="Supprimer"
+                      >
+                        ×
+                      </button>
                     </div>
                   </>
                 )}
               </div>
             ))}
           </div>
-
           <div className="sidebarBrand" aria-label="Identité EPPPN et Ernesto">
             <img className="sidebarLogoEpppn" src="/LOGOEPPPN21.png" alt="Logo EPPPN" />
-            <img className="sidebarLogoErnesto" src="/logo-ernesto.png" alt="Logo Ernesto" />
-            <div className="railFooterNote">Accès réservé aux stagiaires formés à l’EPPPN. Ouverture publique prévue ultérieurement.</div>
+            <img
+              className="sidebarLogoErnesto"
+              src="/logo-ernesto.png"
+              alt="Logo Ernesto"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
           </div>
         </aside>
 
         <div className={`workspace ${session ? "" : "noComposer"}`}>
-          <div className="topBar">
-            <div className="statusCluster">
-              <span className={`planBadge ${session ? "green" : ""}`}>{session ? subscriptionLabel(usage) : "Accès réservé"}</span>
-              <div style={{ minWidth: 0 }}>
-                <div className="userEmail">{session?.user?.email ?? "Connexion stagiaire EPPPN"}</div>
-                <div className="userMeta">{session ? (usageLine || "Accès pédagogique en cours de vérification") : "Ernesto est d’abord disponible pour les personnes ayant suivi une formation à l’EPPPN."}</div>
+
+      {/* --- AUTH / USAGE BANNER --- */}
+      <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
+        {!session ? (
+          <div className="statusCard authCard">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <div>
+                <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">Essai gratuit de 10 jours</div>
+                <div style={{ fontWeight: 950, fontSize: 18 }}>Connectez-vous avec votre e-mail</div>
+                <div style={{ marginTop: 6, opacity: 0.78, maxWidth: 700 }}>
+                  Recevez un lien de connexion sécurisé. Aucun mot de passe n’est nécessaire. L’essai commence au premier accès par lien magique.
+                </div>
+              </div>
+            </div>
+
+            <div className="authRow">
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="votre.email@exemple.fr"
+                className="authInput"
+                inputMode="email"
+                autoComplete="email"
+                onFocus={(e) => setTimeout(() => e.currentTarget.scrollIntoView({ behavior: "smooth", block: "center" }), 250)}
+              />
+              <button onClick={sendMagicLink} style={{ ...ui.btn, width: "auto" }}>
+                Recevoir le lien magique
+              </button>
+            </div>
+            {authInfo && <div style={{ marginTop: 10, opacity: 0.85 }}>{authInfo}</div>}
+          </div>
+        ) : (
+          <div className="statusCard userCard">
+            <div className="userTopRow">
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">
+                  {subscriptionLabel(usage)}
+                </div>
+                <div className="userEmail">{session?.user?.email ?? "Utilisateur Ernesto"}</div>
+                <div className="userMeta">
+                  {usageLine ?? "Connecté. Posez votre première question pour afficher l’état de votre essai gratuit."}
+                  {(personalProfile.profession || personalProfile.reason) ? (
+                    <>
+                      <br />
+                      {personalProfile.profession ? `Profil : ${personalProfile.profession}` : ""}
+                      {personalProfile.profession && personalProfile.reason ? " · " : ""}
+                      {personalProfile.reason ? `Objectif : ${personalProfile.reason}` : ""}
+                    </>
+                  ) : null}
+                </div>
                 {usage && !usage.is_pro && !usage.is_admin ? (
-                  <div style={{ marginTop: 8, width: 180, height: 6, borderRadius: 999, background: "rgba(86,96,67,.12)", overflow: "hidden" }}>
-                    <div style={{ width: `${usagePercent}%`, height: "100%", background: "#344422", borderRadius: 999 }} />
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ width: "100%", height: 10, background: "#f1f5f9", borderRadius: 999, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                      <div style={{ width: `${usagePercent}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #f43f5e, #8b5cf6)", transition: "width 0.35s ease" }} />
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button onClick={() => setProfileOpen((v) => !v)} style={{ ...ui.pill, alignSelf: "flex-start" }}>
+                  {profileOpen ? "Fermer le profil" : "Profil"}
+                </button>
+                <button onClick={logout} style={{ ...ui.pill, alignSelf: "flex-start" }}>
+                  Se déconnecter
+                </button>
+              </div>
+            </div>
+
+            {profileOpen ? (
+              <div className="profilePanel">
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
+                  <div>
+                    <div style={{ fontWeight: 950 }}>Personnalisation</div>
+                    <div style={{ fontSize: 13, opacity: 0.72, marginTop: 3 }}>
+                      Ces informations aident Ernesto à adapter le niveau, les exemples et les priorités de réponse.
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.66 }}>
+                    {profileSavedAt ? "Enregistré localement" : ""}
+                  </div>
+                </div>
+
+                <div className="profileGrid">
+                  <label className="profileField">
+                    <span className="profileLabel">Âge</span>
+                    <input
+                      className="profileInput"
+                      value={personalProfile.age}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, age: e.target.value }))}
+                      placeholder="ex. 32"
+                      inputMode="numeric"
+                    />
+                  </label>
+                  <label className="profileField">
+                    <span className="profileLabel">Profession / activité</span>
+                    <input
+                      className="profileInput"
+                      value={personalProfile.profession}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, profession: e.target.value }))}
+                      placeholder="ex. élève EPPPN, pizzaiolo, boulanger, reconversion…"
+                    />
+                  </label>
+                  <label className="profileField">
+                    <span className="profileLabel">Niveau</span>
+                    <input
+                      className="profileInput"
+                      value={personalProfile.level}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, level: e.target.value }))}
+                      placeholder="ex. débutant, pro, formateur, passionné…"
+                    />
+                  </label>
+                  <label className="profileField">
+                    <span className="profileLabel">Langue / style préféré</span>
+                    <input
+                      className="profileInput"
+                      value={personalProfile.preferredLanguage}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, preferredLanguage: e.target.value }))}
+                      placeholder="ex. français simple, italien, très concret…"
+                    />
+                  </label>
+                  <label className="profileField" style={{ gridColumn: "1 / -1" }}>
+                    <span className="profileLabel">Pourquoi utilisez-vous Ernesto ?</span>
+                    <textarea
+                      className="profileTextarea"
+                      value={personalProfile.reason}
+                      onChange={(e) => setPersonalProfile((p) => ({ ...p, reason: e.target.value }))}
+                      placeholder="ex. préparer un examen, corriger mes pâtes, ouvrir une pizzeria, mieux comprendre le levain…"
+                    />
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                  <button className="miniBtn" type="button" onClick={() => setProfileOpen(false)}>Terminer</button>
+                  <button className="miniBtn" type="button" onClick={resetPersonalProfile}>Réinitialiser</button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {paywall?.paywall ? (
+          <div
+            style={{
+              padding: 16,
+              border: "1px solid rgba(244,63,94,0.22)",
+              borderRadius: 24,
+              background: "linear-gradient(180deg, rgba(255,248,242,0.98), rgba(255,241,242,0.95))",
+              boxShadow: "0 18px 42px rgba(244,63,94,0.10)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 950, fontSize: 19 }}>Continuer avec Ernesto Plus</div>
+                <div style={{ marginTop: 7, lineHeight: 1.5, color: "#334155" }}>
+                  {paywall.reason === "usage_limit_reached"
+                    ? "Votre essai gratuit a atteint sa limite de sécurité."
+                    : "Votre essai gratuit de 10 jours est terminé."}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaywall(null)}
+                aria-label="Fermer"
+                style={{ width: 34, height: 34, borderRadius: 999, border: "1px solid rgba(15,23,42,0.12)", background: "white", cursor: "pointer", fontWeight: 900 }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ marginTop: 11, color: "#475569", lineHeight: 1.5 }}>
+              Abonnement sécurisé par Stripe. Apple Pay ou Google Pay peuvent apparaître automatiquement selon l’appareil, le navigateur et la configuration du wallet.
+            </div>
+
+            <div className="pricingGrid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => startCheckout("monthly")}
+                disabled={Boolean(payingPlan)}
+                style={{ textAlign: "left", padding: 15, border: "1px solid rgba(244,63,94,0.22)", borderRadius: 20, background: "white", cursor: payingPlan ? "wait" : "pointer", boxShadow: "0 12px 28px rgba(15,23,42,0.06)" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                  <div style={{ fontSize: 13, fontWeight: 850, color: "#be123c" }}>Mensuel</div>
+                  <div style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: "#fff1f2", color: "#9f1239", fontWeight: 850 }}>flexible</div>
+                </div>
+                <div style={{ marginTop: 7, fontSize: 28, fontWeight: 950, letterSpacing: -0.7 }}>19 € <span style={{ fontSize: 13, fontWeight: 850 }}>/ mois</span></div>
+                <div style={{ marginTop: 8, fontSize: 13, color: "#64748b" }}>Pour tester Ernesto Plus sans engagement long.</div>
+                <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 14, color: "white", background: "linear-gradient(90deg,#f43f5e,#8b5cf6)", textAlign: "center", fontWeight: 950 }}>
+                  {payingPlan === "monthly" ? "Ouverture du paiement…" : "Choisir le mensuel"}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => startCheckout("yearly")}
+                disabled={Boolean(payingPlan)}
+                style={{ textAlign: "left", padding: 15, border: "1px solid rgba(139,92,246,0.24)", borderRadius: 20, background: "linear-gradient(180deg,#ffffff,#faf7ff)", cursor: payingPlan ? "wait" : "pointer", boxShadow: "0 12px 28px rgba(15,23,42,0.06)" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                  <div style={{ fontSize: 13, fontWeight: 850, color: "#6d28d9" }}>Annuel</div>
+                  <div style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: "#f3e8ff", color: "#6d28d9", fontWeight: 850 }}>recommandé</div>
+                </div>
+                <div style={{ marginTop: 7, fontSize: 28, fontWeight: 950, letterSpacing: -0.7 }}>149 € <span style={{ fontSize: 13, fontWeight: 850 }}>/ an</span></div>
+                <div style={{ marginTop: 8, fontSize: 13, color: "#64748b" }}>Le meilleur tarif pour accompagner l’apprentissage sur la durée.</div>
+                <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 14, color: "white", background: "linear-gradient(90deg,#7c3aed,#0f172a)", textAlign: "center", fontWeight: 950 }}>
+                  {payingPlan === "yearly" ? "Ouverture du paiement…" : "Choisir l’annuel"}
+                </div>
+              </button>
+            </div>
+
+            <div style={{ marginTop: 12, display: "grid", gap: 6, fontSize: 14, color: "#334155" }}>
+              <div>• questions écrites, dictée vocale et analyse d’images</div>
+              <div>• réponses rapides ou analyses approfondies</div>
+              <div>• projets, profil utilisateur et accompagnement pédagogique</div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <header className="heroShell">
+        <div style={{ maxWidth: 880 }}>
+          <div style={{ display: "inline-flex", marginBottom: 10 }} className="planBadge">Accès réservé aux stagiaires formés à l’EPPPN</div>
+          <h1 className="heroTitle">Ernesto, The Pizza Explained.</h1>
+          <div className="heroIntro">
+            Tuteur numérique de l’EPPPN pour raisonner sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du travail. Ernesto part de votre situation réelle : matériel, production, objectif, contraintes de service.
+          </div>
+        </div>
+
+        <div className="contextPanel">
+          <div className="contextHeader">
+            <div>
+              <div className="contextTitle">Contexte de travail</div>
+              <div className="contextIntro">
+                Renseignez votre activité, votre matériel et votre objectif. Les réponses d’Ernesto seront plus cadrées et moins génériques.
+              </div>
+            </div>
+            <button className="contextCompactBtn" type="button" onClick={() => setWorkContextOpen((v) => !v)}>
+              {workContextOpen ? "Refermer" : workContextSummary ? "Modifier" : "Personnaliser"}
+            </button>
+          </div>
+          <div className="contextSummary">
+            {workContextSummary || "Aucun contexte renseigné pour l’instant. Ajoutez quelques repères : activité, four, production visée, travail dominant, objectif actuel."}
+          </div>
+          {workContextOpen ? (
+            <div>
+              <div className="contextGrid">
+                <label className="profileField">
+                  <span className="profileLabel">Activité</span>
+                  <input className="profileInput" value={workContext.activity} onChange={(e) => setWorkContext((p) => ({ ...p, activity: e.target.value }))} placeholder="Pizzeria, restaurant, boulangerie, focaccia…" />
+                </label>
+                <label className="profileField">
+                  <span className="profileLabel">Situation</span>
+                  <input className="profileInput" value={workContext.situation} onChange={(e) => setWorkContext((p) => ({ ...p, situation: e.target.value }))} placeholder="En formation, en ouverture, activité ouverte…" />
+                </label>
+                <label className="profileField">
+                  <span className="profileLabel">Matériel principal</span>
+                  <input className="profileInput" value={workContext.equipment} onChange={(e) => setWorkContext((p) => ({ ...p, equipment: e.target.value }))} placeholder="Four électrique, four bois, pétrin, chambre froide…" />
+                </label>
+                <label className="profileField">
+                  <span className="profileLabel">Production visée</span>
+                  <input className="profileInput" value={workContext.productionTarget} onChange={(e) => setWorkContext((p) => ({ ...p, productionTarget: e.target.value }))} placeholder="60 pizzas/service, vente à emporter, service du soir…" />
+                </label>
+                <label className="profileField">
+                  <span className="profileLabel">Travail dominant</span>
+                  <input className="profileInput" value={workContext.dominantWork} onChange={(e) => setWorkContext((p) => ({ ...p, dominantWork: e.target.value }))} placeholder="Levain naturel, fermentation longue, teglia, pain…" />
+                </label>
+                <label className="profileField">
+                  <span className="profileLabel">Objectif actuel</span>
+                  <input className="profileInput" value={workContext.currentGoal} onChange={(e) => setWorkContext((p) => ({ ...p, currentGoal: e.target.value }))} placeholder="Stabiliser la pâte, ouvrir, améliorer le service…" />
+                </label>
+              </div>
+              <div className="contextActions">
+                <button className="miniBtn" type="button" onClick={() => setWorkContextOpen(false)}>Enregistrer</button>
+                <button className="miniBtn" type="button" onClick={resetWorkContext}>Réinitialiser</button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </header>
+
+      <div className="activeProjectStrip v13" style={{ "--project-color": activeProjectColor } as React.CSSProperties}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="activeProjectKicker"><span className="activeProjectDot" /> Dossier actif</div>
+          <div className="activeProjectTitleRow" style={{ marginTop: 4 }}>
+            <div className="activeProjectTitleText">
+              {activeProject?.title ?? "Dossier général"}
+            </div>
+          </div>
+          {activeProjectObjective ? <div className="projectMeta" style={{ marginTop: 4 }}>{activeProjectObjective}</div> : null}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="miniBtn" type="button" onClick={renameActiveProject}>Modifier</button>
+          <button className="miniBtn" type="button" onClick={() => { setCreateDossierOpen(true); setProjectsOpen(true); }}>Créer un dossier</button>
+        </div>
+      </div>
+
+      <section className={`quickSection ${quickOpen ? "open" : ""}`} style={{ marginTop: 14 }}>
+        <button className="mobileFaqToggle" type="button" onClick={() => setQuickOpen((v) => !v)}>
+          <span>Questions fréquentes</span>
+          <span style={{ opacity: 0.62 }}>{quickOpen ? "Masquer" : "Ouvrir"}</span>
+        </button>
+        <div className="quickSectionBody">
+          <div className="quickSectionHeader" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+            <div style={{ fontWeight: 950, fontSize: 18 }}>Questions fréquentes</div>
+          </div>
+
+        <div className="quickWrap">
+          <button className="quickNavBtn" onClick={() => scrollQuick(-320)} aria-label="Faire défiler vers la gauche">
+            ‹
+          </button>
+          <div
+            className="quickRow questionTickerMask"
+            ref={quickRowRef}
+            onMouseEnter={() => setPauseQuickScroll(true)}
+            onMouseLeave={() => setPauseQuickScroll(false)}
+            onTouchStart={() => setPauseQuickScroll(true)}
+            onTouchEnd={() => setPauseQuickScroll(false)}
+          >
+            {quickQuestions.map((q, idx) => (
+              <button
+                key={`${q.label}-${idx}`}
+                className={`quickCard v13chip ${selectedQuestion === q.label ? "selected" : ""}`}
+                onClick={() => handleQuestionClick(q)}
+                aria-pressed={selectedQuestion === q.label}
+                title="Préremplir la question"
+              >
+                <div className="quickKicker">{q.category}</div>
+                <div className="quickLabel">{q.label}</div>
+                <div className="quickText">{q.text}</div>
+              </button>
+            ))}
+          </div>
+          <button className="quickNavBtn" onClick={() => scrollQuick(320)} aria-label="Faire défiler vers la droite">
+            ›
+          </button>
+        </div>
+        </div>
+      </section>
+
+      <section style={{ marginTop: 16 }}>
+        {chat.length === 0 ? (
+          <div style={{ opacity: 0.72, fontSize: 14, padding: "8px 2px" }}>Commencez par une situation concrète : une pâte qui colle, un levain trop acide, une cuisson irrégulière, une photo de cornicione ou une question d’organisation au banc.</div>
+        ) : (
+          chat.map((m) => (
+            <div
+              key={m.id}
+              className="bubbleWrap"
+              style={{ justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
+            >
+              <div className={`bubble ${m.role} ${m.role === "ernesto" ? "v13color" : ""}`} style={m.role === "ernesto" ? ({ "--project-color": activeProjectColor } as React.CSSProperties) : undefined}>
+                {m.role === "user" ? <div>{m.text}</div> : null}
+
+                {m.role === "ernesto" ? (
+                  <div style={{ display: "grid", gap: 12 }}>
+                    {m.text?.trim() ? (
+                      <>
+                        <Section title="Réponse Ernesto" headerClass="hAnswer">
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: 12,
+                          }}
+                        >
+                          <AnswerText text={m.text} />
+                        </div>
+                        </Section>
+                      </>
+                    ) : null}
+
+                    {m.graph ? <ErnestoPanels graph={m.graph} /> : null}
                   </div>
                 ) : null}
               </div>
             </div>
-            <div className="topActions">
-              {session ? (
-                <>
-                  <button onClick={() => setProfileOpen((v) => !v)} className="miniBtn">Profil</button>
-                  <button onClick={logout} className="miniBtn">Se déconnecter</button>
-                </>
-              ) : null}
+          ))
+        )}
+        <div ref={bottomRef} />
+      </section>
+
+      <footer className="siteFooter">
+        <div className="siteFooterTitle">Ernesto — The Pizza Explained. · Version actuelle : V13 · juin 2026</div>
+        <div className="siteFooterMeta">
+          Conçu et développé par la section « Apprentissage et Informatisation » de l'EPPPN.
+        </div>
+      </footer>
+
+      {session ? (
+      <div className="composer">
+        <div style={{ display: "grid", gap: 10 }}>
+          <div className="composerModeRow">
+            <div style={{ fontWeight: 950, fontSize: 13, opacity: .78 }}>Choisir le type de réponse</div>
+            <div className="responseModeSwitch" role="group" aria-label="Type de réponse">
+              <button
+                type="button"
+                className={`responseModeBtn ${speed === "BANCO" ? "active" : ""}`}
+                onClick={() => setSpeed("BANCO")}
+              >
+                <span className="modeName">Réponse rapide</span>
+                <span className="modeHelp">Décision, correction, action immédiate.</span>
+              </button>
+              <button
+                type="button"
+                className={`responseModeBtn ${speed === "ECOLE" ? "active" : ""}`}
+                onClick={() => setSpeed("ECOLE")}
+              >
+                <span className="modeName">Réponse approfondie</span>
+                <span className="modeHelp">Analyse technique, protocole, points de contrôle.</span>
+              </button>
             </div>
           </div>
 
-          {authInfo ? (
-            <div className="statusCard" style={{ borderColor: "rgba(190,124,68,.24)" }}>{authInfo}</div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+
+              try {
+                const MAX_BYTES = 600 * 1024; // 600KB target
+                let out: File = f;
+
+                if (f.size > MAX_BYTES) {
+                  out = await compressImageToJpeg(f, 1280, 0.72);
+                  if (out.size > MAX_BYTES) {
+                    out = await compressImageToJpeg(f, 960, 0.60);
+                  }
+                }
+
+                setSelectedImage(out);
+              } catch {
+                setSelectedImage(f); // fallback se compressione fallisce
+              }
+
+              e.currentTarget.value = "";
+            }}
+          />
+
+          {selectedImage && imagePreviewUrl ? (
+            <div className="imagePreviewCard">
+              <img src={imagePreviewUrl} alt="Photo sélectionnée pour analyse" />
+              <div style={{ minWidth: 0 }}>
+                <div className="imagePreviewTitle">Photo prête pour l’analyse</div>
+                <div className="imagePreviewMeta">{selectedImage.name} · {(selectedImage.size / 1024).toFixed(0)} Ko</div>
+              </div>
+              <button className="attachX" type="button" onClick={() => setSelectedImage(null)} aria-label="Retirer la photo">×</button>
+            </div>
           ) : null}
 
-          {!session ? (
-            <section className="heroShell">
-              <div className="heroKicker">Accès pédagogique réservé</div>
-              <h1 className="heroTitle">Ernesto, The Pizza Explained.</h1>
-              <div className="heroIntro">
-                Ernesto accompagne les stagiaires EPPPN qui ouvrent, développent ou stabilisent une activité de pizza et de restauration : pâte, farines, levain, fermentation, cuisson, organisation du banc, service et choix économiques.
-              </div>
-              <div className="heroProof">
-                <div className="proofItem"><div className="proofTitle">Diagnostic</div><div className="proofText">Transformer un problème concret en causes probables et points de contrôle.</div></div>
-                <div className="proofItem"><div className="proofTitle">Protocole</div><div className="proofText">Construire une action testable, adaptée au matériel et au service.</div></div>
-                <div className="proofItem"><div className="proofTitle">Activité</div><div className="proofText">Relier qualité produit, régularité, coûts et organisation quotidienne.</div></div>
-              </div>
-              <div style={{ marginTop: 24 }} className="statusCard">
-                <div style={{ fontWeight: 950, fontSize: 18 }}>Connexion par e-mail</div>
-                <div style={{ marginTop: 6, color: "#626a59", lineHeight: 1.5 }}>
-                  Utilisez l’adresse associée à votre accès EPPPN. Vous recevrez un lien sécurisé, sans mot de passe.
-                </div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                  <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") sendMagicLink(); }}
-                    placeholder="votre.email@exemple.fr"
-                    style={{ flex: 1, minWidth: 240, padding: "13px 14px", border: "1px solid rgba(86,96,67,.18)", borderRadius: 16, fontSize: 16 }}
-                  />
-                  <button onClick={sendMagicLink} className="primaryHeroBtn">Recevoir le lien</button>
-                </div>
-              </div>
-            </section>
-          ) : (
-            <>
-              {profileOpen ? (
-                <section className="profilePanel">
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
-                    <div>
-                      <div className="sectionEyebrow">Profil de travail</div>
-                      <div style={{ marginTop: 4, fontWeight: 950, fontSize: 18 }}>Adapter les réponses à votre activité</div>
-                    </div>
-                    <button type="button" className="miniBtn" onClick={resetPersonalProfile}>Réinitialiser</button>
-                  </div>
-                  <div className="profileGrid">
-                    <label className="profileField"><span className="profileLabel">Âge</span><input className="profileInput" value={personalProfile.age} onChange={(e) => setPersonalProfile((p) => ({ ...p, age: e.target.value }))} placeholder="Ex. 35" /></label>
-                    <label className="profileField"><span className="profileLabel">Activité</span><input className="profileInput" value={personalProfile.profession} onChange={(e) => setPersonalProfile((p) => ({ ...p, profession: e.target.value }))} placeholder="Pizzaiolo, porteur de projet, restaurateur…" /></label>
-                    <label className="profileField"><span className="profileLabel">Niveau</span><input className="profileInput" value={personalProfile.level} onChange={(e) => setPersonalProfile((p) => ({ ...p, level: e.target.value }))} placeholder="Débutant, confirmé, ouverture prochaine…" /></label>
-                    <label className="profileField"><span className="profileLabel">Style préféré</span><input className="profileInput" value={personalProfile.preferredLanguage} onChange={(e) => setPersonalProfile((p) => ({ ...p, preferredLanguage: e.target.value }))} placeholder="Court, technique, très pédagogique…" /></label>
-                    <label className="profileField" style={{ gridColumn: "1 / -1" }}><span className="profileLabel">Votre objectif avec Ernesto</span><textarea className="profileTextarea" value={personalProfile.reason} onChange={(e) => setPersonalProfile((p) => ({ ...p, reason: e.target.value }))} placeholder="Ex. ouvrir une pizzeria artisanale, stabiliser une pâte 48h, choisir un four…" /></label>
-                  </div>
-                  {profileSavedAt ? <div style={{ fontSize: 12, color: "#7a8172" }}>Profil enregistré localement.</div> : null}
-                </section>
-              ) : null}
+          <div className="mobileAskLabel">Votre question</div>
 
-              {paywall ? (
-                <section className="statusCard" style={{ borderColor: "rgba(190,124,68,.24)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
-                    <div>
-                      <div className="sectionEyebrow">Accès Ernesto Plus</div>
-                      <div style={{ marginTop: 5, fontSize: 22, fontWeight: 950, letterSpacing: "-.03em" }}>Votre période d’essai est terminée</div>
-                      <div style={{ marginTop: 7, color: "#626a59", lineHeight: 1.5 }}>Activez Ernesto Plus pour continuer à travailler sur vos protocoles, vos diagnostics et votre organisation de service.</div>
-                    </div>
-                    <button className="miniBtn" type="button" onClick={() => setPaywall(null)}>×</button>
-                  </div>
-                  <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
-                    <button type="button" onClick={() => startCheckout("monthly")} disabled={Boolean(payingPlan)} style={{ textAlign: "left", padding: 15, border: "1px solid rgba(86,96,67,.16)", borderRadius: 20, background: "white", cursor: payingPlan ? "wait" : "pointer" }}>
-                      <div style={{ fontSize: 13, fontWeight: 900, color: "#8b5e34" }}>Mensuel</div>
-                      <div style={{ marginTop: 7, fontSize: 30, fontWeight: 950, letterSpacing: -1 }}>19 € <span style={{ fontSize: 13 }}>/ mois</span></div>
-                      <div style={{ marginTop: 9, padding: "10px 12px", borderRadius: 14, color: "white", WebkitTextFillColor: "white", background: "#172033", textAlign: "center", fontWeight: 950 }}>{payingPlan === "monthly" ? "Ouverture du paiement…" : "Choisir le mensuel"}</div>
-                    </button>
-                    <button type="button" onClick={() => startCheckout("yearly")} disabled={Boolean(payingPlan)} style={{ textAlign: "left", padding: 15, border: "1px solid rgba(52,68,34,.20)", borderRadius: 20, background: "linear-gradient(180deg,#ffffff,#f3f6ed)", cursor: payingPlan ? "wait" : "pointer" }}>
-                      <div style={{ fontSize: 13, fontWeight: 900, color: "#344422" }}>Annuel recommandé</div>
-                      <div style={{ marginTop: 7, fontSize: 30, fontWeight: 950, letterSpacing: -1 }}>149 € <span style={{ fontSize: 13 }}>/ an</span></div>
-                      <div style={{ marginTop: 9, padding: "10px 12px", borderRadius: 14, color: "white", WebkitTextFillColor: "white", background: "#344422", textAlign: "center", fontWeight: 950 }}>{payingPlan === "yearly" ? "Ouverture du paiement…" : "Choisir l’annuel"}</div>
-                    </button>
-                  </div>
-                </section>
-              ) : null}
+          {/* mobile grid: mic + textarea + camera */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "44px 1fr 44px",
+              gap: 10,
+              alignItems: "end",
+            }}
+          >
+            <button
+              type="button"
+              onClick={toggleDictation}
+              style={{
+                ...ui.iconBtn,
+                borderColor: dictating ? "#0ea5e9" : "#ddd",
+                background: dictating ? "rgba(14,165,233,0.10)" : "white",
+              }}
+              title="Parler à Ernesto"
+            >
+              🎤
+            </button>
 
-              <section className="heroShell">
-                <div className="heroKicker">Accès stagiaire EPPPN · phase privée</div>
-                <h1 className="heroTitle">Ernesto, The Pizza Explained.</h1>
-                <div className="heroIntro">
-                  Un espace de travail pour les personnes qui ouvrent, pilotent ou stabilisent une activité de pizza artisanale : comprendre ce qui se passe, décider quoi tester, structurer un protocole et garder la régularité en service.
-                </div>
-                <div className="heroActionRow">
-                  <button className="primaryHeroBtn" type="button" onClick={() => document.querySelector<HTMLTextAreaElement>('textarea')?.focus()}>Poser une question</button>
-                  <button className="miniBtn" type="button" onClick={() => fileRef.current?.click()}>Analyser une photo</button>
-                  <button className="miniBtn" type="button" onClick={newConversation}>Nouveau dossier</button>
-                  <span className="softBadge">Réservé aux stagiaires formés à l’EPPPN</span>
-                </div>
-                <div className="heroProof">
-                  <div className="proofItem"><div className="proofTitle">Pâte & fermentation</div><div className="proofText">Hydratation, force de farine, levain, froid, apprêt, tenue au banc.</div></div>
-                  <div className="proofItem"><div className="proofTitle">Four & production</div><div className="proofText">Cuisson, débit, organisation du poste, mise en place, régularité.</div></div>
-                  <div className="proofItem"><div className="proofTitle">Restaurant</div><div className="proofText">Choix matériels, coûts, marge, confort de travail, ouverture progressive.</div></div>
-                </div>
-              </section>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  askTutor(message);
+                }
+              }}
+              rows={3}
+              placeholder="Décrivez votre problème, votre protocole ou votre objectif…"
+              style={ui.textarea}
+            />
 
-              <div className="activeProjectStrip">
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="sectionEyebrow" style={{ fontSize: 11 }}>Dossier actif</div>
-                  <div className="activeProjectTitleRow">
-                    <div className="activeProjectTitleText">{activeProject?.title ?? "Nouvelle demande"}</div>
-                    <button className="editIconBtn" type="button" onClick={renameActiveProject} aria-label="Renommer le projet actif" title="Renommer le projet actif">✎</button>
-                  </div>
-                </div>
-                <button className="miniBtn" type="button" onClick={newConversation}>Nouveau</button>
-              </div>
+            <button type="button" onClick={() => fileRef.current?.click()} style={ui.iconBtn} title="Analyser une photo">
+              📷
+            </button>
+          </div>
 
-              {chat.length === 0 ? (
-                <section className="starterPanel">
-                  <div className="sectionTitleRow">
-                    <div>
-                      <div className="sectionEyebrow">Démarrer vite</div>
-                      <div className="sectionTitle">Choisissez une situation de travail</div>
-                    </div>
-                    <div className="sectionHelp">1 clic préremplit · Entrée envoie · photo possible</div>
-                  </div>
-                  <div className="starterGrid">
-                    {starterGroups.map((group) => (
-                      <article className="starterCard" key={group.title}>
-                        <div>
-                          <div className="starterCardKicker">{group.eyebrow}</div>
-                          <div className="starterCardTitle">{group.title}</div>
-                          <div className="starterCardText">{group.text}</div>
-                        </div>
-                        <div className="starterPills">
-                          {group.questions.map((q) => (
-                            <button key={q.label} className="starterPill" type="button" onClick={() => handleQuestionClick(q)} onDoubleClick={() => handleQuestionDoubleClick(q)}>{q.label}</button>
-                          ))}
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-
-              <section className={`quickSection ${quickOpen ? "open" : ""}`}>
-                <button className="mobileFaqToggle" type="button" onClick={() => setQuickOpen((v) => !v)}>
-                  <span>Suggestions de départ</span>
-                  <span style={{ opacity: 0.62 }}>{quickOpen ? "Masquer" : "Ouvrir"}</span>
-                </button>
-                <div className="quickSectionBody">
-                  <div className="quickSectionHeader">
-                    <div>
-                      <div className="sectionEyebrow">Bibliothèque de questions</div>
-                      <div style={{ fontWeight: 950, fontSize: 18, letterSpacing: "-.02em" }}>Suggestions de départ</div>
-                    </div>
-                    <div className="sectionHelp">Situations réelles · 1 clic pour préremplir · double clic pour envoyer</div>
-                  </div>
-                  <div className="quickWrap">
-                    <button className="quickNavBtn" onClick={() => scrollQuick(-300)} aria-label="Faire défiler vers la gauche">‹</button>
-                    <div className="quickRow" ref={quickRowRef} onMouseEnter={() => setPauseQuickScroll(true)} onMouseLeave={() => setPauseQuickScroll(false)} onTouchStart={() => setPauseQuickScroll(true)} onTouchEnd={() => setPauseQuickScroll(false)}>
-                      {quickQuestions.map((q, idx) => (
-                        <button key={`${q.label}-${idx}`} className={`quickCard ${selectedQuestion === q.label ? "selected" : ""}`} onClick={() => handleQuestionClick(q)} onDoubleClick={() => handleQuestionDoubleClick(q)} aria-pressed={selectedQuestion === q.label} title="1 clic : préremplir · 2 clics : envoyer à Ernesto">
-                          <div className="quickKicker">{q.category}</div>
-                          <div className="quickLabel">{q.label}</div>
-                          <div className="quickText">{q.text}</div>
-                        </button>
-                      ))}
-                    </div>
-                    <button className="quickNavBtn" onClick={() => scrollQuick(300)} aria-label="Faire défiler vers la droite">›</button>
-                  </div>
-                </div>
-              </section>
-
-              <section className="conversationShell">
-                {chat.length === 0 ? (
-                  <div className="emptyHint">Décrivez une situation précise : farine utilisée, hydratation, température, temps de fermentation, type de four, rythme de service. Ernesto répond mieux quand le problème est ancré dans le travail réel.</div>
-                ) : (
-                  chat.map((m) => (
-                    <div key={m.id} className="bubbleWrap" style={{ justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-                      <div className={`bubble ${m.role}`}>
-                        {m.role === "user" ? <div>{m.text}</div> : null}
-                        {m.role === "ernesto" ? (
-                          <div style={{ display: "grid", gap: 12 }}>
-                            {m.text?.trim() ? (
-                              <Section title="Réponse Ernesto" headerClass="hAnswer">
-                                <AnswerText text={m.text} />
-                              </Section>
-                            ) : null}
-                            {m.graph ? <ErnestoPanels graph={m.graph} /> : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))
-                )}
-                <div ref={bottomRef} />
-              </section>
-
-              <footer className="siteFooter">
-                <div className="siteFooterTitle">Ernesto — The Pizza Explained. · Version actuelle : V12</div>
-                <div className="siteFooterMeta">Conçu et développé par la section « Apprentissage et Informatisation » de l’EPPPN.</div>
-              </footer>
-
-              <div className="composer">
-                <div className="composerPanel">
-                  <div className="composerModeRow">
-                    <div>
-                      <div className="mobileAskLabel">Votre question</div>
-                      <label style={{ fontWeight: 950, fontSize: 13 }}>Type de réponse</label>
-                    </div>
-                    <select value={speed} onChange={(e) => setSpeed(e.target.value as Speed)} className="responseSelect">
-                      <option value="BANCO">Réponse rapide — décision & action</option>
-                      <option value="ECOLE">Réponse approfondie — analyse & détails</option>
-                    </select>
-                    <div className="composerHint">{loading ? "Analyse en cours · Ernesto structure la réponse…" : "Entrée = envoyer · Shift+Entrée = nouvelle ligne"}</div>
-                  </div>
-
-                  <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    try {
-                      const MAX_BYTES = 600 * 1024;
-                      let out: File = f;
-                      if (f.size > MAX_BYTES) {
-                        out = await compressImageToJpeg(f, 1280, 0.72);
-                        if (out.size > MAX_BYTES) out = await compressImageToJpeg(f, 960, 0.60);
-                      }
-                      setSelectedImage(out);
-                    } catch {
-                      setSelectedImage(f);
-                    }
-                    e.currentTarget.value = "";
-                  }} />
-
-                  {selectedImage && imagePreviewUrl ? (
-                    <div className="imagePreviewCard">
-                      <img src={imagePreviewUrl} alt="Photo sélectionnée pour analyse" />
-                      <div style={{ minWidth: 0 }}>
-                        <div className="imagePreviewTitle">Photo prête pour l’analyse</div>
-                        <div className="imagePreviewMeta">{selectedImage.name} · {(selectedImage.size / 1024).toFixed(0)} Ko</div>
-                      </div>
-                      <button className="attachX" type="button" onClick={() => setSelectedImage(null)} aria-label="Retirer la photo">×</button>
-                    </div>
-                  ) : null}
-
-                  <div className="askGrid">
-                    <button type="button" onClick={toggleDictation} style={{ ...ui.iconBtn, width: 46, height: 46, borderColor: dictating ? "#344422" : "rgba(86,96,67,.18)", background: dictating ? "#eef4e6" : "white" }} title="Parler à Ernesto">🎤</button>
-                    <textarea value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); askTutor(message); } }} rows={3} placeholder="Décrivez votre situation : pâte, farine, four, service, coût, organisation…" style={ui.textarea} />
-                    <button type="button" onClick={() => fileRef.current?.click()} style={{ ...ui.iconBtn, width: 46, height: 46, borderColor: "rgba(86,96,67,.18)" }} title="Analyser une photo">📷</button>
-                  </div>
-
-                  <button className="sendButton" onClick={() => askTutor(message)} disabled={loading || !message.trim()} style={{ opacity: loading || !message.trim() ? 0.62 : 1 }}>
-                    {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Demander à Ernesto"}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
+          <button
+            onClick={() => askTutor(message)}
+            disabled={loading || !message.trim()}
+            style={{
+              ...ui.btn,
+              width: "100%",
+              opacity: loading || !message.trim() ? 0.6 : 1,
+              cursor: loading || !message.trim() ? "not-allowed" : "pointer",
+            }}
+          >
+            {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Demander à Ernesto"}
+          </button>
+        </div>
+      </div>
+      ) : null}
         </div>
       </div>
     </main>
