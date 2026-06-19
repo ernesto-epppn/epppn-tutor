@@ -430,13 +430,11 @@ export default function Page() {
 
   const [createDossierOpen, setCreateDossierOpen] = useState(false);
   const [newDossierTitle, setNewDossierTitle] = useState("");
-  const [newDossierObjective, setNewDossierObjective] = useState("");
   const [newDossierColor, setNewDossierColor] = useState(DEFAULT_PROJECT_COLOR);
 
   // édition des projets
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectTitle, setEditingProjectTitle] = useState("");
-  const [editingProjectObjective, setEditingProjectObjective] = useState("");
   const [editingProjectColor, setEditingProjectColor] = useState(DEFAULT_PROJECT_COLOR);
 
   useEffect(() => {
@@ -788,8 +786,7 @@ export default function Page() {
 
   function createDossierFromDraft() {
     const cleanTitle = newDossierTitle.replace(/\s+/g, " ").trim() || "Dossier général";
-    const cleanObjective = newDossierObjective.replace(/\s+/g, " ").trim();
-    const p = makeProject(cleanTitle.slice(0, 80), newDossierColor, cleanObjective.slice(0, 140));
+    const p = makeProject(cleanTitle.slice(0, 80), newDossierColor, "");
     setProjects((prev) => [p, ...prev].slice(0, 30));
     setActiveProjectId(p.id);
     setChat([]);
@@ -799,7 +796,6 @@ export default function Page() {
     setSelectedQuestion(null);
     setCreateDossierOpen(false);
     setNewDossierTitle("");
-    setNewDossierObjective("");
     setNewDossierColor(DEFAULT_PROJECT_COLOR);
     setProjectsOpen(false);
   }
@@ -848,24 +844,21 @@ export default function Page() {
   function startRenameProject(p: Project) {
     setEditingProjectId(p.id);
     setEditingProjectTitle(p.title || "Dossier général");
-    setEditingProjectObjective(p.objective || "");
     setEditingProjectColor(projectColor(p));
   }
 
   function saveProjectTitle(id: string) {
     const clean = editingProjectTitle.replace(/\s+/g, " ").trim();
     if (!clean) return;
-    const objective = editingProjectObjective.replace(/\s+/g, " ").trim();
     setProjects((prev) =>
       prev.map((p) =>
         p.id === id
-          ? { ...p, title: clean.slice(0, 80), objective: objective.slice(0, 140), color: editingProjectColor, updatedAt: Date.now() }
+          ? { ...p, title: clean.slice(0, 80), objective: "", color: editingProjectColor, updatedAt: Date.now() }
           : p
       )
     );
     setEditingProjectId(null);
     setEditingProjectTitle("");
-    setEditingProjectObjective("");
     setEditingProjectColor(DEFAULT_PROJECT_COLOR);
   }
 
@@ -947,7 +940,6 @@ export default function Page() {
 
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
   const activeProjectColor = projectColor(activeProject);
-  const activeProjectObjective = activeProject?.objective || "";
   const workContextSummary = [
     workContext.activity,
     workContext.situation,
@@ -974,6 +966,15 @@ export default function Page() {
           align-items: start;
         }
         .workspace { min-width: 0; }
+        .sidebarShell {
+          position: sticky;
+          top: 14px;
+          max-height: calc(100svh - 28px);
+          min-height: 0;
+          display: grid;
+          grid-template-rows: minmax(0, 1fr) auto;
+          gap: 12px;
+        }
         .mobileOnly { display: none; }
         .desktopOnlyInline { display: inline; }
         .topCompactTitle { display:none; }
@@ -990,9 +991,7 @@ export default function Page() {
         .composerModeRow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
         .composerHint { font-size: 12px; opacity: 0.75; }
         .projectRail {
-          position: sticky;
-          top: 14px;
-          max-height: calc(100svh - 28px);
+          min-height: 0;
           overflow: auto;
           border: 1px solid rgba(226,232,240,0.88);
           border-radius: 26px;
@@ -1041,15 +1040,17 @@ export default function Page() {
           background: linear-gradient(180deg, rgba(255,247,237,.98), rgba(255,255,255,.98));
         }
         .sidebarBrand {
-          margin-top: 16px;
-          padding: 16px 12px 12px;
-          border-top: 1px solid rgba(52,68,34,.14);
+          padding: 14px 10px;
+          border: 1px solid rgba(226,232,240,0.78);
+          border-radius: 22px;
+          background: rgba(255,255,255,0.80);
+          box-shadow: 0 10px 28px rgba(52,68,34,0.05);
           display: grid;
-          gap: 14px;
+          gap: 12px;
           justify-items: center;
         }
-        .sidebarLogoEpppn { width: 176px; max-width: 92%; height:auto; object-fit:contain; display:block; }
-        .sidebarLogoErnesto { width: 176px; max-width: 92%; height:auto; object-fit:contain; display:block; }
+        .sidebarLogoEpppn { width: 166px; max-width: 88%; height:auto; object-fit:contain; display:block; }
+        .sidebarLogoErnesto { width: 166px; max-width: 88%; height:auto; object-fit:contain; display:block; }
         .editIconBtn {
           width: 30px;
           height: 30px;
@@ -1391,7 +1392,6 @@ export default function Page() {
           width: 100%; border: 1px solid rgba(203,213,225,.95); border-radius: 13px;
           padding: 10px 11px; background: #fff; color:#0f172a; -webkit-text-fill-color:#0f172a; font-size: 15px; outline: none;
         }
-        .dossierObjectiveInput { min-height: 58px; resize: vertical; line-height: 1.4; }
         .colorPicker { display:flex; gap:7px; flex-wrap:wrap; }
         .colorDotBtn { width: 24px; height: 24px; border-radius: 999px; border: 2px solid rgba(255,255,255,.95); box-shadow: 0 0 0 1px rgba(15,23,42,.16); cursor: pointer; }
         .colorDotBtn.active { box-shadow: 0 0 0 3px rgba(15,23,42,.18); transform: scale(1.04); }
@@ -1411,12 +1411,15 @@ export default function Page() {
         .activeProjectStrip.v13 { border-left: 5px solid var(--project-color); background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96)); }
         .activeProjectKicker { display:flex; align-items:center; gap:8px; font-size:12px; opacity:.7; font-weight:950; text-transform:uppercase; letter-spacing:.06em; }
         .activeProjectDot { width: 10px; height: 10px; border-radius:999px; background: var(--project-color); box-shadow: 0 0 0 3px rgba(255,255,255,.9), 0 0 0 4px rgba(15,23,42,.08); }
-        .responseModeSwitch { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-        .responseModeBtn { text-align:left; padding: 12px 13px; border-radius: 16px; border: 1px solid rgba(226,232,240,.96); background:#fff; cursor:pointer; color:#0f172a; -webkit-text-fill-color:#0f172a; }
-        .responseModeBtn.active { background: #26384D; border-color:#26384D; color:white; -webkit-text-fill-color:white; box-shadow:0 12px 28px rgba(38,56,77,.18); }
-        .responseModeBtn.active .modeHelp { color:rgba(255,255,255,.76); -webkit-text-fill-color:rgba(255,255,255,.76); }
-        .modeName { display:block; font-weight:950; font-size: 14px; }
-        .modeHelp { display:block; margin-top:4px; font-size: 12px; opacity:.72; line-height:1.35; }
+        .responseModeSimple { display:flex; align-items:center; justify-content:space-between; gap: 10px; flex-wrap:wrap; }
+        .responseModeLabel { font-size: 12px; font-weight: 950; color:#425233; opacity:.78; }
+        .responseModeSwitch { display:inline-flex; align-items:center; gap: 4px; padding: 4px; border-radius: 999px; border: 1px solid rgba(52,68,34,.14); background: rgba(247,250,239,.86); width: auto; }
+        .responseModeBtn { border:0; border-radius:999px; padding: 8px 12px; background: transparent; cursor:pointer; color:#425233; -webkit-text-fill-color:#425233; transition: background 140ms ease, box-shadow 140ms ease; }
+        .responseModeBtn.active { background: rgba(255,255,255,.98); color:#0f172a; -webkit-text-fill-color:#0f172a; box-shadow:0 6px 16px rgba(52,68,34,.10); }
+        .modeName { display:block; font-weight:950; font-size: 13px; white-space:nowrap; }
+        .modeHelp { display:none; }
+        .composerFooter { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(226,232,240,.75); color:#425233; font-size: 11px; line-height: 1.35; opacity: .72; text-align:center; }
+        .composerFooter strong { font-weight: 950; }
         .questionTickerMask { position:relative; overflow:hidden; }
         .quickCard.v13chip { width:auto; min-width: 220px; max-width: 320px; border-radius:999px; padding: 10px 14px; box-shadow:none; background: rgba(255,255,255,.92); border-color:rgba(52,68,34,.14); }
         .quickCard.v13chip .quickKicker { display:none; }
@@ -1432,9 +1435,9 @@ export default function Page() {
           .desktopOnlyInline { display: none; }
           .mobileProjectBar{ display:flex; position: sticky; top: 0; z-index: 60; padding-top: env(safe-area-inset-top); margin-bottom: 8px; }
           .appFrame{ display:block; width:100%; }
-          .workspace{ width:100%; min-width:0; padding-bottom: 285px; }
+          .workspace{ width:100%; min-width:0; padding-bottom: 320px; }
           .workspace.noComposer{ padding-bottom: 20px; }
-          .projectRail{
+          .sidebarShell{
             position: fixed;
             z-index: 80;
             top: calc(10px + env(safe-area-inset-top));
@@ -1445,13 +1448,15 @@ export default function Page() {
             opacity: 0;
             pointer-events: none;
             transition: transform 180ms ease, opacity 180ms ease;
-            border-radius: 24px;
-            box-shadow: 0 24px 80px rgba(15,23,42,0.22);
+            display:grid;
+            grid-template-rows:minmax(0, 1fr) auto;
+            gap: 10px;
           }
-          .projectRail.open{ transform: translateY(0); opacity: 1; pointer-events: auto; }
-          .sidebarBrand{ margin-top: 12px; padding: 12px 8px 6px; gap: 10px; }
-          .sidebarLogoEpppn{ width: 136px; }
-          .sidebarLogoErnesto{ width: 136px; }
+          .sidebarShell.open{ transform: translateY(0); opacity: 1; pointer-events: auto; }
+          .projectRail{ max-height: none; border-radius: 24px; box-shadow: 0 24px 80px rgba(15,23,42,0.18); }
+          .sidebarBrand{ padding: 10px 8px; gap: 10px; border-radius: 20px; background: rgba(255,255,255,.96); box-shadow: 0 18px 50px rgba(15,23,42,.12); }
+          .sidebarLogoEpppn{ width: 128px; }
+          .sidebarLogoErnesto{ width: 128px; }
           .editIconBtn{ width: 34px; height: 34px; }
           .drawerClose{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:12px; border:1px solid rgba(226,232,240,.9); background:#fff; cursor:pointer; }
           .heroShell{ padding: 13px; border-radius: 20px; margin-top: 6px; box-shadow: 0 10px 28px rgba(15,23,42,0.045); }
@@ -1486,7 +1491,9 @@ export default function Page() {
           .planBadge{ font-size: 11px; padding: 7px 9px; }
           .profileGrid{ grid-template-columns: 1fr; }
           .contextGrid{ grid-template-columns: 1fr; }
-          .responseModeSwitch{ grid-template-columns: 1fr; }
+          .responseModeSimple{ align-items:flex-start; }
+          .responseModeSwitch{ width:100%; justify-content:space-between; }
+          .responseModeBtn{ flex:1; padding:8px 10px; }
           .quickCard.v13chip{ min-width: 260px; max-width: 86vw; }
           .quickCard.v13chip .quickText{ white-space: normal; }
           .activeProjectStrip{ align-items:flex-start; flex-direction:column; margin-top: 8px; padding: 9px 10px; border-radius: 14px; }
@@ -1542,8 +1549,9 @@ export default function Page() {
       </div>
 
       <div className="appFrame">
-        <aside className={`projectRail ${projectsOpen ? "open" : ""}`}>
-          <div className="projectRailHeader">
+        <aside className={`sidebarShell ${projectsOpen ? "open" : ""}`}>
+          <div className="projectRail">
+            <div className="projectRailHeader">
             <div>
               <div className="projectTitleSmall">Dossiers</div>
               <div className="projectSub">Pâte, four, service, ouverture ou problème technique.</div>
@@ -1555,18 +1563,12 @@ export default function Page() {
           </button>
           {createDossierOpen ? (
             <div className="dossierCreatePanel">
-              <div className="dossierCreateTitle">Créer un dossier de travail</div>
+              <div className="dossierCreateTitle">Créer un dossier</div>
               <input
                 className="dossierInput"
                 value={newDossierTitle}
                 onChange={(e) => setNewDossierTitle(e.target.value)}
                 placeholder="Ex. Four électrique, Ouverture pizzeria, Pâte au levain"
-              />
-              <textarea
-                className="dossierInput dossierObjectiveInput"
-                value={newDossierObjective}
-                onChange={(e) => setNewDossierObjective(e.target.value)}
-                placeholder="Objectif du dossier — ex. comparer cuisson, débit et régularité"
               />
               <div className="colorPicker" aria-label="Couleur du dossier">
                 {PROJECT_COLORS.map((c) => (
@@ -1603,12 +1605,6 @@ export default function Page() {
                       autoFocus
                       placeholder="Nom du dossier"
                     />
-                    <textarea
-                      className="projectRenameInput dossierObjectiveInput"
-                      value={editingProjectObjective}
-                      onChange={(e) => setEditingProjectObjective(e.target.value)}
-                      placeholder="Objectif du dossier"
-                    />
                     <div className="colorPicker">
                       {PROJECT_COLORS.map((c) => (
                         <button
@@ -1637,7 +1633,6 @@ export default function Page() {
                       <span className="projectColorDot" style={{ background: projectColor(p) }} />
                       <span style={{ minWidth: 0 }}>
                         <div className="projectItemTitle">{p.title || "Dossier général"}</div>
-                        {p.objective ? <div className="projectMeta" style={{ marginTop: 4 }}>{p.objective}</div> : null}
                         <div className="projectMeta">{p.chat.length} message{p.chat.length > 1 ? "s" : ""} · {formatProjectDate(p.updatedAt)}</div>
                       </span>
                     </button>
@@ -1665,6 +1660,7 @@ export default function Page() {
                 )}
               </div>
             ))}
+          </div>
           </div>
           <div className="sidebarBrand" aria-label="Identité EPPPN et Ernesto">
             <img className="sidebarLogoEpppn" src="/LOGOEPPPN21.png" alt="Logo EPPPN" />
@@ -1965,7 +1961,6 @@ export default function Page() {
               {activeProject?.title ?? "Dossier général"}
             </div>
           </div>
-          {activeProjectObjective ? <div className="projectMeta" style={{ marginTop: 4 }}>{activeProjectObjective}</div> : null}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="miniBtn" type="button" onClick={renameActiveProject}>Modifier</button>
@@ -2056,25 +2051,18 @@ export default function Page() {
         <div ref={bottomRef} />
       </section>
 
-      <footer className="siteFooter">
-        <div className="siteFooterTitle">Ernesto — The Pizza Explained. · Version actuelle : V13 · juin 2026</div>
-        <div className="siteFooterMeta">
-          Conçu et développé par la section « Apprentissage et Informatisation » de l'EPPPN.
-        </div>
-      </footer>
-
       {session ? (
       <div className="composer">
         <div style={{ display: "grid", gap: 10 }}>
-          <div className="composerModeRow">
-            <div style={{ fontWeight: 950, fontSize: 13, opacity: .78 }}>Choisir le type de réponse</div>
-            <div className="responseModeSwitch" role="group" aria-label="Type de réponse">
+          <div className="composerModeRow responseModeSimple">
+            <div className="responseModeLabel">Format de réponse</div>
+            <div className="responseModeSwitch" role="group" aria-label="Format de réponse">
               <button
                 type="button"
                 className={`responseModeBtn ${speed === "BANCO" ? "active" : ""}`}
                 onClick={() => setSpeed("BANCO")}
               >
-                <span className="modeName">Réponse rapide</span>
+                <span className="modeName">Rapide</span>
                 <span className="modeHelp">Décision, correction, action immédiate.</span>
               </button>
               <button
@@ -2082,7 +2070,7 @@ export default function Page() {
                 className={`responseModeBtn ${speed === "ECOLE" ? "active" : ""}`}
                 onClick={() => setSpeed("ECOLE")}
               >
-                <span className="modeName">Réponse approfondie</span>
+                <span className="modeName">Approfondie</span>
                 <span className="modeHelp">Analyse technique, protocole, points de contrôle.</span>
               </button>
             </div>
@@ -2184,6 +2172,10 @@ export default function Page() {
           >
             {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Demander à Ernesto"}
           </button>
+          <div className="composerFooter">
+            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.1 · juin 2026<br />
+            Conçu et développé par la section « Apprentissage et Informatisation » de l’EPPPN.
+          </div>
         </div>
       </div>
       ) : null}
