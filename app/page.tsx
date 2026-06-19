@@ -221,44 +221,44 @@ const ui = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
     background:
-      "radial-gradient(circle at top left, rgba(244,114,182,0.08), transparent 28%), radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 26%), #fffaf5",
+      "radial-gradient(circle at top left, rgba(52,68,34,0.06), transparent 28%), radial-gradient(circle at top right, rgba(15,23,42,0.045), transparent 30%), #f7f3eb",
   } as React.CSSProperties,
   pill: {
-    border: "1px solid #e2e8f0",
+    border: "1px solid rgba(15,23,42,0.10)",
     borderRadius: 999,
-    padding: "10px 14px",
-    background: "rgba(255,255,255,0.96)",
+    padding: "9px 13px",
+    background: "rgba(255,255,255,0.88)",
     cursor: "pointer",
     fontSize: 13,
     fontWeight: 800,
     color: "#111",
   } as React.CSSProperties,
   btn: {
-    padding: "13px 15px",
-    borderRadius: 16,
-    border: "1px solid #e2e8f0",
+    padding: "12px 15px",
+    borderRadius: 14,
+    border: "1px solid rgba(15,23,42,0.10)",
     cursor: "pointer",
-    background: "white",
-    color: "#111",
-    fontSize: 15,
-    fontWeight: 900,
+    background: "#ffffff",
+    color: "#0f172a",
+    fontSize: 14,
+    fontWeight: 850,
   } as React.CSSProperties,
   textarea: {
     width: "100%",
-    padding: 14,
+    padding: 15,
     borderRadius: 18,
-    border: "1px solid #e2e8f0",
+    border: "1px solid rgba(15,23,42,0.12)",
     outline: "none",
     fontSize: 16, // evita zoom iOS
-    lineHeight: 1.45,
-    background: "white",
-    color: "#111",
+    lineHeight: 1.5,
+    background: "#fff",
+    color: "#0f172a",
   } as React.CSSProperties,
   iconBtn: {
     width: 46,
     height: 46,
-    borderRadius: 16,
-    border: "1px solid #e2e8f0",
+    borderRadius: 15,
+    border: "1px solid rgba(15,23,42,0.10)",
     background: "white",
     color: "#111",
     cursor: "pointer",
@@ -835,11 +835,11 @@ export default function Page() {
         button { -webkit-tap-highlight-color: transparent; }
         .appRoot { overflow-x: hidden; }
         .appFrame {
-          width: min(100%, 1280px);
+          width: min(100%, 1220px);
           margin: 0 auto;
           display: grid;
-          grid-template-columns: 280px minmax(0, 1fr);
-          gap: 18px;
+          grid-template-columns: 260px minmax(0, 1fr);
+          gap: 16px;
           align-items: start;
         }
         .workspace { min-width: 0; }
@@ -860,58 +860,63 @@ export default function Page() {
         .composerHint { font-size: 12px; opacity: 0.75; }
         .projectRail {
           position: sticky;
-          top: 14px;
-          max-height: calc(100svh - 28px);
+          top: 16px;
+          max-height: calc(100svh - 32px);
           overflow: auto;
-          border: 1px solid rgba(226,232,240,0.88);
-          border-radius: 26px;
-          background: linear-gradient(180deg, rgba(247,250,239,0.98), rgba(255,255,255,0.96));
-          box-shadow: 0 18px 42px rgba(52,68,34,0.08);
-          padding: 14px;
+          border: 1px solid rgba(15,23,42,0.08);
+          border-radius: 24px;
+          background: rgba(255,255,255,0.74);
+          box-shadow: 0 16px 44px rgba(15,23,42,0.06);
+          padding: 12px;
+          backdrop-filter: blur(18px);
         }
         .projectRailHeader { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 10px; }
-        .projectTitleSmall { font-weight: 950; font-size: 16px; letter-spacing: -0.01em; }
-        .projectSub { font-size: 12px; line-height: 1.35; opacity: .68; margin-top: 2px; }
+        .projectTitleSmall { font-weight: 900; font-size: 15px; letter-spacing: -0.01em; }
+        .projectSub { font-size: 11px; line-height: 1.35; opacity: .58; margin-top: 2px; }
         .projectNew {
           width: 100%;
-          padding: 12px 13px;
-          border-radius: 16px;
+          padding: 11px 13px;
+          border-radius: 14px;
           border: 1px solid rgba(15,23,42,0.08);
-          background: #0f172a;
+          background: #101828;
           color: white;
           -webkit-text-fill-color: white;
-          font-weight: 900;
+          font-weight: 850;
           cursor: pointer;
-          margin: 8px 0 12px;
+          margin: 9px 0 12px;
+          box-shadow: 0 10px 24px rgba(15,23,42,0.10);
         }
-        .projectList { display:grid; gap: 8px; }
+        .projectList { display:grid; gap: 7px; }
         .projectItem {
           width: 100%;
           display:grid;
           grid-template-columns: 1fr auto;
           gap: 8px;
           text-align:left;
-          border: 1px solid rgba(226,232,240,0.92);
-          background: rgba(255,255,255,0.88);
-          border-radius: 18px;
-          padding: 11px;
+          border: 1px solid rgba(15,23,42,0.075);
+          background: rgba(255,255,255,0.66);
+          border-radius: 16px;
+          padding: 10px;
           cursor:pointer;
-          box-shadow: 0 8px 20px rgba(15,23,42,0.035);
+          box-shadow: none;
+          transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
         }
+        .projectItem:hover { background: rgba(255,255,255,0.94); transform: translateY(-1px); }
         .projectItem.active {
-          border-color: rgba(244,63,94,0.28);
-          background: linear-gradient(180deg, rgba(255,247,237,.98), rgba(255,255,255,.98));
+          border-color: rgba(52,68,34,0.26);
+          background: linear-gradient(180deg, rgba(248,250,239,.96), rgba(255,255,255,.92));
         }
         .sidebarBrand {
-          margin-top: 16px;
-          padding: 16px 12px 12px;
-          border-top: 1px solid rgba(52,68,34,.14);
+          margin-top: 18px;
+          padding: 18px 8px 8px;
+          border-top: 1px solid rgba(52,68,34,.10);
           display: grid;
-          gap: 14px;
+          gap: 12px;
           justify-items: center;
+          opacity: .86;
         }
-        .sidebarLogoEpppn { width: 176px; max-width: 92%; height:auto; object-fit:contain; display:block; }
-        .sidebarLogoErnesto { width: 176px; max-width: 92%; height:auto; object-fit:contain; display:block; }
+        .sidebarLogoEpppn { width: 132px; max-width: 82%; height:auto; object-fit:contain; display:block; }
+        .sidebarLogoErnesto { width: 138px; max-width: 82%; height:auto; object-fit:contain; display:block; }
         .editIconBtn {
           width: 30px;
           height: 30px;
@@ -931,8 +936,8 @@ export default function Page() {
         .editIconBtn:hover { background: rgba(240,253,244,.96); border-color: rgba(52,68,34,.28); }
         .activeProjectTitleRow { display:flex; align-items:center; gap:8px; min-width:0; }
         .activeProjectTitleText { font-weight: 950; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .projectItemTitle { font-size: 13px; line-height: 1.25; font-weight: 850; color:#0f172a; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-        .projectMeta { font-size: 11px; opacity: .62; margin-top: 5px; }
+        .projectItemTitle { font-size: 13px; line-height: 1.22; font-weight: 820; color:#111827; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+        .projectMeta { font-size: 11px; opacity: .52; margin-top: 5px; }
         .projectDelete {
           width: 28px; height: 28px; border-radius: 10px; border: 1px solid rgba(226,232,240,0.9);
           background: rgba(255,255,255,.9); cursor:pointer; color:#64748b; -webkit-text-fill-color:#64748b;
@@ -989,16 +994,16 @@ export default function Page() {
           border-color: rgba(139,92,246,0.18);
         }
         .activeProjectStrip {
-          margin-top: 12px;
-          padding: 10px 12px;
-          border: 1px solid rgba(226,232,240,0.9);
+          margin-top: 10px;
+          padding: 9px 12px;
+          border: 1px solid rgba(15,23,42,0.08);
           border-radius: 16px;
-          background: linear-gradient(180deg, rgba(255,247,237,0.95), rgba(255,255,255,0.95));
-          border-color: rgba(251,146,60,0.22);
+          background: rgba(255,255,255,0.72);
           display:flex;
           align-items:center;
           justify-content:space-between;
           gap: 10px;
+          backdrop-filter: blur(12px);
         }
         .mobileProjectBar {
           display:none;
@@ -1023,76 +1028,76 @@ export default function Page() {
           font-weight: 900;
         }
         .drawerClose { display:none; }
-        .bubbleWrap { display:flex; margin: 12px 0; }
+        .bubbleWrap { display:flex; margin: 14px 0; }
         .bubble {
-          max-width: 94%;
-          border-radius: 24px;
-          padding: 14px;
-          border: 1px solid #ececf3;
-          box-shadow: 0 14px 34px rgba(15,23,42,0.05);
+          max-width: 92%;
+          border-radius: 22px;
+          padding: 14px 15px;
+          border: 1px solid rgba(15,23,42,0.08);
+          box-shadow: 0 10px 28px rgba(15,23,42,0.045);
           line-height: 1.6;
           white-space: pre-wrap;
           background: white;
-          color: #111;
+          color: #111827;
         }
         .bubble.user {
           margin-left: auto;
-          background: linear-gradient(180deg, #ffffff, #f8fafc);
-          border-color: #e2e8f0;
+          background: #ffffff;
+          border-color: rgba(15,23,42,0.08);
         }
         .bubble.ernesto {
           margin-right: auto;
           max-width: 100%;
           width: 100%;
-          background: linear-gradient(180deg, rgba(255,252,246,0.99), rgba(255,247,237,0.96));
-          border-color: rgba(251,146,60,0.24);
+          background: rgba(255,255,255,0.78);
+          border-color: rgba(52,68,34,0.12);
           animation: ernestoIn 280ms ease;
         }
         .answerText { display: grid; gap: 8px; }
         .answerPara { margin: 0; font-size: 15px; line-height: 1.75; color: #0f172a; }
         .answerHeading {
-          margin-top: 6px;
-          font-weight: 950;
+          margin-top: 8px;
+          font-weight: 900;
           font-size: 15px;
           letter-spacing: -0.01em;
-          color: #7c2d12;
+          color: #344422;
         }
         .quickWrap { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
         .quickNavBtn {
-          border: 1px solid #e2e8f0; background: rgba(255,255,255,0.96); width: 42px; height: 42px; border-radius: 14px; cursor: pointer; font-weight: 900;
-          box-shadow: 0 8px 24px rgba(15,23,42,0.05);
+          border: 1px solid rgba(15,23,42,0.08); background: rgba(255,255,255,0.78); width: 40px; height: 40px; border-radius: 14px; cursor: pointer; font-weight: 900;
+          box-shadow: 0 8px 20px rgba(15,23,42,0.04);
         }
         .quickRow { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; padding-left: 2px; padding-right: 2px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; scrollbar-width: none; }
         .quickRow::-webkit-scrollbar { display: none; }
         .quickCard {
-          flex: 0 0 auto; width: 258px; border-radius: 22px; padding: 14px 15px; cursor: pointer; text-align: left;
-          border: 1px solid rgba(139,92,246,0.14);
-          background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96));
-          box-shadow: 0 12px 30px rgba(15,23,42,0.05);
-          transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
-          scroll-snap-align: start; color: #111;
+          flex: 0 0 auto; width: 252px; border-radius: 18px; padding: 13px 14px; cursor: pointer; text-align: left;
+          border: 1px solid rgba(15,23,42,0.075);
+          background: rgba(255,255,255,0.70);
+          box-shadow: none;
+          transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
+          scroll-snap-align: start; color: #111827;
         }
-        .quickCard:hover { transform: translateY(-2px); border-color: rgba(244,63,94,0.22); box-shadow: 0 18px 38px rgba(15,23,42,0.09); }
+        .quickCard:hover { transform: translateY(-1px); border-color: rgba(52,68,34,0.22); background: rgba(255,255,255,0.96); box-shadow: 0 14px 28px rgba(15,23,42,0.065); }
         .quickCard.selected {
-          background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96));
+          background: #101828;
           border-color: rgba(15,23,42,0.92);
           color: white;
-          box-shadow: 0 18px 40px rgba(15,23,42,0.18);
-          transform: translateY(-1px) scale(1.01);
+          box-shadow: 0 14px 32px rgba(15,23,42,0.14);
+          transform: translateY(-1px);
         }
         .quickCard.selected .quickKicker,
         .quickCard.selected .quickText { opacity: 0.82; color: rgba(255,255,255,0.88); }
         .quickCard.selected .quickLabel { color: white; }
-        .quickKicker { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; opacity: .52; }
-        .quickLabel { font-weight: 950; font-size: 16px; line-height: 1.2; margin-top: 8px; }
-        .quickText { margin-top: 8px; font-size: 12px; line-height: 1.45; opacity: 0.82; }
+        .quickKicker { font-size: 10px; font-weight: 850; letter-spacing: .10em; text-transform: uppercase; opacity: .50; }
+        .quickLabel { font-weight: 900; font-size: 15px; line-height: 1.2; margin-top: 7px; }
+        .quickText { margin-top: 7px; font-size: 12px; line-height: 1.42; opacity: 0.72; }
 
         .sectionShell {
-            border-radius: 22px;
-            border: 1px solid #e9edf3;
+            border-radius: 20px;
+            border: 1px solid rgba(15,23,42,0.075);
             overflow: hidden;
-            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,252,0.98));
-            box-shadow: 0 14px 34px rgba(15,23,42,0.05);
+            background: rgba(255,255,255,0.76);
+            box-shadow: none;
           }
 
         .sectionHeader {
@@ -1114,10 +1119,10 @@ export default function Page() {
           position: sticky;
           bottom: 0;
           z-index: 20;
-          background: rgba(255,255,255,0.90);
+          background: linear-gradient(180deg, rgba(247,243,235,0), rgba(247,243,235,0.92) 22%, rgba(247,243,235,0.98));
           backdrop-filter: blur(10px);
-          border-top: 1px solid rgba(226,232,240,0.85);
-          padding: 14px 0 calc(14px + env(safe-area-inset-bottom));
+          border-top: 0;
+          padding: 18px 0 calc(16px + env(safe-area-inset-bottom));
           margin-top: 18px;
         }
 
@@ -1189,27 +1194,35 @@ export default function Page() {
         }
         .heroShell{
           margin-top: 6px;
-          padding: 22px;
-          border-radius: 26px;
-          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
-          border: 1px solid rgba(226,232,240,0.86);
-          box-shadow: 0 18px 42px rgba(15,23,42,0.06);
+          padding: 28px 30px;
+          border-radius: 28px;
+          background: rgba(255,255,255,0.68);
+          border: 1px solid rgba(15,23,42,0.08);
+          box-shadow: 0 16px 44px rgba(15,23,42,0.055);
+          backdrop-filter: blur(18px);
         }
+        .heroTopline{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 22px; flex-wrap:wrap; }
+        .accessChip{ display:inline-flex; align-items:center; gap:8px; padding:7px 11px; border-radius:999px; border:1px solid rgba(52,68,34,.16); background:rgba(248,250,239,.72); color:#344422; font-size:12px; font-weight:850; }
+        .heroActions{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:18px; max-width: 680px; }
+        .heroActionGroup{ border:1px solid rgba(15,23,42,.075); background:rgba(255,255,255,.56); border-radius:18px; padding:12px; }
+        .heroActionLabel{ font-size:11px; font-weight:850; letter-spacing:.10em; text-transform:uppercase; opacity:.50; margin-bottom:9px; }
+        .heroPills{ display:flex; gap:7px; flex-wrap:wrap; }
         .statusCard{
-          padding: 16px;
-          border: 1px solid #ece7ff;
+          padding: 14px 16px;
+          border: 1px solid rgba(15,23,42,0.08);
           border-radius: 20px;
-          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
-          box-shadow: 0 10px 28px rgba(15,23,42,0.05);
+          background: rgba(255,255,255,0.72);
+          box-shadow: 0 12px 32px rgba(15,23,42,0.045);
           color: #0f172a;
+          backdrop-filter: blur(14px);
         }
         .statusCard.authCard{
-          border-color: rgba(14,165,233,0.18);
-          background: linear-gradient(180deg, rgba(240,249,255,0.98), rgba(255,255,255,0.97));
+          border-color: rgba(52,68,34,0.14);
+          background: rgba(255,255,255,0.76);
         }
         .statusCard.userCard{
-          border-color: rgba(52,68,34,0.18);
-          background: linear-gradient(180deg, rgba(247,250,239,0.98), rgba(255,255,255,0.97));
+          border-color: rgba(52,68,34,0.13);
+          background: rgba(255,255,255,0.70);
         }
         .authRow { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
         .authInput { flex: 1; min-width: 240px; padding: 13px 14px; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; color:#0f172a; font-size:16px; }
@@ -1228,17 +1241,20 @@ export default function Page() {
         .imagePreviewTitle{ font-weight: 900; font-size: 13px; }
         .imagePreviewMeta{ font-size: 12px; opacity: .68; margin-top: 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .planBadge{
-          display:inline-flex; align-items:center; gap:8px; padding: 7px 11px; border-radius:999px; font-size:12px; font-weight:900; letter-spacing:.02em;
-          border:1px solid #e2e8f0; background:rgba(255,255,255,.9);
+          display:inline-flex; align-items:center; gap:8px; padding: 6px 10px; border-radius:999px; font-size:12px; font-weight:850; letter-spacing:.01em;
+          border:1px solid rgba(15,23,42,.08); background:rgba(255,255,255,.68);
         }
-        .heroTitle{ font-size: 46px; line-height: 1.02; margin: 0; letter-spacing: -0.04em; }
-        .heroIntro{ margin-top: 12px; opacity: 0.88; font-size: 16px; line-height: 1.6; }
+        .heroTitle{ font-size: 48px; line-height: 1.02; margin: 0; letter-spacing: -0.045em; color:#101828; }
+        .heroIntro{ margin-top: 13px; opacity: 0.78; font-size: 16px; line-height: 1.65; max-width: 820px; }
         .mobileAskLabel{ display:none; }
         .responseSelect{ padding: 10px; border-radius: 14px; border: 1px solid #ddd; font-size: 14px; background: white; color: #111; }
-        .sourceBadge{ font-size: 12px; line-height: 1.45; color: #7c2d12; background: rgba(255,247,237,.92); border: 1px solid rgba(251,146,60,.24); border-radius: 14px; padding: 10px 12px; font-weight: 750; }
+        .sourceBadge{ font-size: 12px; line-height: 1.45; color: #344422; background: rgba(248,250,239,.78); border: 1px solid rgba(52,68,34,.16); border-radius: 14px; padding: 10px 12px; font-weight: 750; }
+
+        textarea:focus, input:focus, select:focus { border-color: rgba(52,68,34,.28) !important; box-shadow: 0 0 0 4px rgba(52,68,34,.06); }
+        button:hover { filter: none; }
 
         @media (max-width: 860px){
-          .appRoot{ padding: 8px; background: #fffaf5; }
+          .appRoot{ padding: 8px; background: #f7f3eb; }
           .mobileOnly { display: inline-flex; }
           .desktopOnlyInline { display: none; }
           .mobileProjectBar{ display:flex; position: sticky; top: 0; z-index: 60; padding-top: env(safe-area-inset-top); margin-bottom: 8px; }
@@ -1265,7 +1281,7 @@ export default function Page() {
           .sidebarLogoErnesto{ width: 136px; }
           .editIconBtn{ width: 34px; height: 34px; }
           .drawerClose{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:12px; border:1px solid rgba(226,232,240,.9); background:#fff; cursor:pointer; }
-          .heroShell{ padding: 13px; border-radius: 20px; margin-top: 6px; box-shadow: 0 10px 28px rgba(15,23,42,0.045); }
+          .heroShell{ padding: 16px; border-radius: 22px; margin-top: 6px; box-shadow: 0 10px 28px rgba(15,23,42,0.045); }
           .brandHeader{ margin-bottom: 12px; align-items:flex-start; }
           .brandLogos{ gap:9px; }
           .brandLogoEpppn{ width:54px; max-height:54px; }
@@ -1275,7 +1291,10 @@ export default function Page() {
           .siteFooter{ margin: 20px 0 4px; padding-bottom: 6px; }
           .siteFooterMeta{ font-size:11px; }
           .heroTitle{ font-size: 28px; line-height: 1.06; letter-spacing: -0.035em; }
-          .heroIntro{ font-size: 13px; line-height: 1.48; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+          .heroIntro{ font-size: 13px; line-height: 1.5; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+          .heroTopline{ margin-bottom: 12px; }
+          .heroActions{ grid-template-columns: 1fr; gap:8px; margin-top:12px; }
+          .heroActionGroup{ padding:10px; border-radius:16px; }
           .heroShell .planBadge{ display:none; }
           .topCompactTitle{ display:block; font-size: 11px; font-weight: 950; letter-spacing:.08em; text-transform: uppercase; opacity:.56; margin-bottom: 3px; }
           .quickWrap{ grid-template-columns: 1fr; }
@@ -1313,7 +1332,7 @@ export default function Page() {
             right: 8px;
             bottom: 0;
             z-index: 70;
-            border: 1px solid rgba(226,232,240,.95);
+            border: 1px solid rgba(15,23,42,.10);
             border-bottom: 0;
             border-radius: 22px 22px 0 0;
             padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
@@ -1353,7 +1372,7 @@ export default function Page() {
           <div className="projectRailHeader">
             <div>
               <div className="projectTitleSmall">Projets</div>
-              <div className="projectSub">Gardez plusieurs fils de travail : levain, cuisson, farine, service.</div>
+              <div className="projectSub">Un fil par sujet : levain, cuisson, farine, service.</div>
             </div>
             <button className="drawerClose" type="button" onClick={() => setProjectsOpen(false)} aria-label="Fermer les projets">×</button>
           </div>
@@ -1433,10 +1452,10 @@ export default function Page() {
           <div className="statusCard authCard">
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
               <div>
-                <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">Essai gratuit de 10 jours</div>
-                <div style={{ fontWeight: 950, fontSize: 18 }}>Connectez-vous avec votre e-mail</div>
-                <div style={{ marginTop: 6, opacity: 0.78, maxWidth: 700 }}>
-                  Recevez un lien de connexion sécurisé. Aucun mot de passe n’est nécessaire. L’essai commence au premier accès par lien magique.
+                <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">Accès stagiaire EPPPN</div>
+                <div style={{ fontWeight: 900, fontSize: 18 }}>Connexion sécurisée</div>
+                <div style={{ marginTop: 6, opacity: 0.74, maxWidth: 720, lineHeight: 1.5 }}>
+                  Ernesto est actuellement réservé aux stagiaires ayant suivi une formation à l’EPPPN. Recevez un lien magique : aucun mot de passe n’est nécessaire.
                 </div>
               </div>
             </div>
@@ -1452,7 +1471,7 @@ export default function Page() {
                 onFocus={(e) => setTimeout(() => e.currentTarget.scrollIntoView({ behavior: "smooth", block: "center" }), 250)}
               />
               <button onClick={sendMagicLink} style={{ ...ui.btn, width: "auto" }}>
-                Recevoir le lien magique
+                Recevoir mon accès
               </button>
             </div>
             {authInfo && <div style={{ marginTop: 10, opacity: 0.85 }}>{authInfo}</div>}
@@ -1578,7 +1597,7 @@ export default function Page() {
           >
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
               <div>
-                <div style={{ fontWeight: 950, fontSize: 19 }}>Continuer avec Ernesto Plus</div>
+                <div style={{ fontWeight: 900, fontSize: 19 }}>Accès Ernesto Plus</div>
                 <div style={{ marginTop: 7, lineHeight: 1.5, color: "#334155" }}>
                   {paywall.reason === "usage_limit_reached"
                     ? "Votre essai gratuit a atteint sa limite de sécurité."
@@ -1596,7 +1615,7 @@ export default function Page() {
             </div>
 
             <div style={{ marginTop: 11, color: "#475569", lineHeight: 1.5 }}>
-              Abonnement sécurisé par Stripe. Apple Pay ou Google Pay peuvent apparaître automatiquement selon l’appareil, le navigateur et la configuration du wallet.
+              Abonnement sécurisé par Stripe. Dans cette première phase, Ernesto reste prioritairement destiné aux stagiaires formés à l’EPPPN. Apple Pay ou Google Pay peuvent apparaître automatiquement selon l’appareil, le navigateur et la configuration du wallet.
             </div>
 
             <div className="pricingGrid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
@@ -1645,30 +1664,41 @@ export default function Page() {
       </div>
 
       <header className="heroShell">
-        <div className="brandHeader" style={{ justifyContent: "flex-end" }}>
-          <button onClick={newConversation} style={{ ...ui.pill, fontSize: 14 }}>
+        <div className="heroTopline">
+          <span className="accessChip">Accès réservé aux stagiaires formés à l’EPPPN</span>
+          <button onClick={newConversation} style={{ ...ui.pill, fontSize: 13 }}>
             Nouvelle conversation
           </button>
         </div>
 
-        <div style={{ maxWidth: 820 }}>
+        <div style={{ maxWidth: 860 }}>
           <h1 className="heroTitle">Ernesto, The Pizza Explained.</h1>
           <div className="heroIntro">
-            Basé sur les connaissances et les protocoles transmis à l’EPPPN, Ernesto vous aide à raisonner sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du travail. Il ne donne pas de recettes magiques : il transforme une observation en diagnostic, puis en protocole d’action.
+            Fondé sur les savoirs et les protocoles transmis à l’EPPPN, Ernesto aide à raisonner sur les pâtes, les farines, le levain, la fermentation, la cuisson et l’organisation du travail. L’objectif n’est pas de donner une recette magique, mais de transformer une observation en diagnostic, puis en protocole d’action.
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-            <span className="planBadge">Écrire</span>
-            <span className="planBadge">Parler</span>
-            <span className="planBadge">Analyser une photo</span>
-            <span className="planBadge">Décision & action</span>
-            <span className="planBadge">Analyse & détails</span>
+          <div className="heroActions">
+            <div className="heroActionGroup">
+              <div className="heroActionLabel">Modes d’entrée</div>
+              <div className="heroPills">
+                <span className="planBadge">Écrire</span>
+                <span className="planBadge">Parler</span>
+                <span className="planBadge">Analyser une photo</span>
+              </div>
+            </div>
+            <div className="heroActionGroup">
+              <div className="heroActionLabel">Type de réponse</div>
+              <div className="heroPills">
+                <span className="planBadge">Réponse rapide</span>
+                <span className="planBadge">Analyse approfondie</span>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="activeProjectStrip">
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 12, opacity: 0.66, fontWeight: 900 }}>Projet actif</div>
+          <div style={{ fontSize: 11, opacity: 0.52, fontWeight: 850, letterSpacing: "0.08em", textTransform: "uppercase" }}>Projet actif</div>
           <div className="activeProjectTitleRow">
             <div className="activeProjectTitleText">
               {projects.find((p) => p.id === activeProjectId)?.title ?? "Nouvelle demande"}
@@ -1683,14 +1713,14 @@ export default function Page() {
 
       <section className={`quickSection ${quickOpen ? "open" : ""}`} style={{ marginTop: 14 }}>
         <button className="mobileFaqToggle" type="button" onClick={() => setQuickOpen((v) => !v)}>
-          <span>Questions fréquentes</span>
+          <span>Suggestions de départ</span>
           <span style={{ opacity: 0.62 }}>{quickOpen ? "Masquer" : "Ouvrir"}</span>
         </button>
         <div className="quickSectionBody">
           <div className="quickSectionHeader" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-            <div style={{ fontWeight: 950, fontSize: 18 }}>Questions fréquentes</div>
-            <div style={{ fontSize: 13, opacity: 0.68 }}>
-              Situations réelles · 1 clic pour préremplir · double clic pour envoyer
+            <div style={{ fontWeight: 900, fontSize: 17 }}>Suggestions de départ</div>
+            <div style={{ fontSize: 13, opacity: 0.58 }}>
+              Un clic prépare le champ · double clic envoie la question
             </div>
           </div>
 
@@ -1730,7 +1760,7 @@ export default function Page() {
 
       <section style={{ marginTop: 16 }}>
         {chat.length === 0 ? (
-          <div style={{ opacity: 0.72, fontSize: 14, padding: "8px 2px" }}>Commencez par une situation concrète : une pâte qui colle, un levain trop acide, une cuisson irrégulière, une photo de cornicione ou une question d’organisation au banc.</div>
+          <div style={{ opacity: 0.72, fontSize: 14, padding: "8px 2px" }}>Décrivez une situation concrète : comportement de pâte, levain, cuisson, cornicione, organisation du banc ou choix de matière première.</div>
         ) : (
           chat.map((m) => (
             <div
@@ -1769,7 +1799,7 @@ export default function Page() {
       </section>
 
       <footer className="siteFooter">
-        <div className="siteFooterTitle">Ernesto — The Pizza Explained. · Version actuelle : V6 · 27 avril 2026</div>
+        <div className="siteFooterTitle">Ernesto — The Pizza Explained. · Version actuelle : V11 · 19 juin 2026</div>
         <div className="siteFooterMeta">
           Conçu et développé par la section « Apprentissage et Informatisation » de l'EPPPN.
         </div>
@@ -1779,7 +1809,7 @@ export default function Page() {
       <div className="composer">
         <div style={{ display: "grid", gap: 10 }}>
           <div className="composerModeRow">
-            <label style={{ fontWeight: 900 }}>Type de réponse</label>
+            <label style={{ fontWeight: 850 }}>Réponse</label>
             <select
               value={speed}
               onChange={(e) => setSpeed(e.target.value as Speed)}
@@ -1870,7 +1900,7 @@ export default function Page() {
                 }
               }}
               rows={3}
-              placeholder="Écrivez votre question, décrivez un problème ou ajoutez une photo…"
+              placeholder="Posez une question concrète : pâte, levain, cuisson, farine, organisation…"
               style={ui.textarea}
             />
 
@@ -1889,7 +1919,7 @@ export default function Page() {
               cursor: loading || !message.trim() ? "not-allowed" : "pointer",
             }}
           >
-            {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Demander à Ernesto"}
+            {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Envoyer à Ernesto"}
           </button>
         </div>
       </div>
