@@ -567,6 +567,46 @@ export default function Page() {
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [pauseQuickScroll, setPauseQuickScroll] = useState(false);
   const quickDirectionRef = useRef<1 | -1>(1);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [composerFocused, setComposerFocused] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const vv = window.visualViewport;
+
+    const updateKeyboardOffset = () => {
+      if (window.innerWidth > 860 || !vv) {
+        setKeyboardOffset(0);
+        return;
+      }
+
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardOffset(offset > 80 ? Math.round(offset) : 0);
+    };
+
+    updateKeyboardOffset();
+    vv?.addEventListener("resize", updateKeyboardOffset);
+    vv?.addEventListener("scroll", updateKeyboardOffset);
+    window.addEventListener("resize", updateKeyboardOffset);
+
+    return () => {
+      vv?.removeEventListener("resize", updateKeyboardOffset);
+      vv?.removeEventListener("scroll", updateKeyboardOffset);
+      window.removeEventListener("resize", updateKeyboardOffset);
+    };
+  }, []);
+
+  function focusComposer() {
+    setComposerFocused(true);
+    window.setTimeout(() => {
+      textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 260);
+  }
+
+  function blurComposerSoon() {
+    window.setTimeout(() => setComposerFocused(false), 180);
+  }
 
   useEffect(() => {
     try {
@@ -950,7 +990,13 @@ export default function Page() {
   ].filter((v) => v && v.trim()).join(" · ");
 
   return (
-    <main className="appRoot" style={ui.page}>
+    <main
+      className="appRoot"
+      style={{
+        ...ui.page,
+        ["--keyboard-offset" as any]: `${keyboardOffset}px`,
+      }}
+    >
       <style>{`
         * { box-sizing: border-box; }
         input, textarea, select, button { font: inherit; color: #0f172a; }
@@ -1435,7 +1481,7 @@ export default function Page() {
           .desktopOnlyInline { display: none; }
           .mobileProjectBar{ display:flex; position: sticky; top: 0; z-index: 60; padding-top: env(safe-area-inset-top); margin-bottom: 8px; }
           .appFrame{ display:block; width:100%; }
-          .workspace{ width:100%; min-width:0; padding-bottom: 320px; }
+          .workspace{ width:100%; min-width:0; padding-bottom: calc(300px + var(--keyboard-offset, 0px)); }
           .workspace.noComposer{ padding-bottom: 20px; }
           .sidebarShell{
             position: fixed;
@@ -1511,14 +1557,31 @@ export default function Page() {
             position: fixed;
             left: 8px;
             right: 8px;
-            bottom: 0;
+            bottom: var(--keyboard-offset, 0px);
             z-index: 70;
             border: 1px solid rgba(226,232,240,.95);
             border-bottom: 0;
             border-radius: 22px 22px 0 0;
             padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-            background: rgba(255,255,255,0.97);
+            background: rgba(255,255,255,0.98);
             box-shadow: 0 -18px 50px rgba(15,23,42,.14);
+            max-height: calc(100dvh - var(--keyboard-offset, 0px) - 12px - env(safe-area-inset-top));
+            overflow: auto;
+            transition: bottom 120ms ease, max-height 120ms ease;
+            overscroll-behavior: contain;
+          }
+          .composer.keyboardOpen{
+            padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+            border-radius: 18px 18px 0 0;
+          }
+          .composer.keyboardOpen .composerModeRow,
+          .composer.keyboardOpen .composerFooter{
+            display: none;
+          }
+          .composer.keyboardOpen textarea{
+            min-height: 52px !important;
+            max-height: 96px !important;
+            overflow: auto;
           }
           .composerModeRow{ display:grid; grid-template-columns: 1fr; gap: 7px; }
           .composerHint{ display:none; }
@@ -2052,7 +2115,7 @@ export default function Page() {
       </section>
 
       {session ? (
-      <div className="composer">
+      <div className={`composer ${composerFocused ? "keyboardOpen" : ""}`}>
         <div style={{ display: "grid", gap: 10 }}>
           <div className="composerModeRow responseModeSimple">
             <div className="responseModeLabel">Format de réponse</div>
@@ -2142,6 +2205,7 @@ export default function Page() {
             </button>
 
             <textarea
+              ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => {
@@ -2150,7 +2214,9 @@ export default function Page() {
                   askTutor(message);
                 }
               }}
-              rows={3}
+              rows={composerFocused ? 2 : 3}
+              onFocus={focusComposer}
+              onBlur={blurComposerSoon}
               placeholder="Décrivez votre problème, votre protocole ou votre objectif…"
               style={ui.textarea}
             />
@@ -2173,7 +2239,7 @@ export default function Page() {
             {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Demander à Ernesto"}
           </button>
           <div className="composerFooter">
-            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.1 · juin 2026<br />
+            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.2 · juin 2026<br />
             Conçu et développé par la section « Apprentissage et Informatisation » de l’EPPPN.
           </div>
         </div>
