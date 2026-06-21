@@ -1489,17 +1489,39 @@ export default function Page() {
             top: calc(10px + env(safe-area-inset-top));
             left: 10px;
             right: 10px;
-            max-height: calc(100svh - 20px - env(safe-area-inset-top));
+            bottom: max(10px, calc(var(--keyboard-offset, 0px) + 10px));
+            max-height: calc(100dvh - var(--keyboard-offset, 0px) - 20px - env(safe-area-inset-top));
             transform: translateY(-110%);
             opacity: 0;
             pointer-events: none;
-            transition: transform 180ms ease, opacity 180ms ease;
+            transition: transform 180ms ease, opacity 180ms ease, bottom 120ms ease, max-height 120ms ease;
             display:grid;
             grid-template-rows:minmax(0, 1fr) auto;
             gap: 10px;
+            overscroll-behavior: contain;
           }
           .sidebarShell.open{ transform: translateY(0); opacity: 1; pointer-events: auto; }
-          .projectRail{ max-height: none; border-radius: 24px; box-shadow: 0 24px 80px rgba(15,23,42,0.18); }
+          .projectRail{
+            max-height: 100%;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 24px;
+            box-shadow: 0 24px 80px rgba(15,23,42,0.18);
+          }
+          .sidebarShell.open:focus-within{
+            top: calc(6px + env(safe-area-inset-top));
+            bottom: max(8px, calc(var(--keyboard-offset, 0px) + 8px));
+            max-height: calc(100dvh - var(--keyboard-offset, 0px) - 14px - env(safe-area-inset-top));
+          }
+          .sidebarShell.open:focus-within .sidebarBrand{ display:none; }
+          .dossierCreatePanel{
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            scroll-margin-top: 12px;
+            scroll-margin-bottom: calc(var(--keyboard-offset, 0px) + 120px);
+          }
+          .dossierInput{ font-size: 16px; }
           .sidebarBrand{ padding: 10px 8px; gap: 10px; border-radius: 20px; background: rgba(255,255,255,.96); box-shadow: 0 18px 50px rgba(15,23,42,.12); }
           .sidebarLogoEpppn{ width: 128px; }
           .sidebarLogoErnesto{ width: 128px; }
@@ -1631,7 +1653,14 @@ export default function Page() {
                 className="dossierInput"
                 value={newDossierTitle}
                 onChange={(e) => setNewDossierTitle(e.target.value)}
+                onFocus={() => {
+                  window.setTimeout(() => {
+                    document.querySelector(".dossierCreatePanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 180);
+                }}
                 placeholder="Ex. Four électrique, Ouverture pizzeria, Pâte au levain"
+                autoComplete="off"
+                enterKeyHint="done"
               />
               <div className="colorPicker" aria-label="Couleur du dossier">
                 {PROJECT_COLORS.map((c) => (
@@ -2239,7 +2268,7 @@ export default function Page() {
             {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Demander à Ernesto"}
           </button>
           <div className="composerFooter">
-            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.2 · juin 2026<br />
+            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.3 · juin 2026<br />
             Conçu et développé par la section « Apprentissage et Informatisation » de l’EPPPN.
           </div>
         </div>
