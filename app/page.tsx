@@ -634,6 +634,10 @@ export default function Page() {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [composerFocused, setComposerFocused] = useState(false);
 
+  // V13.5: réponses Ernesto éditables / copiables / imprimables
+  const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null);
+  const [editingAnswerText, setEditingAnswerText] = useState("");
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const vv = window.visualViewport;
@@ -994,6 +998,76 @@ export default function Page() {
     setSelectedQuestion(q.label);
     setMessage(q.text);
     await askTutor(q.text);
+  }
+
+  function startEditAnswer(msg: ChatMsg) {
+    if (msg.role !== "ernesto") return;
+    setEditingAnswerId(msg.id);
+    setEditingAnswerText(msg.text || "");
+  }
+
+  function cancelEditAnswer() {
+    setEditingAnswerId(null);
+    setEditingAnswerText("");
+  }
+
+  function saveEditAnswer(id: string) {
+    const clean = editingAnswerText.trim();
+    if (!clean) return;
+    setChat((prev) => prev.map((m) => (m.id === id ? { ...m, text: clean } : m)));
+    setEditingAnswerId(null);
+    setEditingAnswerText("");
+  }
+
+  async function copyAnswer(text: string) {
+    try {
+      await navigator.clipboard.writeText(text || "");
+      setAuthInfo("Réponse copiée.");
+      window.setTimeout(() => setAuthInfo(null), 1800);
+    } catch {
+      setAuthInfo("Impossible de copier automatiquement. Sélectionnez le texte manuellement.");
+      window.setTimeout(() => setAuthInfo(null), 2600);
+    }
+  }
+
+  function escapeHtml(value: string) {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function printAnswer(text: string) {
+    const title = activeProject?.title || "Réponse Ernesto";
+    const win = window.open("", "_blank", "width=820,height=900");
+    if (!win) {
+      setAuthInfo("La fenêtre d’impression a été bloquée par le navigateur.");
+      window.setTimeout(() => setAuthInfo(null), 2800);
+      return;
+    }
+    win.document.write(`<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>${escapeHtml(title)}</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:42px;color:#111827;line-height:1.6;}
+  h1{font-size:22px;margin:0 0 8px;}
+  .meta{font-size:12px;color:#64748b;margin-bottom:24px;border-bottom:1px solid #e5e7eb;padding-bottom:14px;}
+  .answer{white-space:pre-wrap;font-size:15px;}
+  @media print{body{margin:24mm;} button{display:none;}}
+</style>
+</head>
+<body>
+<h1>Ernesto — ${escapeHtml(title)}</h1>
+<div class="meta">Réponse imprimée depuis Ernesto · ${new Date().toLocaleDateString("fr-FR")}</div>
+<div class="answer">${escapeHtml(text || "")}</div>
+<script>window.onload = () => { window.focus(); window.print(); };</script>
+</body>
+</html>`);
+    win.document.close();
   }
 
   function toggleDictation() {
@@ -1562,6 +1636,85 @@ export default function Page() {
         .quickCard.v13chip.selected .quickText { color:rgba(255,255,255,.9); }
         .bubble.ernesto.v13color { border-left: 5px solid var(--project-color); }
 
+
+        /* V13.5 — chat mobile style */
+        .answerBlock { display:grid; gap:10px; }
+        .answerActions { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-bottom: 2px; }
+        .answerActions button, .answerEditActions button {
+          border: 1px solid rgba(226,232,240,.95);
+          background: rgba(255,255,255,.92);
+          color:#334155;
+          -webkit-text-fill-color:#334155;
+          min-height: 32px;
+          padding: 6px 10px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 850;
+          cursor:pointer;
+        }
+        .answerActions button:hover, .answerEditActions button:hover { background:#f8fafc; border-color:#cbd5e1; }
+        .answerEditBox { display:grid; gap:10px; }
+        .answerEditTextarea {
+          width:100%;
+          min-height: 260px;
+          resize: vertical;
+          border: 1px solid #cbd5e1;
+          border-radius: 16px;
+          padding: 13px 14px;
+          font-size: 15px;
+          line-height: 1.6;
+          background:#fff;
+          color:#0f172a;
+          -webkit-text-fill-color:#0f172a;
+          outline:none;
+        }
+        .answerEditActions { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+        .chatComposer .composerInner { width:min(100%, 860px); margin:0 auto; display:grid; gap:8px; }
+        .composerBox {
+          border:1px solid rgba(203,213,225,.95);
+          background:#fff;
+          border-radius: 24px;
+          padding: 10px 10px 9px;
+          box-shadow: 0 14px 34px rgba(15,23,42,.08);
+        }
+        .chatTextarea {
+          width:100%;
+          min-height: 54px;
+          max-height: 190px;
+          resize:none;
+          border:0;
+          outline:0;
+          background:transparent;
+          color:#0f172a;
+          -webkit-text-fill-color:#0f172a;
+          font-size:16px;
+          line-height:1.48;
+          padding: 4px 6px 8px;
+        }
+        .composerToolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .composerTools { display:flex; align-items:center; gap:7px; min-width:0; flex-wrap:wrap; }
+        .toolBtn {
+          width:34px; height:34px; border-radius:999px; border:1px solid rgba(203,213,225,.9);
+          background:#fff; color:#0f172a; -webkit-text-fill-color:#0f172a; cursor:pointer;
+          display:inline-flex; align-items:center; justify-content:center;
+        }
+        .toolBtn.active { border-color:#0ea5e9; background:rgba(14,165,233,.08); }
+        .answerDepth {
+          display:inline-flex; align-items:center; gap:2px;
+          padding:3px; border:1px solid rgba(203,213,225,.86); border-radius:999px; background:#f8fafc;
+        }
+        .answerDepth button {
+          border:0; background:transparent; border-radius:999px; min-height:28px; padding:4px 10px;
+          font-size:12px; font-weight:900; color:#64748b; -webkit-text-fill-color:#64748b; cursor:pointer;
+        }
+        .answerDepth button.active { background:#fff; color:#0f172a; -webkit-text-fill-color:#0f172a; box-shadow:0 1px 6px rgba(15,23,42,.10); }
+        .sendBtn {
+          width:38px; height:38px; border-radius:999px; border:0; background:#0f172a; color:white; -webkit-text-fill-color:white;
+          cursor:pointer; font-size:20px; font-weight:950; display:inline-flex; align-items:center; justify-content:center;
+        }
+        .sendBtn:disabled { opacity:.42; cursor:not-allowed; }
+        .imagePreviewCard.compact { max-width: 640px; }
+
         @media (max-width: 860px){
           .appRoot{ padding: 8px; background: #fffaf5; }
           .mobileOnly { display: inline-flex; }
@@ -1695,6 +1848,61 @@ export default function Page() {
           .composerModeRow{ display:grid; grid-template-columns: 1fr; gap: 7px; }
           .composerHint{ display:none; }
           .mobileAskLabel{ display:block; font-size: 12px; font-weight:950; opacity:.68; margin-bottom: -2px; }
+
+          /* V13.5: version mobile plus proche d’un chat simple */
+          .workspace{ padding-bottom: calc(178px + var(--keyboard-offset, 0px)); }
+          .workspace.hasChat .heroShell,
+          .workspace.hasChat .quickSection,
+          .workspace.hasChat .activeProjectStrip{ display:none; }
+          .bubbleWrap{ margin: 10px 0; }
+          .bubbleWrap.user{ justify-content:flex-end !important; }
+          .bubbleWrap.ernesto{ justify-content:flex-start !important; }
+          .bubble{ box-shadow:none; border:0; }
+          .bubble.user{
+            max-width: 86%;
+            width:auto;
+            padding: 10px 12px;
+            border-radius: 18px 18px 4px 18px;
+            background:#f1f5f9;
+            font-size:15px;
+            line-height:1.48;
+          }
+          .bubble.ernesto, .bubble.ernesto.v13color{
+            width:100%;
+            max-width:100%;
+            padding: 4px 2px 14px 7px;
+            border-radius:0;
+            background:transparent;
+            border-left: 3px solid var(--project-color);
+            box-shadow:none;
+          }
+          .answerTextPlain{ padding:0 2px 0 8px; }
+          .answerActions{ justify-content:flex-start; padding-left:8px; margin-bottom:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+          .answerActions button{ min-height:34px; padding:7px 11px; font-size:12px; background:#fff; }
+          .sectionShell{ border:0; border-radius:0; box-shadow:none; background:transparent; }
+          .sectionHeader{ display:none; }
+          .sectionBody{ padding:0; border:0; }
+          .answerPara{ font-size:16px; line-height:1.62; }
+          .answerHeading{ font-size:16px; color:#0f172a; margin-top:14px; }
+          .answerEditTextarea{ min-height: 280px; font-size:16px; border-radius:18px; }
+          .answerEditBox{ padding:0 8px; }
+          .composer{
+            left: 8px; right: 8px; bottom: var(--keyboard-offset, 0px);
+            border:0; border-radius:0; background:transparent; box-shadow:none; padding: 0 0 calc(8px + env(safe-area-inset-bottom));
+            max-height: calc(100dvh - var(--keyboard-offset, 0px) - env(safe-area-inset-top) - 8px);
+          }
+          .composer.keyboardOpen{ padding:0 0 calc(6px + env(safe-area-inset-bottom)); border-radius:0; }
+          .composer.keyboardOpen .composerFooter{ display:none; }
+          .composer.keyboardOpen .answerDepth{ display:inline-flex; }
+          .composerBox{ border-radius:24px; padding:8px 8px 7px; box-shadow:0 8px 28px rgba(15,23,42,.16); }
+          .chatTextarea{ min-height:44px; max-height:112px; padding: 3px 6px 5px; font-size:16px; }
+          .composerToolbar{ gap:6px; }
+          .composerTools{ gap:5px; flex-wrap:nowrap; overflow:hidden; }
+          .toolBtn{ width:32px; height:32px; flex:0 0 auto; }
+          .answerDepth{ flex:0 0 auto; }
+          .answerDepth button{ padding:4px 8px; font-size:12px; }
+          .sendBtn{ width:36px; height:36px; flex:0 0 auto; }
+          .composerFooter{ margin-top:6px; padding-top:6px; font-size:10px; background:rgba(255,250,245,.88); border-radius:12px; }
         }
 
         @media (max-width: 420px){
@@ -1852,7 +2060,7 @@ export default function Page() {
           </div>
         </aside>
 
-        <div className={`workspace ${session ? "" : "noComposer"}`}>
+        <div className={`workspace ${session ? "" : "noComposer"} ${chat.length ? "hasChat" : ""}`}>
 
       {/* --- AUTH / USAGE BANNER --- */}
       <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
@@ -2197,30 +2405,42 @@ export default function Page() {
           chat.map((m) => (
             <div
               key={m.id}
-              className="bubbleWrap"
+              className={`bubbleWrap ${m.role}`}
               style={{ justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
             >
-              <div className={`bubble ${m.role} ${m.role === "ernesto" ? "v13color" : ""}`} style={m.role === "ernesto" ? ({ "--project-color": activeProjectColor } as React.CSSProperties) : undefined}>
+              <div className={`bubble ${m.role} ${m.role === "ernesto" ? "v13color chatStyle" : ""}`} style={m.role === "ernesto" ? ({ "--project-color": activeProjectColor } as React.CSSProperties) : undefined}>
                 {m.role === "user" ? <div>{m.text}</div> : null}
 
                 {m.role === "ernesto" ? (
-                  <div style={{ display: "grid", gap: 12 }}>
-                    {m.text?.trim() ? (
-                      <>
-                        <Section title="Réponse Ernesto" headerClass="hAnswer">
-                        <div
-                          style={{
-                            display: "grid",
-                            gap: 12,
-                          }}
-                        >
-                          <AnswerText text={m.text} />
+                  <div className="answerBlock">
+                    <div className="answerActions" aria-label="Actions sur la réponse Ernesto">
+                      <button type="button" onClick={() => startEditAnswer(m)}>Modifier</button>
+                      <button type="button" onClick={() => copyAnswer(m.text)}>Copier</button>
+                      <button type="button" onClick={() => printAnswer(m.text)}>Imprimer</button>
+                    </div>
+                    {editingAnswerId === m.id ? (
+                      <div className="answerEditBox">
+                        <textarea
+                          className="answerEditTextarea"
+                          value={editingAnswerText}
+                          onChange={(e) => setEditingAnswerText(e.target.value)}
+                          rows={12}
+                        />
+                        <div className="answerEditActions">
+                          <button type="button" onClick={() => saveEditAnswer(m.id)}>Enregistrer</button>
+                          <button type="button" onClick={cancelEditAnswer}>Annuler</button>
                         </div>
-                        </Section>
+                      </div>
+                    ) : (
+                      <>
+                        {m.text?.trim() ? (
+                          <div className="answerTextPlain">
+                            <AnswerText text={m.text} />
+                          </div>
+                        ) : null}
+                        {m.graph ? <ErnestoPanels graph={m.graph} /> : null}
                       </>
-                    ) : null}
-
-                    {m.graph ? <ErnestoPanels graph={m.graph} /> : null}
+                    )}
                   </div>
                 ) : null}
               </div>
@@ -2231,30 +2451,8 @@ export default function Page() {
       </section>
 
       {session ? (
-      <div className={`composer ${composerFocused ? "keyboardOpen" : ""}`}>
-        <div style={{ display: "grid", gap: 10 }}>
-          <div className="composerModeRow responseModeSimple">
-            <div className="responseModeLabel">Format de réponse</div>
-            <div className="responseModeSwitch" role="group" aria-label="Format de réponse">
-              <button
-                type="button"
-                className={`responseModeBtn ${speed === "BANCO" ? "active" : ""}`}
-                onClick={() => setSpeed("BANCO")}
-              >
-                <span className="modeName">Rapide</span>
-                <span className="modeHelp">Décision, correction, action immédiate.</span>
-              </button>
-              <button
-                type="button"
-                className={`responseModeBtn ${speed === "ECOLE" ? "active" : ""}`}
-                onClick={() => setSpeed("ECOLE")}
-              >
-                <span className="modeName">Approfondie</span>
-                <span className="modeHelp">Analyse technique, protocole, points de contrôle.</span>
-              </button>
-            </div>
-          </div>
-
+      <div className={`composer chatComposer ${composerFocused ? "keyboardOpen" : ""}`}>
+        <div className="composerInner">
           <input
             ref={fileRef}
             type="file"
@@ -2266,7 +2464,7 @@ export default function Page() {
               if (!f) return;
 
               try {
-                const MAX_BYTES = 600 * 1024; // 600KB target
+                const MAX_BYTES = 600 * 1024;
                 let out: File = f;
 
                 if (f.size > MAX_BYTES) {
@@ -2278,7 +2476,7 @@ export default function Page() {
 
                 setSelectedImage(out);
               } catch {
-                setSelectedImage(f); // fallback se compressione fallisce
+                setSelectedImage(f);
               }
 
               e.currentTarget.value = "";
@@ -2286,41 +2484,17 @@ export default function Page() {
           />
 
           {selectedImage && imagePreviewUrl ? (
-            <div className="imagePreviewCard">
+            <div className="imagePreviewCard compact">
               <img src={imagePreviewUrl} alt="Photo sélectionnée pour analyse" />
               <div style={{ minWidth: 0 }}>
-                <div className="imagePreviewTitle">Photo prête pour l’analyse</div>
+                <div className="imagePreviewTitle">Photo prête</div>
                 <div className="imagePreviewMeta">{selectedImage.name} · {(selectedImage.size / 1024).toFixed(0)} Ko</div>
               </div>
               <button className="attachX" type="button" onClick={() => setSelectedImage(null)} aria-label="Retirer la photo">×</button>
             </div>
           ) : null}
 
-          <div className="mobileAskLabel">Votre question</div>
-
-          {/* mobile grid: mic + textarea + camera */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "44px 1fr 44px",
-              gap: 10,
-              alignItems: "end",
-            }}
-          >
-            <button
-              type="button"
-              onClick={toggleDictation}
-              style={{
-                ...ui.iconBtn,
-                borderColor: dictating ? "#0ea5e9" : "#ddd",
-                background: dictating ? "rgba(14,165,233,0.10)" : "white",
-              }}
-              title={dictating ? "Arrêter la dictée" : "Dicter la question"}
-              aria-label={dictating ? "Arrêter la dictée" : "Dicter la question"}
-            >
-              {dictating ? "■" : "🎤"}
-            </button>
-
+          <div className="composerBox">
             <textarea
               ref={textareaRef}
               value={message}
@@ -2331,16 +2505,49 @@ export default function Page() {
                   askTutor(message);
                 }
               }}
-              rows={composerFocused ? 2 : 3}
+              rows={composerFocused ? 2 : 2}
               onFocus={focusComposer}
               onBlur={blurComposerSoon}
-              placeholder="Décrivez votre problème, votre protocole ou votre objectif…"
-              style={ui.textarea}
+              placeholder="Message Ernesto…"
+              className="chatTextarea"
             />
 
-            <button type="button" onClick={() => fileRef.current?.click()} style={ui.iconBtn} title="Analyser une photo">
-              📷
-            </button>
+            <div className="composerToolbar">
+              <div className="composerTools">
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="toolBtn"
+                  title="Analyser une photo"
+                  aria-label="Analyser une photo"
+                >
+                  📷
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleDictation}
+                  className={`toolBtn ${dictating ? "active" : ""}`}
+                  title={dictating ? "Arrêter la dictée" : "Dicter la question"}
+                  aria-label={dictating ? "Arrêter la dictée" : "Dicter la question"}
+                >
+                  {dictating ? "■" : "🎤"}
+                </button>
+                <div className="answerDepth" aria-label="Format de réponse">
+                  <button type="button" className={speed === "BANCO" ? "active" : ""} onClick={() => setSpeed("BANCO")}>Action</button>
+                  <button type="button" className={speed === "ECOLE" ? "active" : ""} onClick={() => setSpeed("ECOLE")}>Analyse</button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => askTutor(message)}
+                disabled={loading || !message.trim()}
+                className="sendBtn"
+                aria-label="Envoyer à Ernesto"
+              >
+                {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "↑"}
+              </button>
+            </div>
           </div>
 
           {dictationHint ? (
@@ -2350,20 +2557,8 @@ export default function Page() {
             </div>
           ) : null}
 
-          <button
-            onClick={() => askTutor(message)}
-            disabled={loading || !message.trim()}
-            style={{
-              ...ui.btn,
-              width: "100%",
-              opacity: loading || !message.trim() ? 0.6 : 1,
-              cursor: loading || !message.trim() ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Demander à Ernesto"}
-          </button>
-          <div className="composerFooter">
-            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.4 · juin 2026<br />
+          <div className="composerFooter printHidden">
+            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.5 · juin 2026<br />
             Conçu et développé par la section « Apprentissage et Informatisation » de l’EPPPN.
           </div>
         </div>
