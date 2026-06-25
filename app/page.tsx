@@ -326,24 +326,85 @@ const ui = {
   } as React.CSSProperties,
 };
 
-function startDictation(onText: (txt: string) => void) {
+type DictationUpdate = {
+  finalText: string;
+  interimText: string;
+  confidence?: number;
+};
+
+type DictationCallbacks = {
+  onUpdate: (update: DictationUpdate) => void;
+  onEnd?: () => void;
+  onError?: (message: string) => void;
+};
+
+function cleanDictationText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function startDictation(callbacks: DictationCallbacks, lang = "fr-FR") {
   const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   if (!SR) return null;
 
   const rec = new SR();
-  rec.lang = navigator.language || "fr-FR";
+  const finalParts: string[] = [];
+
+  rec.lang = lang;
   rec.interimResults = true;
-  rec.continuous = false;
+  rec.continuous = true;
+  rec.maxAlternatives = 3;
 
   rec.onresult = (e: any) => {
-    let txt = "";
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      txt += e.results[i][0].transcript;
+    const interimParts: string[] = [];
+    let confidence: number | undefined;
+
+    for (let i = 0; i < e.results.length; i++) {
+      const result = e.results[i];
+      const alternative = result?.[0];
+      const transcript = cleanDictationText(alternative?.transcript || "");
+      if (!transcript) continue;
+
+      if (typeof alternative?.confidence === "number") {
+        confidence = alternative.confidence;
+      }
+
+      if (result.isFinal) {
+        finalParts[i] = transcript;
+      } else {
+        interimParts.push(transcript);
+      }
     }
-    onText(txt.trim());
+
+    callbacks.onUpdate({
+      finalText: cleanDictationText(finalParts.filter(Boolean).join(" ")),
+      interimText: cleanDictationText(interimParts.join(" ")),
+      confidence,
+    });
   };
 
-  rec.start();
+  rec.onerror = (e: any) => {
+    const code = e?.error || "unknown";
+    const message =
+      code === "not-allowed" || code === "service-not-allowed"
+        ? "Autorisation micro refusée. Vérifiez les permissions du navigateur."
+        : code === "no-speech"
+          ? "Aucune parole détectée. Réessayez en parlant plus près du micro."
+          : code === "audio-capture"
+            ? "Micro introuvable ou indisponible."
+            : "Dictée interrompue. Réessayez ou saisissez la question au clavier.";
+    callbacks.onError?.(message);
+  };
+
+  rec.onend = () => {
+    callbacks.onEnd?.();
+  };
+
+  try {
+    rec.start();
+  } catch {
+    return null;
+  }
+
   return () => rec.stop();
 }
 
@@ -558,7 +619,9 @@ export default function Page() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [dictating, setDictating] = useState(false);
+  const [dictationHint, setDictationHint] = useState<string | null>(null);
   const stopDictRef = useRef<null | (() => void)>(null);
+  const dictationBaseTextRef = useRef("");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -938,27 +1001,47 @@ export default function Page() {
       stopDictRef.current?.();
       stopDictRef.current = null;
       setDictating(false);
+      setDictationHint(null);
       return;
     }
 
-    const stop = startDictation((txt) => {
-      if (!txt) return;
-      setMessage((prev) => (prev ? `${prev} ${txt}` : txt));
-    });
+    dictationBaseTextRef.current = message.trim();
+    setDictationHint("Écoute en cours… parlez distinctement, phrase par phrase.");
+
+    const stop = startDictation(
+      {
+        onUpdate: ({ finalText, interimText }) => {
+          const parts = [dictationBaseTextRef.current, finalText, interimText].filter(Boolean);
+          setMessage(cleanDictationText(parts.join(" ")));
+          if (interimText) {
+            setDictationHint("Transcription en cours…");
+          } else if (finalText) {
+            setDictationHint("Phrase reconnue. Vous pouvez continuer ou arrêter le micro.");
+          }
+        },
+        onEnd: () => {
+          stopDictRef.current = null;
+          setDictating(false);
+          setDictationHint(null);
+        },
+        onError: (message) => {
+          stopDictRef.current = null;
+          setDictating(false);
+          setDictationHint(message);
+          window.setTimeout(() => setDictationHint(null), 4500);
+        },
+      },
+      "fr-FR"
+    );
 
     if (!stop) {
-      alert("La dictée vocale n’est pas prise en charge par ce navigateur.");
+      setDictationHint(null);
+      alert("La dictée vocale gratuite n’est pas prise en charge par ce navigateur. Essayez Chrome ou Safari, ou saisissez la question au clavier.");
       return;
     }
 
     stopDictRef.current = stop;
     setDictating(true);
-
-    window.setTimeout(() => {
-      stopDictRef.current?.();
-      stopDictRef.current = null;
-      setDictating(false);
-    }, 12000);
   }
 
   const trialDaysTotal = usage?.trial_days_total ?? 10;
@@ -1464,6 +1547,10 @@ export default function Page() {
         .responseModeBtn.active { background: rgba(255,255,255,.98); color:#0f172a; -webkit-text-fill-color:#0f172a; box-shadow:0 6px 16px rgba(52,68,34,.10); }
         .modeName { display:block; font-weight:950; font-size: 13px; white-space:nowrap; }
         .modeHelp { display:none; }
+        .dictationHint { display:flex; align-items:center; gap:8px; color:#425233; font-size:12px; font-weight:800; padding:0 2px; min-height:18px; }
+        .dictationHint.active { color:#26384D; }
+        .dictationPulse { width:8px; height:8px; border-radius:999px; background:#ef4444; box-shadow:0 0 0 0 rgba(239,68,68,.35); animation: pulseDictation 1.25s infinite; flex:0 0 auto; }
+        @keyframes pulseDictation { 0%{ box-shadow:0 0 0 0 rgba(239,68,68,.35);} 70%{ box-shadow:0 0 0 8px rgba(239,68,68,0);} 100%{ box-shadow:0 0 0 0 rgba(239,68,68,0);} }
         .composerFooter { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(226,232,240,.75); color:#425233; font-size: 11px; line-height: 1.35; opacity: .72; text-align:center; }
         .composerFooter strong { font-weight: 950; }
         .questionTickerMask { position:relative; overflow:hidden; }
@@ -2228,9 +2315,10 @@ export default function Page() {
                 borderColor: dictating ? "#0ea5e9" : "#ddd",
                 background: dictating ? "rgba(14,165,233,0.10)" : "white",
               }}
-              title="Parler à Ernesto"
+              title={dictating ? "Arrêter la dictée" : "Dicter la question"}
+              aria-label={dictating ? "Arrêter la dictée" : "Dicter la question"}
             >
-              🎤
+              {dictating ? "■" : "🎤"}
             </button>
 
             <textarea
@@ -2255,6 +2343,13 @@ export default function Page() {
             </button>
           </div>
 
+          {dictationHint ? (
+            <div className={`dictationHint ${dictating ? "active" : ""}`}>
+              {dictating ? <span className="dictationPulse" aria-hidden="true" /> : null}
+              <span>{dictationHint}</span>
+            </div>
+          ) : null}
+
           <button
             onClick={() => askTutor(message)}
             disabled={loading || !message.trim()}
@@ -2268,7 +2363,7 @@ export default function Page() {
             {loading ? <PizzaLoader ms={loadingMs} done={pizzaDone} /> : "Demander à Ernesto"}
           </button>
           <div className="composerFooter">
-            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.3 · juin 2026<br />
+            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.4 · juin 2026<br />
             Conçu et développé par la section « Apprentissage et Informatisation » de l’EPPPN.
           </div>
         </div>
