@@ -78,6 +78,184 @@ function parseGraphJSON(raw: string) {
 }
 
 
+function normalizeEmailForAccess(raw: unknown) {
+  return String(raw || "").trim().toLowerCase();
+}
+
+function addMonthsClamped(date: Date, monthsRaw: unknown) {
+  const monthsNumber = Number(monthsRaw ?? 6);
+  const months = Number.isFinite(monthsNumber)
+    ? Math.min(6, Math.max(1, Math.floor(monthsNumber)))
+    : 6;
+
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
+function getEnvAdminEmails() {
+  return (process.env.ERNESTO_ADMIN_EMAILS || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+async function ensureV14ClosedAccess(params: {
+  supabase: any;
+  userId: string;
+  userEmail: string;
+  role: string;
+  now: Date;
+}) {
+  const { supabase, userId, userEmail, role, now } = params;
+  const normalizedEmail = normalizeEmailForAccess(userEmail);
+
+  if (role === "admin" || getEnvAdminEmails().includes(normalizedEmail)) {
+    return {
+      ok: true as const,
+      accessType: "admin",
+      accessEndsAt: null as string | null,
+      activatedAt: now.toISOString(),
+    };
+  }
+
+  if (!normalizedEmail) {
+    return {
+      ok: false as const,
+      status: 403,
+      reason: "missing_email",
+      message:
+        "Impossible de vérifier l’adresse email associée à cette session.",
+    };
+  }
+
+  const { data: allowedEmail, error: allowedEmailError } = await supabase
+    .from("epppn_allowed_emails")
+    .select(
+      "email,active,access_months,activated_at,access_ends_at,activated_user_id,blocked_at,blocked_reason"
+    )
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+
+  if (allowedEmailError) {
+    console.error("V14 epppn_allowed_emails lookup failed:", allowedEmailError.message);
+    return {
+      ok: false as const,
+      status: 500,
+      reason: "allowlist_lookup_failed",
+      message:
+        "Impossible de vérifier l’accès pour le moment. Réessayez dans quelques instants.",
+    };
+  }
+
+  if (!allowedEmail || allowedEmail.active !== true) {
+    return {
+      ok: false as const,
+      status: 403,
+      reason: "email_not_allowed",
+      message:
+        "Cette adresse email n’est pas associée à un accès Ernesto. Dans cette première phase, Ernesto est réservé aux stagiaires formés à l’EPPPN.",
+    };
+  }
+
+  if (allowedEmail.blocked_at) {
+    return {
+      ok: false as const,
+      status: 403,
+      reason: "email_blocked",
+      message:
+        "Cet accès est temporairement bloqué pour des raisons de sécurité.",
+    };
+  }
+
+  const activatedAt = allowedEmail.activated_at
+    ? new Date(allowedEmail.activated_at)
+    : now;
+
+  const accessEndsAt = allowedEmail.access_ends_at
+    ? new Date(allowedEmail.access_ends_at)
+    : addMonthsClamped(activatedAt, allowedEmail.access_months);
+
+  // La date de fin est fixée à la première activation.
+  // Elle ne se renouvelle jamais automatiquement lors des connexions suivantes.
+  const mustPersistActivation =
+    !allowedEmail.activated_at ||
+    !allowedEmail.access_ends_at ||
+    allowedEmail.activated_user_id !== userId;
+
+  if (mustPersistActivation) {
+    const { error: activationError } = await supabase
+      .from("epppn_allowed_emails")
+      .update({
+        activated_at: activatedAt.toISOString(),
+        access_ends_at: accessEndsAt.toISOString(),
+        activated_user_id: userId,
+        updated_at: now.toISOString(),
+      })
+      .eq("email", normalizedEmail);
+
+    if (activationError) {
+      console.warn("V14 allowed email activation update failed:", activationError.message);
+    }
+  }
+
+  if (accessEndsAt <= now) {
+    await supabase
+      .from("user_entitlements")
+      .upsert(
+        {
+          user_id: userId,
+          status: "inactive",
+          current_period_end: accessEndsAt.toISOString(),
+          plan: "stagiaire_epppn",
+          updated_at: now.toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+
+    return {
+      ok: false as const,
+      status: 403,
+      reason: "access_expired",
+      message:
+        "La période d’accès à Ernesto associée à cette adresse email est arrivée à son terme.",
+    };
+  }
+
+  const { error: entitlementError } = await supabase
+    .from("user_entitlements")
+    .upsert(
+      {
+        user_id: userId,
+        status: "active",
+        current_period_end: accessEndsAt.toISOString(),
+        plan: "stagiaire_epppn",
+        updated_at: now.toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (entitlementError) {
+    console.error("V14 stagiaire entitlement upsert failed:", entitlementError.message);
+    return {
+      ok: false as const,
+      status: 500,
+      reason: "entitlement_update_failed",
+      message:
+        "L’accès est autorisé, mais son activation technique a échoué. Réessayez dans quelques instants.",
+    };
+  }
+
+  return {
+    ok: true as const,
+    accessType: "stagiaire_epppn",
+    accessEndsAt: accessEndsAt.toISOString(),
+    activatedAt: activatedAt.toISOString(),
+  };
+}
+
+
+
 export async function POST(req: Request) {
   try {
     // --- 0) Parse request: support JSON + multipart/form-data (image) ---
@@ -139,7 +317,7 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-        // --- 1bis) Paywall gate (trial + quota + abonnement) ---
+        // --- 1bis) Accès fermé : session + allowlist EPPPN + abonnement/admin ---
     const authHeader = req.headers.get("authorization") || "";
     const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
@@ -162,6 +340,7 @@ export async function POST(req: Request) {
 
     const userId = user.id;
     const now = new Date();
+    const userEmail = (user.email || "").trim().toLowerCase();
 
     // 0) role lookup
     const { data: profile } = await supabase
@@ -172,10 +351,33 @@ export async function POST(req: Request) {
 
     const role = profile?.role || "free";
 
+    // 0bis) V14.0 — accès fermé EPPPN + durée maximale 6 mois.
+    // Aucun accès public/trial libre ici : l'utilisateur doit être admin
+    // ou présent dans public.epppn_allowed_emails.
+    const closedAccess = await ensureV14ClosedAccess({
+      supabase,
+      userId,
+      userEmail,
+      role,
+      now,
+    });
+
+    if (!closedAccess.ok) {
+      return NextResponse.json(
+        {
+          error: "closed_access",
+          closed_access: true,
+          reason: closedAccess.reason,
+          message: closedAccess.message,
+        },
+        { status: closedAccess.status }
+      );
+    }
+
     // 1) entitlement (Pro)
     const { data: ent } = await supabase
       .from("user_entitlements")
-      .select("status,current_period_end")
+      .select("status,current_period_end,plan,stripe_subscription_id")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -183,11 +385,11 @@ export async function POST(req: Request) {
       ent?.status === "active" &&
       (!ent.current_period_end || new Date(ent.current_period_end) > now);
 
-    // 2) free gate
-    // Public rule: essai gratuit de 10 jours.
-    // Internal safety rule: a soft usage ceiling protects the app from intensive photo/audio use during trial.
-    const TRIAL_DAYS = 10;
-    const TRIAL_SAFETY_LIMIT = Number(process.env.ERNESTO_TRIAL_SAFETY_LIMIT ?? "80");
+    // 2) V14.0 — accès fermé stagiaires EPPPN uniquement.
+    // Pas d’essai public : seuls les admins et les emails présents
+    // dans public.epppn_allowed_emails peuvent utiliser Ernesto.
+    // La durée d'accès stagiaire est fixée à la première activation, maximum 6 mois.
+    const ACCESS_MONTHS_FALLBACK = 6;
 
     let usageMeta:
       | {
@@ -202,121 +404,56 @@ export async function POST(req: Request) {
           usage_cost: number;
           is_pro: boolean;
           is_admin: boolean;
+          plan?: string;
         }
       | undefined = undefined;
 
-    // 3) admin bypass
     if (role === "admin") {
       usageMeta = {
         used: 0,
         remaining: 999999,
         trial_started_at: now.toISOString(),
         trial_ends_at: now.toISOString(),
-        trial_days_total: TRIAL_DAYS,
+        trial_days_total: ACCESS_MONTHS_FALLBACK * 30,
         trial_days_remaining: 999999,
         trial_active: true,
-        safety_limit: TRIAL_SAFETY_LIMIT,
+        safety_limit: 999999,
         usage_cost: 0,
         is_pro: true,
         is_admin: true,
+        plan: "admin",
       };
-    } else if (!isPro) {
-      // get or create usage row
-      let { data: usage } = await supabase
-        .from("user_usage")
-        .select("trial_started_at, free_queries_used")
-        .eq("user_id", userId)
-        .maybeSingle();
+    } else if (isPro) {
+      const endDate = ent?.current_period_end ? new Date(ent.current_period_end) : now;
+      const daysRemaining = ent?.current_period_end
+        ? Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)))
+        : 999999;
 
-      // Trial starts at first account creation / first magic-link user creation, not at first question.
-      const fallbackStartedAt = user.created_at ? new Date(user.created_at) : now;
-      const existingStartedAt = usage?.trial_started_at ? new Date(usage.trial_started_at) : null;
-      const trialStartedAt = existingStartedAt ?? fallbackStartedAt;
-      const trialEndsAt = new Date(trialStartedAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-      const trialMsRemaining = trialEndsAt.getTime() - now.getTime();
-      const trialDaysRemaining = Math.max(0, Math.ceil(trialMsRemaining / (24 * 60 * 60 * 1000)));
-
-      if (!usage) {
-        const ins = await supabase
-          .from("user_usage")
-          .insert({
-            user_id: userId,
-            trial_started_at: trialStartedAt.toISOString(),
-            free_queries_used: 0,
-          })
-          .select("trial_started_at, free_queries_used")
-          .single();
-        usage = ins.data ?? null;
-      }
-
-      const used = usage?.free_queries_used ?? 0;
-      const remaining = Math.max(0, TRIAL_SAFETY_LIMIT - used);
-
-      const trialOk = now <= trialEndsAt;
-      const safetyOk = used + usageCost <= TRIAL_SAFETY_LIMIT;
-
-      usageMeta = {
-        used,
-        remaining,
-        trial_started_at: trialStartedAt.toISOString(),
-        trial_ends_at: trialEndsAt.toISOString(),
-        trial_days_total: TRIAL_DAYS,
-        trial_days_remaining: trialDaysRemaining,
-        trial_active: trialOk,
-        safety_limit: TRIAL_SAFETY_LIMIT,
-        usage_cost: usageCost,
-        is_pro: false,
-        is_admin: false,
-      };
-
-      if (!trialOk || !safetyOk) {
-        return NextResponse.json(
-          {
-            paywall: true,
-            reason: !trialOk ? "trial_ended" : "usage_limit_reached",
-            usage: usageMeta,
-            pricing: { monthly_eur: 19, yearly_eur: 149 },
-          },
-          { status: 402 }
-        );
-      }
-
-      // count THIS request as internal usage units, not as user-visible credits
-      const nextUsed = used + usageCost;
-      const nextRemaining = Math.max(0, TRIAL_SAFETY_LIMIT - nextUsed);
-
-      await supabase
-        .from("user_usage")
-        .update({ free_queries_used: nextUsed })
-        .eq("user_id", userId);
-
-      usageMeta = {
-        used: nextUsed,
-        remaining: nextRemaining,
-        trial_started_at: usageMeta.trial_started_at,
-        trial_ends_at: usageMeta.trial_ends_at,
-        trial_days_total: TRIAL_DAYS,
-        trial_days_remaining: trialDaysRemaining,
-        trial_active: trialOk,
-        safety_limit: TRIAL_SAFETY_LIMIT,
-        usage_cost: usageCost,
-        is_pro: false,
-        is_admin: false,
-      };
-    } else {
       usageMeta = {
         used: 0,
         remaining: 999999,
         trial_started_at: now.toISOString(),
-        trial_ends_at: now.toISOString(),
-        trial_days_total: TRIAL_DAYS,
-        trial_days_remaining: 999999,
+        trial_ends_at: ent?.current_period_end || now.toISOString(),
+        trial_days_total: ACCESS_MONTHS_FALLBACK * 30,
+        trial_days_remaining: daysRemaining,
         trial_active: true,
-        safety_limit: TRIAL_SAFETY_LIMIT,
+        safety_limit: 999999,
         usage_cost: 0,
         is_pro: true,
         is_admin: false,
+        plan: ent?.plan || closedAccess.accessType || "active",
       };
+    } else {
+      return NextResponse.json(
+        {
+          error: "closed_access",
+          closed_access: true,
+          reason: "email_not_allowed",
+          message:
+            "Cette adresse email n’est pas associée à un accès Ernesto. Dans cette première phase, Ernesto est réservé aux stagiaires formés à l’EPPPN.",
+        },
+        { status: 403 }
+      );
     }
 
     // --- 2) Embed della domanda (solo sul testo) ---
