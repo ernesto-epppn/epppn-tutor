@@ -351,7 +351,7 @@ export async function POST(req: Request) {
 
     const role = profile?.role || "free";
 
-    // 0bis) V14.0 — accès fermé EPPPN + durée maximale 6 mois.
+    // 0bis) V14.1 — accès fermé EPPPN + durée maximale 6 mois.
     // Aucun accès public/trial libre ici : l'utilisateur doit être admin
     // ou présent dans public.epppn_allowed_emails.
     const closedAccess = await ensureV14ClosedAccess({
@@ -385,7 +385,7 @@ export async function POST(req: Request) {
       ent?.status === "active" &&
       (!ent.current_period_end || new Date(ent.current_period_end) > now);
 
-    // 2) V14.0 — accès fermé stagiaires EPPPN uniquement.
+    // 2) V14.1 — accès fermé stagiaires EPPPN uniquement.
     // Pas d’essai public : seuls les admins et les emails présents
     // dans public.epppn_allowed_emails peuvent utiliser Ernesto.
     // La durée d'accès stagiaire est fixée à la première activation, maximum 6 mois.

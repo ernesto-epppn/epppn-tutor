@@ -180,8 +180,10 @@ function workContextStorageKey(email?: string | null) {
 
 function subscriptionLabel(usage: any) {
   if (usage?.is_admin) return "Admin";
-  if (usage?.is_pro) return "Ernesto Plus";
-  return "Essai gratuit";
+  if (usage?.plan === "stagiaire_epppn") return "Accès stagiaire EPPPN";
+  if (usage?.plan === "monthly" || usage?.plan === "yearly") return "Ernesto Plus";
+  if (usage?.is_pro) return "Accès actif";
+  return "Accès réservé EPPPN";
 }
 
 function buildPersonalContext(profile: UserPersonalProfile, workContext: WorkContext, email?: string | null) {
@@ -569,14 +571,38 @@ export default function Page() {
 
   async function sendMagicLink() {
     setAuthInfo(null);
-    const e = email.trim();
+    const e = email.trim().toLowerCase();
     if (!e) return setAuthInfo("Indiquez votre adresse e-mail.");
-    const { error } = await supabase.auth.signInWithOtp({
-      email: e,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    if (error) return setAuthInfo(error.message);
-    setAuthInfo("Lien envoyé. Ouvrez votre boîte mail et cliquez sur le lien de connexion sécurisé.");
+
+    setAuthInfo("Vérification de votre accès EPPPN…");
+
+    try {
+      const gate = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: e }),
+      });
+
+      const gateData = await gate.json().catch(() => ({}));
+
+      if (!gate.ok || !gateData?.allowed) {
+        setAuthInfo(
+          gateData?.message ||
+            "Cette adresse email n’est pas associée à un accès Ernesto. Dans cette première phase, Ernesto est réservé aux stagiaires formés à l’EPPPN."
+        );
+        return;
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: e,
+        options: { emailRedirectTo: window.location.origin },
+      });
+
+      if (error) return setAuthInfo(error.message);
+      setAuthInfo("Lien envoyé. Ouvrez votre boîte mail et cliquez sur le lien de connexion sécurisé.");
+    } catch {
+      setAuthInfo("Impossible de vérifier l’accès pour le moment. Réessayez dans quelques instants.");
+    }
   }
 
   async function logout() {
@@ -634,7 +660,7 @@ export default function Page() {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [composerFocused, setComposerFocused] = useState(false);
 
-  // V13.5: réponses Ernesto éditables / copiables / imprimables
+  // V14.1: réponses Ernesto éditables / copiables / imprimables
   const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null);
   const [editingAnswerText, setEditingAnswerText] = useState("");
 
@@ -844,14 +870,30 @@ export default function Page() {
         return;
       }
 
-      // 402: paywall
+      // 402: paywall — masqué dans la phase actuelle d’accès réservé
       if (res.status === 402 && data?.paywall) {
         setPaywall(data);
         if (data?.usage) setUsage(data.usage);
         return;
       }
 
-      if (!res.ok) throw new Error(data?.error ?? `Erreur serveur (${res.status})`);
+      // 403: accès fermé / email non autorisée / accès expiré
+      if (res.status === 403 && data?.closed_access) {
+        setAuthInfo(data?.message || "Cette adresse email n’est pas associée à un accès Ernesto.");
+        setChat((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            role: "ernesto",
+            text:
+              data?.message ||
+              "Cette adresse email n’est pas associée à un accès Ernesto. Dans cette première phase, Ernesto est réservé aux stagiaires formés à l’EPPPN.",
+          },
+        ]);
+        return;
+      }
+
+      if (!res.ok) throw new Error(data?.message ?? data?.error ?? `Erreur serveur (${res.status})`);
 
       // usage banner update
       if (data?.usage) setUsage(data.usage);
@@ -1124,10 +1166,12 @@ export default function Page() {
   const usageLine =
     usage?.is_admin
       ? "Mode administrateur — accès illimité"
+      : usage?.plan === "stagiaire_epppn"
+      ? `Accès stagiaire EPPPN actif${usage.trial_ends_at ? ` — jusqu’au ${new Date(usage.trial_ends_at).toLocaleDateString("fr-FR")}` : ""}`
       : usage?.is_pro
-      ? "Ernesto Plus activé — accès illimité"
+      ? "Accès actif — Ernesto disponible"
       : usage
-      ? `Essai gratuit : ${trialDaysRemaining ?? "—"} jour${trialDaysRemaining === 1 ? "" : "s"} restant${trialDaysRemaining === 1 ? "" : "s"}${usage.trial_ends_at ? ` — jusqu’au ${new Date(usage.trial_ends_at).toLocaleDateString("fr-FR")}` : ""}`
+      ? "Accès réservé aux stagiaires formés à l’EPPPN"
       : null;
 
   const usagePercent =
@@ -1483,18 +1527,48 @@ export default function Page() {
         }
         .pizzaRunway{
           position: relative;
-          height: 42px;
+          height: 46px;
           border-radius: 999px;
           background: rgba(255,255,255,0.72);
           border: 1px solid rgba(251,146,60,0.18);
-          overflow: hidden;
+          overflow: visible;
         }
         .pizzaMotion{
           position:absolute;
           top:50%;
           transform: translate(-50%, -50%);
-          transition: left 180ms linear;
+          transition: left 260ms cubic-bezier(.22,.8,.28,1);
           z-index:2;
+          width: 42px;
+          height: 42px;
+          display: grid;
+          place-items: center;
+        }
+        .pizzaMotion::before,
+        .pizzaMotion::after{
+          content:"";
+          position:absolute;
+          left:50%;
+          top:-9px;
+          width: 9px;
+          height: 22px;
+          border-radius: 999px;
+          background: rgba(148,163,184,0.38);
+          filter: blur(3px);
+          opacity:0;
+          transform: translate(-50%, 8px) scale(.75);
+          pointer-events:none;
+        }
+        .pizzaMotion::after{
+          left: 62%;
+          top: -12px;
+          width: 7px;
+          height: 19px;
+          animation-delay: 280ms;
+        }
+        .pizzaMotion.steaming::before,
+        .pizzaMotion.steaming::after{
+          animation: steamFloat 1250ms ease-in-out infinite;
         }
         .pizzaTrack{
           position: absolute;
@@ -1508,7 +1582,7 @@ export default function Page() {
           overflow: hidden;
           border: 1px solid rgba(251,146,60,0.16);
         }
-        .pizzaFill{ height: 100%; border-radius: 999px; background: linear-gradient(90deg, #fb923c, #f43f5e); transition: width 180ms linear; }
+        .pizzaFill{ height: 100%; border-radius: 999px; background: linear-gradient(90deg, #f59e0b, #fb923c, #ef4444); transition: width 260ms cubic-bezier(.22,.8,.28,1); }
         .pizzaLabel{ font-size: 13px; font-weight: 800; color: #7c2d12; letter-spacing: 0.1px; }
         .pizzaIcon{
           width: 34px; height: 34px; border-radius: 999px; position: relative;
@@ -1526,8 +1600,13 @@ export default function Page() {
             radial-gradient(circle at 50% 50%, rgba(239,68,68,0.95) 0 70%, rgba(239,68,68,0.85) 71% 100%);
         }
         .pizzaIcon::after{
-          content:""; position:absolute; left: 50%; top: -16px; width: 28px; height: 28px; transform: translateX(-50%); border-radius: 999px;
-          background: radial-gradient(circle at 50% 60%, rgba(148,163,184,0.35), transparent 70%); filter: blur(1.2px); animation: steamUp 1000ms ease-in-out infinite;
+          content:"";
+          position:absolute;
+          inset: 0;
+          border-radius:999px;
+          background: conic-gradient(from 310deg, rgba(255,255,255,0.26) 0 35deg, transparent 36deg 360deg);
+          mix-blend-mode: soft-light;
+          pointer-events:none;
         }
         .heroShell{
           margin-top: 6px;
@@ -1637,7 +1716,7 @@ export default function Page() {
         .bubble.ernesto.v13color { border-left: 5px solid var(--project-color); }
 
 
-        /* V13.5 — chat mobile style */
+        /* V14.1 — chat mobile style */
         .answerBlock { display:grid; gap:10px; }
         .answerActions { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-bottom: 2px; }
         .answerActions button, .answerEditActions button {
@@ -1849,7 +1928,7 @@ export default function Page() {
           .composerHint{ display:none; }
           .mobileAskLabel{ display:block; font-size: 12px; font-weight:950; opacity:.68; margin-bottom: -2px; }
 
-          /* V13.5: version mobile plus proche d’un chat simple */
+          /* V14.1: version mobile plus proche d’un chat simple */
           .workspace{ padding-bottom: calc(178px + var(--keyboard-offset, 0px)); }
           .workspace.hasChat .heroShell,
           .workspace.hasChat .quickSection,
@@ -2068,10 +2147,10 @@ export default function Page() {
           <div className="statusCard authCard">
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
               <div>
-                <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">Essai gratuit de 10 jours</div>
-                <div style={{ fontWeight: 950, fontSize: 18 }}>Connectez-vous avec votre e-mail</div>
+                <div style={{ display: "inline-flex", marginBottom: 8 }} className="planBadge">Accès réservé EPPPN</div>
+                <div style={{ fontWeight: 950, fontSize: 18 }}>Connectez-vous avec votre e-mail autorisé EPPPN</div>
                 <div style={{ marginTop: 6, opacity: 0.78, maxWidth: 700 }}>
-                  Recevez un lien de connexion sécurisé. Aucun mot de passe n’est nécessaire. L’essai commence au premier accès par lien magique.
+                  Recevez un lien de connexion sécurisé. Aucun mot de passe n’est nécessaire. Dans cette phase de test, seules les adresses autorisées par l’EPPPN peuvent accéder à Ernesto.
                 </div>
               </div>
             </div>
@@ -2101,7 +2180,7 @@ export default function Page() {
                 </div>
                 <div className="userEmail">{session?.user?.email ?? "Utilisateur Ernesto"}</div>
                 <div className="userMeta">
-                  {usageLine ?? "Connecté. Posez votre première question pour afficher l’état de votre essai gratuit."}
+                  {usageLine ?? "Connecté avec une adresse autorisée EPPPN. Posez votre première question pour activer votre accès."}
                   {(personalProfile.profession || personalProfile.reason) ? (
                     <>
                       <br />
@@ -2558,7 +2637,7 @@ export default function Page() {
           ) : null}
 
           <div className="composerFooter printHidden">
-            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V13.5 · juin 2026<br />
+            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V14.1 · juin 2026<br />
             Conçu et développé par la section « Apprentissage et Informatisation » de l’EPPPN.
           </div>
         </div>
@@ -2663,9 +2742,11 @@ function parseMarkdownTable(lines: string[]) {
 }
 
 function PizzaLoader({ ms, done }: { ms: number; done: boolean }) {
-  const expected = 12000;
-  const p = done ? 1 : Math.min(0.96, ms / expected);
+  const expected = 11500;
+  const p = done ? 1 : Math.min(0.965, ms / expected);
   const pct = Math.round(p * 100);
+  const pos = Math.max(6, Math.min(94, pct));
+  const steaming = done || pct >= 74;
 
   return (
     <div className={`pizzaLoad ${done ? "done" : ""}`} aria-label="Ernesto prépare votre réponse">
@@ -2673,13 +2754,15 @@ function PizzaLoader({ ms, done }: { ms: number; done: boolean }) {
         <div className="pizzaTrack">
           <div className="pizzaFill" style={{ width: `${pct}%` }} />
         </div>
-        <div className="pizzaMotion" style={{ left: `${Math.max(5, Math.min(95, pct))}%` }}>
+        <div className={`pizzaMotion ${steaming ? "steaming" : ""}`} style={{ left: `${pos}%` }}>
           <div className="pizzaIcon" />
         </div>
       </div>
       <div className="pizzaLabel">
         {done
           ? "Réponse prête."
+          : pct >= 74
+          ? "Derniers contrôles · Ernesto finalise la réponse…"
           : "Analyse en cours · formulation d’une réponse claire et exploitable…"}
       </div>
     </div>

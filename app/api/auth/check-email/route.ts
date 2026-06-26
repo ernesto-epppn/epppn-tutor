@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (error) {
-      console.error("V14 check-email lookup failed:", error.message);
+      console.error("V14.1 check-email lookup failed:", error.message);
       return NextResponse.json(
         {
           allowed: false,
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
       access_ends_at: data.access_ends_at,
     });
   } catch (err) {
-    console.error("V14 check-email route failed:", err);
+    console.error("V14.1 check-email route failed:", err);
     return NextResponse.json(
       {
         allowed: false,
