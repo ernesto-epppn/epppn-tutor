@@ -502,9 +502,30 @@ export default function Page() {
   const [editingProjectColor, setEditingProjectColor] = useState(DEFAULT_PROJECT_COLOR);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
+    let active = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+
+      setSession(data.session);
+
+      if (!data.session && window.location.pathname === "/") {
+        window.location.replace("/connexion");
+      }
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+
+      if (!currentSession && window.location.pathname === "/") {
+        window.location.replace("/connexion");
+      }
+    });
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, [supabase]);
 
   useEffect(() => {
