@@ -168,6 +168,35 @@ async function ensureV14ClosedAccess(params: {
     };
   }
 
+  if (
+    allowedEmail.activated_user_id &&
+    allowedEmail.activated_user_id !== userId
+  ) {
+    const { error: securityEventError } = await supabase
+      .from("epppn_allowed_emails")
+      .update({
+        last_security_event_at: now.toISOString(),
+        last_security_event: "activated_user_mismatch",
+        updated_at: now.toISOString(),
+      })
+      .eq("email", normalizedEmail);
+
+    if (securityEventError) {
+      console.warn(
+        "V14.2 security event update failed:",
+        securityEventError.message
+      );
+    }
+
+    return {
+      ok: false as const,
+      status: 403,
+      reason: "account_already_activated",
+      message:
+        "Ce compte stagiaire est déjà associé à un autre utilisateur. Contactez l’EPPPN si vous avez changé de compte.",
+    };
+  }
+
   const activatedAt = allowedEmail.activated_at
     ? new Date(allowedEmail.activated_at)
     : now;
@@ -181,7 +210,7 @@ async function ensureV14ClosedAccess(params: {
   const mustPersistActivation =
     !allowedEmail.activated_at ||
     !allowedEmail.access_ends_at ||
-    allowedEmail.activated_user_id !== userId;
+    !allowedEmail.activated_user_id;
 
   if (mustPersistActivation) {
     const { error: activationError } = await supabase
@@ -200,49 +229,12 @@ async function ensureV14ClosedAccess(params: {
   }
 
   if (accessEndsAt <= now) {
-    await supabase
-      .from("user_entitlements")
-      .upsert(
-        {
-          user_id: userId,
-          status: "inactive",
-          current_period_end: accessEndsAt.toISOString(),
-          plan: "stagiaire_epppn",
-          updated_at: now.toISOString(),
-        },
-        { onConflict: "user_id" }
-      );
-
     return {
       ok: false as const,
       status: 403,
       reason: "access_expired",
       message:
         "La période d’accès à Ernesto associée à cette adresse email est arrivée à son terme.",
-    };
-  }
-
-  const { error: entitlementError } = await supabase
-    .from("user_entitlements")
-    .upsert(
-      {
-        user_id: userId,
-        status: "active",
-        current_period_end: accessEndsAt.toISOString(),
-        plan: "stagiaire_epppn",
-        updated_at: now.toISOString(),
-      },
-      { onConflict: "user_id" }
-    );
-
-  if (entitlementError) {
-    console.error("V14 stagiaire entitlement upsert failed:", entitlementError.message);
-    return {
-      ok: false as const,
-      status: 500,
-      reason: "entitlement_update_failed",
-      message:
-        "L’accès est autorisé, mais son activation technique a échoué. Réessayez dans quelques instants.",
     };
   }
 
@@ -350,40 +342,50 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     const role = profile?.role || "free";
+    const isAdmin =
+      role === "admin" || getEnvAdminEmails().includes(userEmail);
 
-    // 0bis) V14.1 — accès fermé EPPPN + durée maximale 6 mois.
-    // Aucun accès public/trial libre ici : l'utilisateur doit être admin
-    // ou présent dans public.epppn_allowed_emails.
-    const closedAccess = await ensureV14ClosedAccess({
-      supabase,
-      userId,
-      userEmail,
-      role,
-      now,
-    });
-
-    if (!closedAccess.ok) {
-      return NextResponse.json(
-        {
-          error: "closed_access",
-          closed_access: true,
-          reason: closedAccess.reason,
-          message: closedAccess.message,
-        },
-        { status: closedAccess.status }
-      );
-    }
-
-    // 1) entitlement (Pro)
+    // 1) Les abonnements Stripe sont vérifiés avant l’accès pédagogique.
     const { data: ent } = await supabase
       .from("user_entitlements")
       .select("status,current_period_end,plan,stripe_subscription_id")
       .eq("user_id", userId)
       .maybeSingle();
 
-    const isPro =
+    const hasPaidPlan =
+      Boolean(ent?.stripe_subscription_id) ||
+      ent?.plan === "monthly" ||
+      ent?.plan === "yearly";
+
+    const isPaidPro =
+      hasPaidPlan &&
       ent?.status === "active" &&
       (!ent.current_period_end || new Date(ent.current_period_end) > now);
+
+    // 2) L’allowlist EPPPN n’est consultée que pour les non-abonnés.
+    let closedAccess: any = null;
+
+    if (!isAdmin && !isPaidPro) {
+      closedAccess = await ensureV14ClosedAccess({
+        supabase,
+        userId,
+        userEmail,
+        role,
+        now,
+      });
+
+      if (!closedAccess.ok) {
+        return NextResponse.json(
+          {
+            error: "closed_access",
+            closed_access: true,
+            reason: closedAccess.reason,
+            message: closedAccess.message,
+          },
+          { status: closedAccess.status }
+        );
+      }
+    }
 
     // 2) V14.1 — accès fermé stagiaires EPPPN uniquement.
     // Pas d’essai public : seuls les admins et les emails présents
@@ -408,7 +410,7 @@ export async function POST(req: Request) {
         }
       | undefined = undefined;
 
-    if (role === "admin") {
+    if (isAdmin) {
       usageMeta = {
         used: 0,
         remaining: 999999,
@@ -423,10 +425,19 @@ export async function POST(req: Request) {
         is_admin: true,
         plan: "admin",
       };
-    } else if (isPro) {
-      const endDate = ent?.current_period_end ? new Date(ent.current_period_end) : now;
+    } else if (isPaidPro) {
+      const endDate = ent?.current_period_end
+        ? new Date(ent.current_period_end)
+        : now;
+
       const daysRemaining = ent?.current_period_end
-        ? Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)))
+        ? Math.max(
+            0,
+            Math.ceil(
+              (endDate.getTime() - now.getTime()) /
+                (24 * 60 * 60 * 1000)
+            )
+          )
         : 999999;
 
       usageMeta = {
@@ -441,16 +452,49 @@ export async function POST(req: Request) {
         usage_cost: 0,
         is_pro: true,
         is_admin: false,
-        plan: ent?.plan || closedAccess.accessType || "active",
+        plan: ent?.plan || "active",
+      };
+    } else if (closedAccess?.ok) {
+      const startDate = new Date(closedAccess.activatedAt);
+      const endDate = new Date(closedAccess.accessEndsAt);
+
+      const totalDays = Math.max(
+        1,
+        Math.ceil(
+          (endDate.getTime() - startDate.getTime()) /
+            (24 * 60 * 60 * 1000)
+        )
+      );
+
+      const daysRemaining = Math.max(
+        0,
+        Math.ceil(
+          (endDate.getTime() - now.getTime()) /
+            (24 * 60 * 60 * 1000)
+        )
+      );
+
+      usageMeta = {
+        used: 0,
+        remaining: 999999,
+        trial_started_at: closedAccess.activatedAt,
+        trial_ends_at: closedAccess.accessEndsAt,
+        trial_days_total: totalDays,
+        trial_days_remaining: daysRemaining,
+        trial_active: true,
+        safety_limit: 999999,
+        usage_cost: 0,
+        is_pro: true,
+        is_admin: false,
+        plan: "stagiaire_epppn",
       };
     } else {
       return NextResponse.json(
         {
           error: "closed_access",
           closed_access: true,
-          reason: "email_not_allowed",
-          message:
-            "Cette adresse email n’est pas associée à un accès Ernesto. Dans cette première phase, Ernesto est réservé aux stagiaires formés à l’EPPPN.",
+          reason: "access_not_available",
+          message: "Votre accès à Ernesto n’est pas disponible.",
         },
         { status: 403 }
       );
