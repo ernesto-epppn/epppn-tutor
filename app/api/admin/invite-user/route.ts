@@ -111,7 +111,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "allowlist_update_failed" }, { status: 500 });
     }
 
-    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://ernesto.epppn.fr").replace(/\/$/, "");
+    // Usa automaticamente il dominio corrente:
+    // Preview Vercel durante i test, dominio ufficiale in produzione.
+    const siteUrl = new URL(req.url).origin;
     const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
       email,
       {
