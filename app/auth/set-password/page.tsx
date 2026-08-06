@@ -37,16 +37,44 @@ export default function SetPasswordPage() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
 
-    if (error) {
+    const { error: passwordError } = await supabase.auth.updateUser({ password });
+    if (passwordError) {
+      setLoading(false);
       setMessage("Le lien d’invitation est invalide ou expiré. Demandez une nouvelle invitation à l’EPPPN.");
       return;
     }
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      setLoading(false);
+      setMessage("Le mot de passe est enregistré, mais la session n’a pas pu être activée. Connectez-vous depuis la page d’accueil.");
+      return;
+    }
+
+    const activationResponse = await fetch("/api/auth/activate-account", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const activation = await activationResponse.json().catch(() => ({}));
+    setLoading(false);
+
+    if (!activationResponse.ok) {
+      if (activation?.error === "account_already_bound") {
+        setMessage("Ce compte EPPPN est déjà associé à un autre utilisateur. Contactez l’EPPPN.");
+      } else if (activation?.error === "access_expired") {
+        setMessage("Votre période d’accès pédagogique est arrivée à son terme.");
+      } else {
+        setMessage("Le compte a été créé, mais son accès Ernesto n’a pas pu être activé. Contactez l’EPPPN.");
+      }
+      return;
+    }
+
     setDone(true);
-    setMessage("Votre mot de passe a été enregistré.");
+    setMessage("Votre mot de passe et votre accès Ernesto ont été activés.");
   }
 
   return (
@@ -88,7 +116,7 @@ export default function SetPasswordPage() {
             </label>
 
             <button type="submit" disabled={loading} style={styles.button}>
-              {loading ? "Enregistrement…" : "Activer mon compte"}
+              {loading ? "Activation…" : "Activer mon compte"}
             </button>
           </form>
         ) : (
