@@ -478,6 +478,7 @@ export default function Page() {
     usage_cost?: number;
     is_pro?: boolean;
     is_admin?: boolean;
+    plan?: string;
   }>(null);
 
   // paywall payload (when 402)
