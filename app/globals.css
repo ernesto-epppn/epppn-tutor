@@ -35,3 +35,173 @@ textarea,
 select {
   font-family: inherit;
 }
+
+/* Ernesto v14.2 — pizza timeline
+   While Ernesto is loading, the normal toolbar controls disappear and their row
+   is reserved entirely for the pizza runway. This avoids any overlap with
+   camera/microphone/Action/Analyse and keeps the question visible above. */
+.composerBox {
+  position: relative !important;
+}
+
+.composerToolbar:has(.pizzaLoad) {
+  min-height: 62px !important;
+  position: relative !important;
+  align-items: flex-end !important;
+}
+
+.composerToolbar:has(.pizzaLoad) .composerTools {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.composerToolbar:has(.pizzaLoad) .sendBtn {
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 1px !important;
+  min-height: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+}
+
+.sendBtn .pizzaLoad {
+  position: absolute !important;
+  left: 10px !important;
+  right: 10px !important;
+  bottom: 7px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 4px 9px 5px !important;
+  gap: 2px !important;
+  display: grid !important;
+  border-radius: 14px !important;
+  z-index: 8;
+  pointer-events: none;
+  text-align: left;
+  color: #7c2d12 !important;
+  -webkit-text-fill-color: #7c2d12 !important;
+  background: linear-gradient(180deg, rgba(255,247,237,.98), rgba(255,237,213,.94)) !important;
+  box-shadow: 0 7px 20px rgba(154,52,18,.10) !important;
+}
+
+.sendBtn .pizzaRunway {
+  height: 34px !important;
+}
+
+.sendBtn .pizzaMotion {
+  width: 34px !important;
+  height: 34px !important;
+  transition: none !important;
+  animation: ernestoPizzaTravel 14s linear forwards !important;
+  will-change: left;
+}
+
+.sendBtn .pizzaIcon {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.sendBtn .pizzaTrack {
+  left: 16px !important;
+  right: 16px !important;
+  height: 8px !important;
+}
+
+.sendBtn .pizzaFill {
+  transition: none !important;
+  animation: ernestoPizzaFill 14s linear forwards !important;
+  will-change: width;
+}
+
+.sendBtn .pizzaLabel {
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  padding: 0 2px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sendBtn .pizzaLoad.done .pizzaMotion {
+  animation: none !important;
+  left: 94% !important;
+  transition: left 520ms cubic-bezier(.22,.8,.28,1) !important;
+}
+
+.sendBtn .pizzaLoad.done .pizzaFill {
+  animation: none !important;
+  width: 100% !important;
+  transition: width 520ms cubic-bezier(.22,.8,.28,1) !important;
+}
+
+@keyframes ernestoPizzaTravel {
+  0% { left: 5%; }
+  14% { left: 33%; }
+  36% { left: 62%; }
+  70% { left: 81%; }
+  100% { left: 92%; }
+}
+
+@keyframes ernestoPizzaFill {
+  0% { width: 0%; }
+  14% { width: 31%; }
+  36% { width: 60%; }
+  70% { width: 79%; }
+  100% { width: 92%; }
+}
+
+@keyframes steamFloat {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(.72);
+  }
+  28% {
+    opacity: .46;
+  }
+  72% {
+    opacity: .25;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -13px) scale(1.18);
+  }
+}
+
+@media (max-width: 860px) {
+  .composerToolbar:has(.pizzaLoad) {
+    min-height: 46px !important;
+  }
+
+  .sendBtn .pizzaLoad {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 5px !important;
+    padding: 4px 7px !important;
+    border-radius: 13px !important;
+  }
+
+  .sendBtn .pizzaRunway {
+    height: 32px !important;
+  }
+
+  .sendBtn .pizzaMotion {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .sendBtn .pizzaIcon {
+    width: 27px !important;
+    height: 27px !important;
+  }
+
+  .sendBtn .pizzaLabel {
+    display: none !important;
+  }
+}
