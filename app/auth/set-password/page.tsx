@@ -38,6 +38,19 @@ export default function SetPasswordPage() {
 
     setLoading(true);
 
+    // The invitation session is only used to identify the invited account and
+    // authorize the one-time password creation. After the password changes we
+    // explicitly sign in again to obtain a fresh session before activating the
+    // Ernesto entitlement. This avoids reusing a stale invitation JWT.
+    const { data: invitedUserData, error: invitedUserError } = await supabase.auth.getUser();
+    const invitedEmail = invitedUserData.user?.email?.trim().toLowerCase();
+
+    if (invitedUserError || !invitedEmail) {
+      setLoading(false);
+      setMessage("Le lien d’invitation est invalide ou expiré. Demandez une nouvelle invitation à l’EPPPN.");
+      return;
+    }
+
     const { error: passwordError } = await supabase.auth.updateUser({ password });
     if (passwordError) {
       setLoading(false);
@@ -45,12 +58,16 @@ export default function SetPasswordPage() {
       return;
     }
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+      email: invitedEmail,
+      password,
+    });
 
-    if (!token) {
+    const token = loginData.session?.access_token;
+
+    if (loginError || !token) {
       setLoading(false);
-      setMessage("Le mot de passe est enregistré, mais la session n’a pas pu être activée. Connectez-vous depuis la page d’accueil.");
+      setMessage("Le mot de passe est enregistré. Connectez-vous maintenant depuis la page de connexion Ernesto.");
       return;
     }
 
@@ -67,6 +84,8 @@ export default function SetPasswordPage() {
         setMessage("Ce compte EPPPN est déjà associé à un autre utilisateur. Contactez l’EPPPN.");
       } else if (activation?.error === "access_expired") {
         setMessage("Votre période d’accès pédagogique est arrivée à son terme.");
+      } else if (activation?.error === "invalid_session") {
+        setMessage("Votre mot de passe est enregistré. Reconnectez-vous depuis la page de connexion Ernesto pour terminer l’activation.");
       } else {
         setMessage("Le compte a été créé, mais son accès Ernesto n’a pas pu être activé. Contactez l’EPPPN.");
       }
