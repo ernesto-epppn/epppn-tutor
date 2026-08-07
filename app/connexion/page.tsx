@@ -124,13 +124,18 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <button type="button" onClick={resetPassword} style={styles.linkButton}>
-          Mot de passe oublié ?
-        </button>
+        <div style={styles.secondaryActions}>
+          <button type="button" onClick={resetPassword} style={styles.linkButton}>
+            Première connexion ? Créer mon mot de passe
+          </button>
+          <button type="button" onClick={resetPassword} style={styles.linkButton}>
+            Mot de passe oublié ?
+          </button>
+        </div>
 
         {message ? <p style={styles.message}>{message}</p> : null}
         <p style={styles.note}>
-          Il n’est pas possible de créer librement un compte. Les invitations sont envoyées par l’EPPPN.
+          L’accès à Ernesto est réservé aux personnes autorisées par l’EPPPN.
         </p>
       </section>
     </main>
@@ -195,8 +200,13 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 850,
     cursor: "pointer",
   },
-  linkButton: {
+  secondaryActions: {
+    display: "grid",
+    justifyItems: "start",
+    gap: 10,
     marginTop: 16,
+  },
+  linkButton: {
     padding: 0,
     border: 0,
     background: "transparent",
