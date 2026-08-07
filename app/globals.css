@@ -37,85 +37,98 @@ select {
 }
 
 /* Ernesto v14.2 — pizza timeline
-   The loader still lives in the send button in V14.2, but while loading the
-   button becomes a full-width second row of the composer toolbar. This keeps
-   the question visible and gives the pizza a real runway across the composer. */
-.composerToolbar:has(.pizzaLoad) {
-  flex-wrap: wrap !important;
-  align-items: stretch !important;
-}
-
-.sendBtn:has(.pizzaLoad) {
-  flex: 1 0 100% !important;
-  width: 100% !important;
-  height: auto !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-  margin-top: 5px !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  opacity: 1 !important;
-  cursor: wait !important;
-  display: block !important;
-  overflow: visible !important;
-}
-
-.sendBtn:has(.pizzaLoad) .pizzaLoad {
-  width: 100% !important;
-  min-width: 0 !important;
-  display: grid !important;
+   PizzaLoader is still mounted inside the send button in this version. Instead
+   of using the button as its runway, position the loader against the whole
+   composer box. The loading control therefore spans the real message width and
+   only replaces the toolbar area while Ernesto is preparing the answer. */
+.composerBox {
   position: relative !important;
-  inset: auto !important;
+}
+
+.sendBtn .pizzaLoad {
+  position: absolute !important;
+  left: 10px !important;
+  right: 10px !important;
+  bottom: 7px !important;
+  width: auto !important;
+  min-width: 0 !important;
   margin: 0 !important;
-  padding: 10px 12px !important;
-  border-radius: 16px !important;
+  padding: 4px 9px 5px !important;
+  gap: 2px !important;
+  display: grid !important;
+  border-radius: 14px !important;
+  z-index: 8;
   pointer-events: none;
   text-align: left;
   color: #7c2d12 !important;
   -webkit-text-fill-color: #7c2d12 !important;
+  background: linear-gradient(180deg, rgba(255,247,237,.98), rgba(255,237,213,.94)) !important;
+  box-shadow: 0 7px 20px rgba(154,52,18,.10) !important;
 }
 
-/* Important: do not pin left/width with !important here. That would override
-   the keyframes and freeze the pizza at the start. */
-.sendBtn:has(.pizzaLoad) .pizzaMotion {
+.sendBtn .pizzaRunway {
+  height: 34px !important;
+}
+
+.sendBtn .pizzaMotion {
+  width: 34px !important;
+  height: 34px !important;
   transition: none !important;
   animation: ernestoPizzaTravel 14s linear forwards !important;
   will-change: left;
 }
 
-.sendBtn:has(.pizzaLoad) .pizzaFill {
+.sendBtn .pizzaIcon {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.sendBtn .pizzaTrack {
+  left: 16px !important;
+  right: 16px !important;
+  height: 8px !important;
+}
+
+.sendBtn .pizzaFill {
   transition: none !important;
   animation: ernestoPizzaFill 14s linear forwards !important;
   will-change: width;
 }
 
-.sendBtn:has(.pizzaLoad) .pizzaLoad.done .pizzaMotion {
-  animation: none !important;
-  left: 94% !important;
-  transition: left 560ms cubic-bezier(.22,.8,.28,1) !important;
+.sendBtn .pizzaLabel {
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  padding: 0 2px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.sendBtn:has(.pizzaLoad) .pizzaLoad.done .pizzaFill {
+.sendBtn .pizzaLoad.done .pizzaMotion {
+  animation: none !important;
+  left: 94% !important;
+  transition: left 520ms cubic-bezier(.22,.8,.28,1) !important;
+}
+
+.sendBtn .pizzaLoad.done .pizzaFill {
   animation: none !important;
   width: 100% !important;
-  transition: width 560ms cubic-bezier(.22,.8,.28,1) !important;
+  transition: width 520ms cubic-bezier(.22,.8,.28,1) !important;
 }
 
 @keyframes ernestoPizzaTravel {
-  0% { left: 6%; }
-  14% { left: 34%; }
-  36% { left: 64%; }
-  70% { left: 82%; }
+  0% { left: 5%; }
+  14% { left: 33%; }
+  36% { left: 62%; }
+  70% { left: 81%; }
   100% { left: 92%; }
 }
 
 @keyframes ernestoPizzaFill {
   0% { width: 0%; }
-  14% { width: 32%; }
-  36% { width: 62%; }
-  70% { width: 80%; }
+  14% { width: 31%; }
+  36% { width: 60%; }
+  70% { width: 79%; }
   100% { width: 92%; }
 }
 
@@ -137,12 +150,29 @@ select {
 }
 
 @media (max-width: 860px) {
-  .sendBtn:has(.pizzaLoad) {
-    margin-top: 3px !important;
+  .sendBtn .pizzaLoad {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 6px !important;
+    padding: 4px 7px !important;
+    border-radius: 13px !important;
   }
 
-  .sendBtn:has(.pizzaLoad) .pizzaLoad {
-    padding: 8px 10px !important;
-    border-radius: 14px !important;
+  .sendBtn .pizzaRunway {
+    height: 32px !important;
+  }
+
+  .sendBtn .pizzaMotion {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .sendBtn .pizzaIcon {
+    width: 27px !important;
+    height: 27px !important;
+  }
+
+  .sendBtn .pizzaLabel {
+    display: none !important;
   }
 }
