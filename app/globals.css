@@ -37,12 +37,37 @@ select {
 }
 
 /* Ernesto v14.2 — pizza timeline
-   PizzaLoader is still mounted inside the send button in this version. Instead
-   of using the button as its runway, position the loader against the whole
-   composer box. The loading control therefore spans the real message width and
-   only replaces the toolbar area while Ernesto is preparing the answer. */
+   While Ernesto is loading, the normal toolbar controls disappear and their row
+   is reserved entirely for the pizza runway. This avoids any overlap with
+   camera/microphone/Action/Analyse and keeps the question visible above. */
 .composerBox {
   position: relative !important;
+}
+
+.composerToolbar:has(.pizzaLoad) {
+  min-height: 62px !important;
+  position: relative !important;
+  align-items: flex-end !important;
+}
+
+.composerToolbar:has(.pizzaLoad) .composerTools {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.composerToolbar:has(.pizzaLoad) .sendBtn {
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 1px !important;
+  min-height: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  overflow: visible !important;
 }
 
 .sendBtn .pizzaLoad {
@@ -150,10 +175,14 @@ select {
 }
 
 @media (max-width: 860px) {
+  .composerToolbar:has(.pizzaLoad) {
+    min-height: 46px !important;
+  }
+
   .sendBtn .pizzaLoad {
     left: 8px !important;
     right: 8px !important;
-    bottom: 6px !important;
+    bottom: 5px !important;
     padding: 4px 7px !important;
     border-radius: 13px !important;
   }
