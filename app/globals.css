@@ -37,91 +37,88 @@ select {
 }
 
 /* Ernesto v14.2 — pizza timeline
-   The loader still lives inside the send button in the current component tree.
-   Instead of absolutely positioning it over the question field, the button becomes
-   a full-width row only while the loader is visible. This keeps the timeline inside
-   the normal composer flow and prevents it from covering the user's draft. */
+   The loader still lives in the send button in V14.2, but while loading the
+   button becomes a full-width second row of the composer toolbar. This keeps
+   the question visible and gives the pizza a real runway across the composer. */
 .composerToolbar:has(.pizzaLoad) {
   flex-wrap: wrap !important;
   align-items: stretch !important;
 }
 
 .sendBtn:has(.pizzaLoad) {
-  order: -1;
   flex: 1 0 100% !important;
   width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
   padding: 0 !important;
+  margin-top: 5px !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
-  overflow: visible !important;
+  box-shadow: none !important;
   opacity: 1 !important;
-  cursor: default !important;
+  cursor: wait !important;
+  display: block !important;
+  overflow: visible !important;
 }
 
-.sendBtn .pizzaLoad {
-  position: relative !important;
-  inset: auto !important;
+.sendBtn:has(.pizzaLoad) .pizzaLoad {
   width: 100% !important;
   min-width: 0 !important;
-  pointer-events: none;
-  text-align: left;
-  color: #7c2d12;
-  -webkit-text-fill-color: #7c2d12;
+  display: grid !important;
+  position: relative !important;
+  inset: auto !important;
+  margin: 0 !important;
   padding: 10px 12px !important;
   border-radius: 16px !important;
-  box-shadow: 0 8px 22px rgba(154,52,18,0.08) !important;
+  pointer-events: none;
+  text-align: left;
+  color: #7c2d12 !important;
+  -webkit-text-fill-color: #7c2d12 !important;
 }
 
-.sendBtn .pizzaRunway {
-  height: 38px !important;
-}
-
-.sendBtn .pizzaMotion {
-  left: 6% !important;
+/* Important: do not pin left/width with !important here. That would override
+   the keyframes and freeze the pizza at the start. */
+.sendBtn:has(.pizzaLoad) .pizzaMotion {
   transition: none !important;
-  animation: ernestoPizzaTravel 12s linear forwards !important;
+  animation: ernestoPizzaTravel 14s linear forwards !important;
   will-change: left;
 }
 
-.sendBtn .pizzaFill {
-  width: 0 !important;
+.sendBtn:has(.pizzaLoad) .pizzaFill {
   transition: none !important;
-  animation: ernestoPizzaFill 12s linear forwards !important;
+  animation: ernestoPizzaFill 14s linear forwards !important;
   will-change: width;
 }
 
-.sendBtn .pizzaLoad.done .pizzaMotion {
+.sendBtn:has(.pizzaLoad) .pizzaLoad.done .pizzaMotion {
   animation: none !important;
   left: 94% !important;
-  transition: left 480ms cubic-bezier(.22,.8,.28,1) !important;
+  transition: left 560ms cubic-bezier(.22,.8,.28,1) !important;
 }
 
-.sendBtn .pizzaLoad.done .pizzaFill {
+.sendBtn:has(.pizzaLoad) .pizzaLoad.done .pizzaFill {
   animation: none !important;
   width: 100% !important;
-  transition: width 480ms cubic-bezier(.22,.8,.28,1) !important;
+  transition: width 560ms cubic-bezier(.22,.8,.28,1) !important;
 }
 
 @keyframes ernestoPizzaTravel {
   0% { left: 6%; }
-  18% { left: 34%; }
-  42% { left: 64%; }
-  72% { left: 82%; }
+  14% { left: 34%; }
+  36% { left: 64%; }
+  70% { left: 82%; }
   100% { left: 92%; }
 }
 
 @keyframes ernestoPizzaFill {
-  0% { width: 0; }
-  18% { width: 32%; }
-  42% { width: 62%; }
-  72% { width: 80%; }
+  0% { width: 0%; }
+  14% { width: 32%; }
+  36% { width: 62%; }
+  70% { width: 80%; }
   100% { width: 92%; }
 }
 
-/* Restores the smoke effect referenced by the component. */
 @keyframes steamFloat {
   0% {
     opacity: 0;
@@ -140,17 +137,12 @@ select {
 }
 
 @media (max-width: 860px) {
-  .sendBtn .pizzaLoad {
-    padding: 9px 10px !important;
+  .sendBtn:has(.pizzaLoad) {
+    margin-top: 3px !important;
+  }
+
+  .sendBtn:has(.pizzaLoad) .pizzaLoad {
+    padding: 8px 10px !important;
     border-radius: 14px !important;
-  }
-
-  .sendBtn .pizzaLabel {
-    font-size: 11px !important;
-    line-height: 1.3 !important;
-  }
-
-  .sendBtn .pizzaRunway {
-    height: 34px !important;
   }
 }
