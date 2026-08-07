@@ -21,7 +21,7 @@ function serverClient() {
   });
 }
 
-async function requireAdmin(req: Request, supabase: ReturnType<typeof createClient>) {
+async function requireAdmin(req: Request, supabase: any) {
   const authHeader = req.headers.get("authorization") || "";
   const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
   if (!bearer) return { error: "auth_required", status: 401 } as const;
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     const { data, error } = await supabase
       .from("epppn_allowed_emails")
       .select("email,full_name,active,access_months,invited_at,activated_at,access_ends_at,activated_user_id,blocked_at,blocked_reason,last_login_at")
-      .order("invited_at", { ascending: false, nullsFirst: false });
+      .order("invited_at", { ascending: false });
 
     if (error) {
       console.error("Admin trainees lookup failed:", error.message);
@@ -67,7 +67,6 @@ export async function GET(req: Request) {
       if (row.blocked_at || row.active !== true) status = "blocked";
       else if (expired) status = "expired";
       else if (row.activated_user_id) status = "active";
-
       return { ...row, status };
     });
 
