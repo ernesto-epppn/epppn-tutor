@@ -205,3 +205,320 @@ select {
     display: none !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Ernesto v14.3 — Workspace UX foundation
+   A quieter, professional visual system built around EPPPN olive, warm ivory,
+   terracotta and the dossier's own colour. This layer deliberately reuses the
+   existing application structure instead of changing behaviour.
+   -------------------------------------------------------------------------- */
+:root {
+  --ernesto-ink: #26384d;
+  --ernesto-olive: #6f7d3c;
+  --ernesto-olive-deep: #425233;
+  --ernesto-ivory: #fbf8f0;
+  --ernesto-paper: #fffdf8;
+  --ernesto-terracotta: #b4684d;
+  --ernesto-ochre: #b88a35;
+  --ernesto-line: rgba(66, 82, 51, 0.15);
+  --ernesto-shadow: 0 18px 54px rgba(38, 56, 77, 0.08);
+}
+
+body {
+  background: var(--ernesto-ivory) !important;
+}
+
+.appRoot {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(111,125,60,.09), transparent 27%),
+    radial-gradient(circle at 92% 8%, rgba(184,138,53,.07), transparent 25%),
+    var(--ernesto-ivory) !important;
+  color: var(--ernesto-ink) !important;
+}
+
+.appRoot .appFrame {
+  gap: 22px !important;
+}
+
+.appRoot .projectRail {
+  border-color: var(--ernesto-line) !important;
+  background: linear-gradient(180deg, rgba(250,248,240,.98), rgba(255,253,248,.96)) !important;
+  box-shadow: var(--ernesto-shadow) !important;
+}
+
+.appRoot .projectTitleSmall,
+.appRoot .activeProjectTitleText,
+.appRoot .contextTitle,
+.appRoot .heroTitle {
+  color: var(--ernesto-ink) !important;
+}
+
+.appRoot .projectItem {
+  border-color: rgba(66,82,51,.12) !important;
+  background: rgba(255,253,248,.92) !important;
+  box-shadow: none !important;
+}
+
+.appRoot .projectItem:hover {
+  border-color: rgba(66,82,51,.24) !important;
+  background: #fff !important;
+}
+
+.appRoot .projectItem.active {
+  border-color: rgba(66,82,51,.20) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(247,247,239,.96)) !important;
+  box-shadow: 0 9px 24px rgba(38,56,77,.055) !important;
+}
+
+.appRoot .projectNew,
+.appRoot .miniBtn,
+.appRoot .contextCompactBtn,
+.appRoot .editIconBtn,
+.appRoot .projectDelete {
+  border-color: rgba(66,82,51,.16) !important;
+  color: var(--ernesto-olive-deep) !important;
+  -webkit-text-fill-color: var(--ernesto-olive-deep) !important;
+}
+
+.appRoot .projectNew:hover,
+.appRoot .miniBtn:hover,
+.appRoot .contextCompactBtn:hover,
+.appRoot .editIconBtn:hover {
+  border-color: rgba(66,82,51,.28) !important;
+  background: rgba(247,250,239,.98) !important;
+}
+
+.appRoot .sidebarBrand {
+  border-color: var(--ernesto-line) !important;
+  background: rgba(255,253,248,.82) !important;
+  box-shadow: 0 12px 32px rgba(38,56,77,.05) !important;
+}
+
+.appRoot .statusCard,
+.appRoot .statusCard.userCard,
+.appRoot .heroShell {
+  border-color: var(--ernesto-line) !important;
+  background: linear-gradient(180deg, rgba(255,253,248,.99), rgba(255,255,255,.96)) !important;
+  box-shadow: var(--ernesto-shadow) !important;
+}
+
+.appRoot .statusCard.userCard {
+  box-shadow: 0 10px 32px rgba(38,56,77,.055) !important;
+}
+
+.appRoot .planBadge {
+  border-color: rgba(111,125,60,.20) !important;
+  background: rgba(247,250,239,.94) !important;
+  color: var(--ernesto-olive-deep) !important;
+  -webkit-text-fill-color: var(--ernesto-olive-deep) !important;
+}
+
+.appRoot .contextPanel {
+  border-color: rgba(111,125,60,.18) !important;
+  background: linear-gradient(180deg, rgba(247,250,239,.74), rgba(255,253,248,.95)) !important;
+}
+
+.appRoot .contextSummary {
+  border-color: rgba(111,125,60,.14) !important;
+  background: rgba(255,255,255,.88) !important;
+  color: var(--ernesto-ink) !important;
+}
+
+.appRoot .activeProjectStrip.v13 {
+  border-color: rgba(66,82,51,.14) !important;
+  border-left-color: var(--project-color) !important;
+  background: rgba(255,253,248,.94) !important;
+  box-shadow: 0 8px 24px rgba(38,56,77,.045) !important;
+}
+
+.appRoot .quickCard.v13chip {
+  border-color: rgba(66,82,51,.14) !important;
+  background: rgba(255,253,248,.90) !important;
+  color: var(--ernesto-ink) !important;
+  -webkit-text-fill-color: var(--ernesto-ink) !important;
+}
+
+.appRoot .quickCard.v13chip:hover {
+  border-color: rgba(111,125,60,.28) !important;
+  background: #fff !important;
+  transform: translateY(-1px) !important;
+}
+
+.appRoot .quickCard.v13chip.selected {
+  background: var(--ernesto-ink) !important;
+  border-color: var(--ernesto-ink) !important;
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+}
+
+.appRoot .bubble.user {
+  border-color: rgba(38,56,77,.10) !important;
+  background: linear-gradient(180deg, #fff, #f5f7f8) !important;
+  box-shadow: 0 8px 24px rgba(38,56,77,.045) !important;
+}
+
+.appRoot .bubble.ernesto.v13color {
+  border-color: rgba(66,82,51,.12) !important;
+  border-left-color: var(--project-color) !important;
+  background: linear-gradient(180deg, rgba(255,253,248,.99), rgba(250,248,240,.92)) !important;
+  box-shadow: 0 14px 36px rgba(38,56,77,.055) !important;
+}
+
+.appRoot .answerHeading {
+  color: var(--ernesto-olive-deep) !important;
+  font-size: 16px !important;
+  margin-top: 10px !important;
+}
+
+/* Actions belong after the answer, not before it. */
+.appRoot .answerBlock > .answerActions {
+  order: 20 !important;
+  justify-content: flex-start !important;
+  margin: 7px 0 0 !important;
+  padding-top: 10px !important;
+  border-top: 1px solid rgba(66,82,51,.10) !important;
+}
+
+.appRoot .answerBlock > :not(.answerActions) {
+  order: 1;
+}
+
+.appRoot .answerActions button,
+.appRoot .answerEditActions button {
+  border-color: rgba(66,82,51,.16) !important;
+  background: rgba(255,253,248,.92) !important;
+  color: var(--ernesto-olive-deep) !important;
+  -webkit-text-fill-color: var(--ernesto-olive-deep) !important;
+}
+
+.appRoot .answerActions button:hover,
+.appRoot .answerEditActions button:hover {
+  background: rgba(247,250,239,.98) !important;
+  border-color: rgba(66,82,51,.28) !important;
+}
+
+/* Turn the existing checklist into the operational area of each response. */
+.appRoot .hCheck {
+  font-size: 0 !important;
+  background: rgba(111,125,60,.11) !important;
+  border-bottom-color: rgba(111,125,60,.22) !important;
+}
+
+.appRoot .hCheck::before {
+  content: "À faire maintenant";
+  font-size: 15px;
+  color: var(--ernesto-olive-deep);
+  font-weight: 950;
+}
+
+.appRoot .hSynth {
+  background: rgba(38,56,77,.06) !important;
+  border-bottom-color: rgba(38,56,77,.13) !important;
+}
+
+.appRoot .hRecap {
+  background: rgba(184,138,53,.09) !important;
+  border-bottom-color: rgba(184,138,53,.18) !important;
+}
+
+.appRoot .hQues {
+  background: rgba(180,104,77,.08) !important;
+  border-bottom-color: rgba(180,104,77,.16) !important;
+}
+
+.appRoot .sectionShell {
+  border-color: rgba(66,82,51,.12) !important;
+  background: rgba(255,253,248,.92) !important;
+  box-shadow: none !important;
+}
+
+.appRoot .composer {
+  background: linear-gradient(180deg, rgba(251,248,240,0), rgba(251,248,240,.96) 26%, rgba(251,248,240,.99)) !important;
+  border-top-color: transparent !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.appRoot .composerBox {
+  border: 1px solid rgba(66,82,51,.20) !important;
+  background: rgba(255,255,255,.98) !important;
+  box-shadow: 0 16px 42px rgba(38,56,77,.11) !important;
+}
+
+.appRoot .composerBox:focus-within {
+  border-color: rgba(111,125,60,.46) !important;
+  box-shadow: 0 18px 48px rgba(38,56,77,.12), 0 0 0 3px rgba(111,125,60,.08) !important;
+}
+
+.appRoot .toolBtn {
+  border-color: rgba(66,82,51,.16) !important;
+  background: rgba(255,253,248,.88) !important;
+}
+
+.appRoot .answerDepth {
+  border-color: rgba(66,82,51,.15) !important;
+  background: rgba(247,250,239,.80) !important;
+}
+
+.appRoot .answerDepth button:first-child::before {
+  content: "⚡ ";
+}
+
+.appRoot .answerDepth button:last-child::before {
+  content: "🔎 ";
+}
+
+.appRoot .answerDepth button.active {
+  color: var(--ernesto-ink) !important;
+  -webkit-text-fill-color: var(--ernesto-ink) !important;
+  background: #fff !important;
+}
+
+.appRoot .sendBtn {
+  background: var(--ernesto-ink) !important;
+  box-shadow: 0 8px 20px rgba(38,56,77,.18) !important;
+}
+
+.appRoot .sendBtn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.appRoot .composerFooter {
+  color: var(--ernesto-olive-deep) !important;
+  border-top-color: rgba(66,82,51,.10) !important;
+}
+
+@media (max-width: 860px) {
+  .appRoot {
+    background: var(--ernesto-ivory) !important;
+  }
+
+  .appRoot .mobileProjectBtn {
+    border-color: rgba(66,82,51,.15) !important;
+    background: rgba(255,253,248,.97) !important;
+  }
+
+  .appRoot .bubble.ernesto.v13color {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-left-color: var(--project-color) !important;
+  }
+
+  .appRoot .bubble.user {
+    background: #f1f4f2 !important;
+    box-shadow: none !important;
+  }
+
+  .appRoot .answerActions {
+    border-top: 0 !important;
+    padding-top: 4px !important;
+  }
+
+  .appRoot .composer {
+    background: transparent !important;
+  }
+
+  .appRoot .composerBox {
+    border-color: rgba(66,82,51,.19) !important;
+    box-shadow: 0 10px 30px rgba(38,56,77,.14) !important;
+  }
+}
