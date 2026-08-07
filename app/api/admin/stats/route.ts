@@ -1,51 +1,77 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-function unauthorized() {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+function normalizeEmail(value: unknown) {
+  return String(value || "").trim().toLowerCase();
 }
 
-export async function GET(req: NextRequest) {
-  const adminKey = req.headers.get("x-admin-key");
-  if (!process.env.ADMIN_KEY || adminKey !== process.env.ADMIN_KEY) return unauthorized();
+function envAdminEmails() {
+  return (process.env.ERNESTO_ADMIN_EMAILS || "")
+    .split(",")
+    .map((email) => normalizeEmail(email))
+    .filter(Boolean);
+}
 
-  const url = process.env.SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
+export async function GET(req: Request) {
+  try {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: "server_not_configured" }, { status: 500 });
+    }
 
-  // 1) usage
-  const { data: usageRows, error: eUsage } = await supabase
-    .from("user_usage")
-    .select("user_id, free_queries_used, trial_started_at, updated_at");
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
-  if (eUsage) return NextResponse.json({ error: eUsage.message }, { status: 500 });
+    const authHeader = req.headers.get("authorization") || "";
+    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (!bearer) return NextResponse.json({ error: "auth_required" }, { status: 401 });
 
-  const users_with_usage = usageRows?.length ?? 0;
-  const total_queries = (usageRows ?? []).reduce(
-    (acc: number, r: any) => acc + (r.free_queries_used ?? 0),
-    0
-  );
+    const { data: userData, error: userError } = await supabase.auth.getUser(bearer);
+    const user = userData?.user;
+    if (userError || !user) return NextResponse.json({ error: "invalid_session" }, { status: 401 });
 
-  const top_users = (usageRows ?? [])
-    .slice()
-    .sort((a: any, b: any) => (b.free_queries_used ?? 0) - (a.free_queries_used ?? 0))
-    .slice(0, 20);
+    const email = normalizeEmail(user.email);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-  // 2) entitlements (pro)
-  const { data: entRows, error: eEnt } = await supabase
-    .from("user_entitlements")
-    .select("user_id, status, provider, current_period_end");
+    const isAdmin = profile?.role === "admin" || envAdminEmails().includes(email);
+    if (!isAdmin) return NextResponse.json({ error: "admin_required" }, { status: 403 });
 
-  if (eEnt) return NextResponse.json({ error: eEnt.message }, { status: 500 });
+    const { data: usageRows, error: usageError } = await supabase
+      .from("user_usage")
+      .select("user_id,free_queries_used,trial_started_at,updated_at");
 
-  const pro_active = (entRows ?? []).filter((r: any) => r?.plan === "pro" && r?.is_active).length;
+    if (usageError) return NextResponse.json({ error: usageError.message }, { status: 500 });
 
-  return NextResponse.json({
-    users_with_usage,
-    total_queries,
-    pro_active,
-    top_users,
-  });
+    const totalQueries = (usageRows || []).reduce(
+      (sum: number, row: any) => sum + Number(row.free_queries_used || 0),
+      0
+    );
+
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const usersLast7d = (usageRows || []).filter((row: any) => {
+      const ts = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+      return ts >= sevenDaysAgo;
+    }).length;
+
+    const topUsers = (usageRows || [])
+      .slice()
+      .sort((a: any, b: any) => Number(b.free_queries_used || 0) - Number(a.free_queries_used || 0))
+      .slice(0, 20);
+
+    return NextResponse.json({
+      users_total: (usageRows || []).length,
+      users_last_7d: usersLast7d,
+      total_queries: totalQueries,
+      top_users: topUsers,
+    });
+  } catch (error) {
+    console.error("Admin stats route failed:", error);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }
