@@ -36,6 +36,13 @@ select {
   font-family: inherit;
 }
 
+/* Ernesto v14.2.1 — the historical in-page magic-link card is no longer part
+   of the supported login flow. Unauthenticated visitors are redirected to
+   /connexion; keeping this card hidden also prevents a brief legacy flash. */
+.authCard {
+  display: none !important;
+}
+
 /* Ernesto v14.2 — pizza timeline
    While Ernesto is loading, the normal toolbar controls disappear and their row
    is reserved entirely for the pizza runway. This avoids any overlap with
