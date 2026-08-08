@@ -10,7 +10,7 @@ function serverSupabase() {
   });
 }
 
-async function authenticatedUser(req: Request, supabase: ReturnType<typeof createClient>) {
+async function authenticatedUser(req: Request, supabase: any) {
   const header = req.headers.get("authorization") || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return null;
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   const user = await authenticatedUser(req, supabase);
   if (!user) return NextResponse.json({ error: "auth_required" }, { status: 401 });
 
-  const body = await req.json().catch(() => ({}));
+  const body: any = await req.json().catch(() => ({}));
   const rating = Number(body?.rating);
   if (rating !== 1 && rating !== -1) {
     return NextResponse.json({ error: "invalid_rating" }, { status: 400 });
