@@ -105,7 +105,11 @@ export async function POST(req: Request) {
   const chat = cleanChat(body?.chat);
   if (!projectId) return NextResponse.json({ error: "missing_project_id" }, { status: 400 });
 
-  const turnCount = chat.filter((item) => item.role === "ernesto").length;
+  const recentAssistantCount = chat.filter((item) => item.role === "ernesto").length;
+  const reportedTurnCountRaw = Number(body?.turnCount);
+  const reportedTurnCount = Number.isFinite(reportedTurnCountRaw)
+    ? Math.max(recentAssistantCount, Math.floor(reportedTurnCountRaw))
+    : recentAssistantCount;
   const chatHash = createHash("sha256").update(JSON.stringify(chat)).digest("hex");
 
   const { data: existing, error: existingError } = await supabase
@@ -120,6 +124,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "memory_unavailable" }, { status: 503 });
   }
 
+  const turnCount = Math.max(reportedTurnCount, Number(existing?.turn_count || 0));
   const baseRow = {
     user_id: user.id,
     project_id: projectId,
@@ -130,7 +135,7 @@ export async function POST(req: Request) {
     updated_at: new Date().toISOString(),
   };
 
-  if (!chat.length || !turnCount) {
+  if (!chat.length || !recentAssistantCount) {
     const { data, error } = await supabase
       .from("ernesto_dossier_memory")
       .upsert(baseRow, { onConflict: "user_id,project_id" })
@@ -140,7 +145,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ memory: data, summarized: false });
   }
 
-  if (existing?.last_chat_hash === chatHash) {
+  if (existing?.last_chat_hash === chatHash && turnCount === Number(existing?.turn_count || 0)) {
     return NextResponse.json({ memory: existing, summarized: false, unchanged: true });
   }
 
@@ -189,7 +194,7 @@ export async function POST(req: Request) {
         content: [
           {
             type: "input_text",
-            text: `Titre du dossier : ${title}\nObjectif déclaré : ${objective || "(non renseigné)"}\n\nÉchanges récents :\n${transcript}`,
+            text: `Titre du dossier : ${title}\nObjectif déclaré : ${objective || "(non renseigné)"}\nNombre total de réponses Ernesto dans ce dossier : ${turnCount}\n\nÉchanges récents :\n${transcript}`,
           },
         ],
       },
