@@ -249,7 +249,9 @@ function queueFollowup(kind: "analyse" | "action", answer: string) {
 }
 
 function findMessageMetadata(project: LocalProject | null, answer: string) {
-  if (!project || !Array.isArray(project.chat)) return { question: "", mode: null as string | null, ragUsed: null as number | null };
+  if (!project || !Array.isArray(project.chat)) {
+    return { question: "", mode: null as string | null, ragUsed: null as number | null };
+  }
   const normalizedAnswer = normalizeText(answer);
   const index = project.chat.findIndex(
     (item) => item.role === "ernesto" && normalizeText(item.text) === normalizedAnswer
@@ -333,9 +335,14 @@ export default function ErnestoV144Enhancer() {
     async function syncActiveDossier() {
       const project = findActiveProject();
       if (!project || disposed) return;
-      const chat = Array.isArray(project.chat) ? project.chat.slice(-12) : [];
-      const last = chat[chat.length - 1];
-      const signature = `${project.title}|${project.objective || ""}|${chat.length}|${last?.id || ""}|${normalizeText(last?.text).slice(-160)}`;
+
+      const fullChat = Array.isArray(project.chat) ? project.chat : [];
+      if (!fullChat.length && memoryCache.has(project.id)) return;
+
+      const recentChat = fullChat.slice(-12);
+      const last = recentChat[recentChat.length - 1];
+      const totalTurnCount = fullChat.filter((item) => item.role === "ernesto").length;
+      const signature = `${project.title}|${project.objective || ""}|${fullChat.length}|${last?.id || ""}|${normalizeText(last?.text).slice(-160)}`;
       if (clientSyncSignatures.get(project.id) === signature) return;
       clientSyncSignatures.set(project.id, signature);
 
@@ -352,7 +359,8 @@ export default function ErnestoV144Enhancer() {
             projectId: project.id,
             title: project.title,
             objective: project.objective || "",
-            chat: chat.map((item) => ({ role: item.role, text: item.text })),
+            turnCount: totalTurnCount,
+            chat: recentChat.map((item) => ({ role: item.role, text: item.text })),
           }),
         });
         if (!res.ok) return;
@@ -372,11 +380,19 @@ export default function ErnestoV144Enhancer() {
     }
 
     function decorateMemoryBadge() {
-      document.querySelectorAll(".v144-memory-badge").forEach((node) => node.remove());
+      const existing = document.querySelector<HTMLElement>(".v144-memory-badge");
       const project = findActiveProject();
-      if (!project) return;
+      if (!project) {
+        existing?.remove();
+        return;
+      }
       const memory = memoryCache.get(project.id);
-      if (!memory?.summary) return;
+      if (!memory?.summary) {
+        existing?.remove();
+        return;
+      }
+      if (existing) return;
+
       const strip = document.querySelector<HTMLElement>(".activeProjectStrip");
       if (!strip) return;
       const badge = document.createElement("span");
