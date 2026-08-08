@@ -14,7 +14,7 @@ function serverSupabase() {
   });
 }
 
-async function authenticatedUser(req: Request, supabase: ReturnType<typeof createClient>) {
+async function authenticatedUser(req: Request, supabase: any) {
   const header = req.headers.get("authorization") || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return null;
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
   const user = await authenticatedUser(req, supabase);
   if (!user) return NextResponse.json({ error: "auth_required" }, { status: 401 });
 
-  const body = await req.json().catch(() => ({}));
+  const body: any = await req.json().catch(() => ({}));
   const projectId = cleanText(body?.projectId, 120);
   const title = cleanText(body?.title, 120) || "Dossier général";
   const objective = cleanText(body?.objective, 600);
