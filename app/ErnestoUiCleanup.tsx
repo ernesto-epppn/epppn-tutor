@@ -17,7 +17,11 @@ const TEXT_REPLACEMENTS: Array<[string, string]> = [
   ],
   [
     "Version actuelle : V14.1 · juin 2026",
+    "Version actuelle : V14.4 · août 2026",
+  ],
+  [
     "Version actuelle : V14.2.1 · août 2026",
+    "Version actuelle : V14.4 · août 2026",
   ],
 ];
 
@@ -48,10 +52,10 @@ function patchTree(root: Node) {
 }
 
 /**
- * Transitional v14.2.1 cleanup for the historical monolithic Ernesto page.
+ * Transitional cleanup for the historical monolithic Ernesto page.
  * The authenticated app already redirects visitors to /connexion; this keeps
- * obsolete trial/magic-link wording out of the rendered UI without touching
- * the stable 130 KB tutor component immediately before the pilot launch.
+ * obsolete trial/version wording out of the rendered UI while the large tutor
+ * component is progressively decomposed into smaller modules.
  */
 export default function ErnestoUiCleanup() {
   useEffect(() => {
