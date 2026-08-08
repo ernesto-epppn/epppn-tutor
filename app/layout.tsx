@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ErnestoUiCleanup from "./ErnestoUiCleanup";
 import "./globals.css";
+import "./ernesto-v14-3-responsive.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
