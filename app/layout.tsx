@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ErnestoUiCleanup from "./ErnestoUiCleanup";
 import ErnestoV144Enhancer from "./ErnestoV144Enhancer";
-import ErnestoV1451Simplifier from "./ErnestoV1451Simplifier";
 import "./globals.css";
 import "./ernesto-v14-3-responsive.css";
 import "./ernesto-v14-4.css";
 import "./ernesto-v14-5.css";
+import "./ernesto-v14-5-2.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +33,6 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ErnestoUiCleanup />
         <ErnestoV144Enhancer />
-        <ErnestoV1451Simplifier />
         {children}
       </body>
     </html>
