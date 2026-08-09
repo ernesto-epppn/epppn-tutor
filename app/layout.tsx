@@ -4,14 +4,12 @@ import ErnestoUiCleanup from "./ErnestoUiCleanup";
 import ErnestoV144Enhancer from "./ErnestoV144Enhancer";
 import ErnestoSmartClarification from "./ErnestoSmartClarification";
 import ErnestoConversationFocus from "./ErnestoConversationFocus";
-import ErnestoQuickQuestionsV1454 from "./ErnestoQuickQuestionsV1454";
 import "./globals.css";
 import "./ernesto-v14-3-responsive.css";
 import "./ernesto-v14-4.css";
 import "./ernesto-v14-5.css";
 import "./ernesto-v14-5-2.css";
 import "./ernesto-v14-5-3.css";
-import "./ernesto-v14-5-4.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,7 +38,6 @@ export default function RootLayout({
         <ErnestoV144Enhancer />
         <ErnestoSmartClarification />
         <ErnestoConversationFocus />
-        <ErnestoQuickQuestionsV1454 />
         {children}
       </body>
     </html>
