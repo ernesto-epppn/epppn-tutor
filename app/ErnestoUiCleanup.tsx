@@ -19,7 +19,6 @@ const TEXT_REPLACEMENTS: Array<[string, string]> = [
   ["Version actuelle : V14.2.1 · août 2026", "Version actuelle : V14.5.2"],
   ["Version actuelle : V14.4 · août 2026", "Version actuelle : V14.5.2"],
   ["Version actuelle : V14.5 · août 2026", "Version actuelle : V14.5.2"],
-  ["Version actuelle : V14.5", "Version actuelle : V14.5.2"],
 ];
 
 function patchTextNode(node: Node) {
