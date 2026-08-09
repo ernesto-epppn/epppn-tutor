@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ErnestoUiCleanup from "./ErnestoUiCleanup";
 import ErnestoV144Enhancer from "./ErnestoV144Enhancer";
+import ErnestoSmartClarification from "./ErnestoSmartClarification";
 import "./globals.css";
 import "./ernesto-v14-3-responsive.css";
 import "./ernesto-v14-4.css";
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ErnestoUiCleanup />
         <ErnestoV144Enhancer />
+        <ErnestoSmartClarification />
         {children}
       </body>
     </html>
