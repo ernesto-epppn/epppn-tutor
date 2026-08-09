@@ -90,6 +90,9 @@ type ActionFlowchart = {
   steps: ActionFlowchartStep[];
   outcome: string;
   caution: string;
+  clarification_required: boolean;
+  clarification_question: string;
+  clarification_options: string[];
 };
 
 const ACTION_FLOWCHART_FORMAT = {
@@ -129,8 +132,28 @@ const ACTION_FLOWCHART_FORMAT = {
           },
           outcome: { type: "string" },
           caution: { type: "string" },
+          clarification_required: { type: "boolean" },
+          clarification_question: {
+            type: "string",
+            description: "Une seule question décisive, ou une chaîne vide si aucune précision n'est nécessaire.",
+          },
+          clarification_options: {
+            type: "array",
+            maxItems: 3,
+            items: { type: "string" },
+            description: "Deux ou trois réponses courtes si une précision est nécessaire, sinon un tableau vide.",
+          },
         },
-        required: ["title", "start", "steps", "outcome", "caution"],
+        required: [
+          "title",
+          "start",
+          "steps",
+          "outcome",
+          "caution",
+          "clarification_required",
+          "clarification_question",
+          "clarification_options",
+        ],
       },
     },
     required: ["answer", "flowchart"],
@@ -185,7 +208,24 @@ function parseActionFlowchart(raw: string): { answer: string; flowchart: ActionF
       steps,
       outcome: cleanFlowchartText(flow?.outcome, 220),
       caution: cleanFlowchartText(flow?.caution, 220),
+      clarification_required: flow?.clarification_required === true,
+      clarification_question: cleanFlowchartText(flow?.clarification_question, 220),
+      clarification_options: Array.isArray(flow?.clarification_options)
+        ? flow.clarification_options
+            .map((option: unknown) => cleanFlowchartText(option, 100))
+            .filter(Boolean)
+            .slice(0, 3)
+        : [],
     };
+
+    if (
+      flowchart.clarification_required &&
+      (!flowchart.clarification_question || flowchart.clarification_options.length < 2)
+    ) {
+      flowchart.clarification_required = false;
+      flowchart.clarification_question = "";
+      flowchart.clarification_options = [];
+    }
 
     if (!answer || !flowchart.title || !flowchart.start || !flowchart.outcome || steps.length < 3) {
       return null;
@@ -353,7 +393,7 @@ export async function POST(req: Request) {
 
     let message = "";
     let contextText: string | undefined = undefined;
-    let imageDataUrl: string | null = null;
+    const imageDataUrls: string[] = [];
     let speedRaw: string | undefined = undefined;
     let responseIndexRaw: string | number | undefined = undefined;
     let presentationRaw: string | undefined = undefined;
@@ -366,12 +406,21 @@ export async function POST(req: Request) {
       responseIndexRaw = ((form.get("responseIndex") as string | null) ?? undefined) || undefined;
       presentationRaw = ((form.get("presentation") as string | null) ?? undefined) || undefined;
 
-      const file = form.get("image") as File | null;
-      if (file) {
+      const legacyImage = form.get("image");
+      const files = [...form.getAll("images"), legacyImage]
+        .filter((value): value is File => value instanceof File && value.size > 0)
+        .slice(0, 2);
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) {
+          return NextResponse.json({ error: "Unsupported image type" }, { status: 400 });
+        }
+        if (file.size > 2 * 1024 * 1024) {
+          return NextResponse.json({ error: "Image too large" }, { status: 413 });
+        }
         const buf = Buffer.from(await file.arrayBuffer());
         const base64 = buf.toString("base64");
         const mime = file.type || "image/jpeg";
-        imageDataUrl = `data:${mime};base64,${base64}`;
+        imageDataUrls.push(`data:${mime};base64,${base64}`);
       }
     } else {
       const body = (await req.json()) as {
@@ -410,14 +459,6 @@ export async function POST(req: Request) {
     const responseIndex = Number(responseIndexRaw ?? 0);
     const shouldMentionEPPPN =
       Number.isFinite(responseIndex) && responseIndex > 0 && responseIndex % 3 === 0;
-    const usageCost = imageDataUrl
-      ? responseMode === "ECOLE"
-        ? 5
-        : 4
-      : responseMode === "ECOLE"
-        ? 2
-        : 1;
-
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const supabase = createClient(
       process.env.SUPABASE_URL,
@@ -752,11 +793,14 @@ PRÉSENTATION DEMANDÉE — DIAGRAMME DE FLUX
 - La branche « non » doit ramener vers un nouveau contrôle, pas vers une impasse.
 - Utilise des formulations très courtes, lisibles sur téléphone, sans jargon inutile.
 - Le point de départ, le résultat attendu et l’éventuel point de vigilance doivent être explicites.
+- S'il manque une information qui changerait réellement le plan, active clarification_required et formule une seule question avec 2 ou 3 réponses courtes et mutuellement exclusives.
+- Si aucune précision décisive ne manque, clarification_required vaut false, clarification_question est vide et clarification_options est un tableau vide.
 ` : ""}
 
 PHOTO (si fournie) :
 - Analyse-la comme une observation expérimentale : cornicione, alvéolage, cuisson, coloration, structure apparente.
 - Propose hypothèses + contrôles, jamais une certitude visuelle injustifiée.
+${imageDataUrls.length === 2 ? "- Deux photos sont fournies dans l'ordre AVANT puis APRÈS : compare uniquement les différences réellement visibles, puis relie-les prudemment à la correction testée." : ""}
     `.trim();
 
     const userPromptText = `
@@ -772,12 +816,22 @@ ${message}
 
     const userContent: any[] = [{ type: "input_text", text: userPromptText }];
 
-    if (imageDataUrl) {
+    if (imageDataUrls.length) {
       userContent.push({
         type: "input_text",
-        text: "PHOTO FOURNIE : analyse-la en priorité pour le diagnostic (en respectant les règles ci-dessus).",
+        text: imageDataUrls.length === 2
+          ? "COMPARAISON PHOTO : la première image correspond à AVANT et la seconde à APRÈS."
+          : "PHOTO FOURNIE : analyse-la en priorité pour le diagnostic (en respectant les règles ci-dessus).",
       });
-      userContent.push({ type: "input_image", image_url: imageDataUrl });
+      imageDataUrls.forEach((imageUrl, index) => {
+        if (imageDataUrls.length === 2) {
+          userContent.push({
+            type: "input_text",
+            text: index === 0 ? "IMAGE 1 — AVANT" : "IMAGE 2 — APRÈS",
+          });
+        }
+        userContent.push({ type: "input_image", image_url: imageUrl });
+      });
     }
 
     const responseInput = [
@@ -865,7 +919,9 @@ ${message}
       mode: responseMode,
       pricing: { monthly_eur: 19, yearly_eur: 149 },
       vision: {
-        received_image: Boolean(imageDataUrl),
+        received_image: imageDataUrls.length > 0,
+        received_images: imageDataUrls.length,
+        comparison: imageDataUrls.length === 2,
       },
     });
   } catch (e: any) {

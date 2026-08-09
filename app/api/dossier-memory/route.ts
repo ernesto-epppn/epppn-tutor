@@ -114,7 +114,7 @@ export async function POST(req: Request) {
 
   const { data: existing, error: existingError } = await supabase
     .from("ernesto_dossier_memory")
-    .select("summary,facts,open_questions,turn_count,summarized_turn_count,last_chat_hash")
+    .select("project_id,title,objective,summary,facts,open_questions,turn_count,summarized_turn_count,last_chat_hash,updated_at")
     .eq("user_id", user.id)
     .eq("project_id", projectId)
     .maybeSingle();

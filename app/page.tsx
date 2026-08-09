@@ -1,7 +1,15 @@
 "use client";
 import { createClient } from "@supabase/supabase-js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActionFlowchart, type ActionFlowchartData } from "./ActionFlowchart";
+import {
+  ActionFlowchart,
+  type ActionFlowchartData,
+  type ActionFlowchartProgress,
+} from "./ActionFlowchart";
+import {
+  DossierSummary,
+  type DossierMemoryData,
+} from "./DossierSummary";
 import {
   ResponsiveContainer,
   Tooltip,
@@ -80,6 +88,12 @@ type ChatMsg = {
   rag?: { used?: number } | null;
   mode?: string | null;
   sourceMention?: boolean;
+};
+
+type AskTutorOptions = {
+  presentation?: "flowchart";
+  contextAddon?: string;
+  displayText?: string;
 };
 
 type Project = {
@@ -497,6 +511,10 @@ export default function Page() {
   const [createDossierOpen, setCreateDossierOpen] = useState(false);
   const [newDossierTitle, setNewDossierTitle] = useState("");
   const [newDossierColor, setNewDossierColor] = useState(DEFAULT_PROJECT_COLOR);
+  const [dossierSummaryOpen, setDossierSummaryOpen] = useState(false);
+  const [dossierSummary, setDossierSummary] = useState<DossierMemoryData | null>(null);
+  const [dossierSummaryLoading, setDossierSummaryLoading] = useState(false);
+  const [dossierSummaryError, setDossierSummaryError] = useState("");
 
   // édition des projets
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -666,8 +684,8 @@ export default function Page() {
   }
 
   // camera + mic
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const [dictating, setDictating] = useState(false);
   const [dictationHint, setDictationHint] = useState<string | null>(null);
   const stopDictRef = useRef<null | (() => void)>(null);
@@ -783,14 +801,16 @@ export default function Page() {
   }, [chat, activeProjectId, projectsHydrated]);
 
   useEffect(() => {
-    if (!selectedImage) {
-      setImagePreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(selectedImage);
-    setImagePreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selectedImage]);
+    const urls = selectedImages.map((image) => URL.createObjectURL(image));
+    setImagePreviewUrls(urls);
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, [selectedImages]);
+
+  useEffect(() => {
+    setDossierSummaryOpen(false);
+    setDossierSummary(null);
+    setDossierSummaryError("");
+  }, [activeProjectId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -830,7 +850,7 @@ export default function Page() {
     return () => window.clearInterval(id);
   }, [pauseQuickScroll]);
 
-  async function askTutor(text: string) {
+  async function askTutor(text: string, options: AskTutorOptions = {}) {
     const userText = text.trim();
     if (!userText || loading) return;
 
@@ -843,23 +863,27 @@ export default function Page() {
     setPaywall(null); // close paywall on new ask attempt
     const responseIndex = chat.filter((m) => m.role === "ernesto").length + 1;
     setPizzaDone(false);
-    setChat((prev) => [...prev, { id: uid(), role: "user", text: userText }]);
+    const displayText = options.displayText?.trim() || userText;
+    setChat((prev) => [...prev, { id: uid(), role: "user", text: displayText }]);
     setLoading(true);
 
     try {
       let res: Response;
 
-      const contextText = buildPersonalContext(personalProfile, workContext, session?.user?.email);
+      const contextText = [
+        buildPersonalContext(personalProfile, workContext, session?.user?.email),
+        options.contextAddon?.trim(),
+      ].filter(Boolean).join("\n\n");
 
-      // se c'è foto -> FormData
-      if (selectedImage) {
+      if (selectedImages.length) {
         const fd = new FormData();
         fd.append("message", userText);
         fd.append("speed", speed);
         fd.append("responseIndex", String(responseIndex));
         fd.append("isFirstTurn", String(chat.length === 0));
         if (contextText) fd.append("contextText", contextText);
-        fd.append("image", selectedImage);
+        if (options.presentation) fd.append("presentation", options.presentation);
+        selectedImages.slice(0, 2).forEach((image) => fd.append("images", image));
 
         res = await fetch("/api/tutor", {
           method: "POST",
@@ -867,9 +891,8 @@ export default function Page() {
           body: fd,
         });
 
-        setSelectedImage(null);
+        setSelectedImages([]);
       } else {
-        // JSON come prima
         res = await fetch("/api/tutor", {
           method: "POST",
           headers: {
@@ -882,6 +905,7 @@ export default function Page() {
             isFirstTurn: chat.length === 0,
             speed,
             contextText,
+            presentation: options.presentation,
           }),
         });
       }
@@ -966,7 +990,8 @@ export default function Page() {
     setActiveProjectId(p.id);
     setChat([]);
     setMessage("");
-    setSelectedImage(null);
+    setSelectedImages([]);
+    setDossierSummaryOpen(false);
     setPaywall(null);
     setSelectedQuestion(null);
     setCreateDossierOpen(false);
@@ -986,7 +1011,8 @@ export default function Page() {
     setActiveProjectId(id);
     setChat(p.chat ?? []);
     setMessage("");
-    setSelectedImage(null);
+    setSelectedImages([]);
+    setDossierSummaryOpen(false);
     setPaywall(null);
     setSelectedQuestion(null);
     setProjectsOpen(false);
@@ -1215,6 +1241,95 @@ export default function Page() {
     workContext.dominantWork,
     workContext.currentGoal ? `objectif : ${workContext.currentGoal}` : "",
   ].filter((v) => v && v.trim()).join(" · ");
+
+  async function persistActionPlanProgress(message: ChatMsg, progress: ActionFlowchartProgress) {
+    if (!session?.access_token || !activeProjectId || !message.flowchart) return;
+    try {
+      await fetch("/api/action-plan-progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          projectId: activeProjectId,
+          messageId: message.id,
+          planTitle: message.flowchart.title,
+          statuses: progress.statuses,
+        }),
+      });
+    } catch {
+      // Local progress remains available when the network is temporarily unavailable.
+    }
+  }
+
+  function answerFlowchartClarification(message: ChatMsg, option: string) {
+    const flowchart = message.flowchart;
+    if (!flowchart) return;
+    const question = flowchart.clarification_question?.trim() || "Précision nécessaire";
+    void askTutor(
+      `Pour la question « ${question} », ma réponse est : ${option}. Adapte le plan d’action en conséquence.`,
+      {
+        presentation: "flowchart",
+        displayText: `Précision · ${option}`,
+        contextAddon: `PLAN D’ACTION À AJUSTER :\n${JSON.stringify(flowchart)}\nConserve les étapes encore pertinentes et modifie seulement ce que cette précision change.`,
+      }
+    );
+  }
+
+  async function refreshDossierSummary() {
+    if (!session?.access_token || !activeProjectId) return;
+    setDossierSummaryOpen(true);
+    setDossierSummaryLoading(true);
+    setDossierSummaryError("");
+    try {
+      const response = await fetch("/api/dossier-memory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          projectId: activeProjectId,
+          title: activeProject?.title || "Dossier général",
+          objective: activeProject?.objective || workContext.currentGoal,
+          chat: chat.slice(-18).map(({ role, text }) => ({ role, text })),
+          turnCount: chat.filter((item) => item.role === "ernesto").length,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result?.memory) {
+        throw new Error(result?.error || "Le bilan n’est pas disponible pour le moment.");
+      }
+      setDossierSummary(result.memory as DossierMemoryData);
+    } catch (error: unknown) {
+      setDossierSummaryError(
+        error instanceof Error && error.message
+          ? error.message
+          : "Le bilan n’est pas disponible pour le moment."
+      );
+    } finally {
+      setDossierSummaryLoading(false);
+    }
+  }
+
+  async function copyDossierSummary() {
+    if (!dossierSummary) return;
+    const facts = Array.isArray(dossierSummary.facts)
+      ? dossierSummary.facts.map((item) => `- ${item.category || "Repère"} : ${item.fact || ""}`)
+      : [];
+    const questions = Array.isArray(dossierSummary.open_questions)
+      ? dossierSummary.open_questions.map((item) => `- ${item}`)
+      : [];
+    const content = [
+      `Bilan du dossier — ${dossierSummary.title || "Dossier général"}`,
+      dossierSummary.objective ? `Objectif : ${dossierSummary.objective}` : "",
+      dossierSummary.summary || "",
+      facts.length ? `Repères mémorisés\n${facts.join("\n")}` : "",
+      questions.length ? `Prochains contrôles\n${questions.join("\n")}` : "",
+    ].filter(Boolean).join("\n\n");
+    await copyAnswer(content);
+  }
 
   return (
     <main
@@ -2031,6 +2146,14 @@ export default function Page() {
             {activeProject?.title ?? "Dossier général"}
           </span>
         </button>
+        <button
+          className="v145-mobile-bilan-btn"
+          type="button"
+          onClick={() => void refreshDossierSummary()}
+          aria-label="Ouvrir le bilan du dossier"
+        >
+          Bilan
+        </button>
       </div>
 
       <div className="appFrame">
@@ -2455,10 +2578,24 @@ export default function Page() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="miniBtn v145-dossier-summary-trigger" type="button" onClick={() => void refreshDossierSummary()}>
+            Bilan du dossier
+          </button>
           <button className="miniBtn" type="button" onClick={renameActiveProject}>Modifier</button>
           <button className="miniBtn" type="button" onClick={() => { setCreateDossierOpen(true); setProjectsOpen(true); }}>Créer un dossier</button>
         </div>
       </div>
+
+      {dossierSummaryOpen ? (
+        <DossierSummary
+          data={dossierSummary}
+          loading={dossierSummaryLoading}
+          error={dossierSummaryError}
+          onClose={() => setDossierSummaryOpen(false)}
+          onRefresh={() => void refreshDossierSummary()}
+          onCopy={() => void copyDossierSummary()}
+        />
+      ) : null}
 
       <section className={`quickSection ${quickOpen ? "open" : ""}`} style={{ marginTop: 14 }}>
         <button className="mobileFaqToggle" type="button" onClick={() => setQuickOpen((v) => !v)}>
@@ -2543,7 +2680,19 @@ export default function Page() {
                             <AnswerText text={m.text} />
                           </div>
                         ) : null}
-                        {m.flowchart ? <ActionFlowchart data={m.flowchart} /> : null}
+                        {m.flowchart ? (
+                          <ActionFlowchart
+                            data={m.flowchart}
+                            progressKey={`${activeProjectId || "general"}:${m.id}`}
+                            remoteProgress={session?.access_token && activeProjectId ? {
+                              accessToken: session.access_token,
+                              projectId: activeProjectId,
+                              messageId: m.id,
+                            } : undefined}
+                            onClarify={(option) => answerFlowchartClarification(m, option)}
+                            onProgress={(progress) => void persistActionPlanProgress(m, progress)}
+                          />
+                        ) : null}
                         {m.graph ? <ErnestoPanels graph={m.graph} /> : null}
                       </>
                     )}
@@ -2580,23 +2729,44 @@ export default function Page() {
                   }
                 }
 
-                setSelectedImage(out);
+                setSelectedImages((previous) => [...previous, out].slice(0, 2));
               } catch {
-                setSelectedImage(f);
+                setSelectedImages((previous) => [...previous, f].slice(0, 2));
               }
 
               e.currentTarget.value = "";
             }}
           />
 
-          {selectedImage && imagePreviewUrl ? (
-            <div className="imagePreviewCard compact">
-              <img src={imagePreviewUrl} alt="Photo sélectionnée pour analyse" />
-              <div style={{ minWidth: 0 }}>
-                <div className="imagePreviewTitle">Photo prête</div>
-                <div className="imagePreviewMeta">{selectedImage.name} · {(selectedImage.size / 1024).toFixed(0)} Ko</div>
+          {selectedImages.length > 0 && imagePreviewUrls.length > 0 ? (
+            <div className="v145-image-comparison">
+              <div className="v145-image-comparison-grid">
+                {selectedImages.map((image, index) => (
+                  <div className="imagePreviewCard compact v145-image-preview" key={`${image.name}-${image.lastModified}-${index}`}>
+                    <div className="v145-image-preview-frame">
+                      <img src={imagePreviewUrls[index]} alt={`Photo ${index + 1} sélectionnée pour analyse`} />
+                      <span>{index === 0 ? "Avant" : "Après"}</span>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="imagePreviewTitle">Photo {index + 1}</div>
+                      <div className="imagePreviewMeta">{image.name} · {(image.size / 1024).toFixed(0)} Ko</div>
+                    </div>
+                    <button
+                      className="attachX"
+                      type="button"
+                      onClick={() => setSelectedImages((previous) => previous.filter((_, itemIndex) => itemIndex !== index))}
+                      aria-label={`Retirer la photo ${index + 1}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
-              <button className="attachX" type="button" onClick={() => setSelectedImage(null)} aria-label="Retirer la photo">×</button>
+              <div className="v145-image-comparison-hint">
+                {selectedImages.length === 2
+                  ? "Comparaison avant / après prête. Décrivez la correction effectuée."
+                  : "Ajoutez une seconde photo pour comparer avant / après."}
+              </div>
             </div>
           ) : null}
 
@@ -2624,8 +2794,9 @@ export default function Page() {
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   className="toolBtn"
-                  title="Analyser une photo"
-                  aria-label="Analyser une photo"
+                  title={selectedImages.length >= 2 ? "Deux photos maximum" : "Ajouter une photo"}
+                  aria-label={selectedImages.length >= 2 ? "Deux photos maximum" : "Ajouter une photo"}
+                  disabled={selectedImages.length >= 2}
                 >
                   📷
                 </button>
@@ -2664,7 +2835,7 @@ export default function Page() {
           ) : null}
 
           <div className="composerFooter printHidden">
-            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V14.1 · juin 2026<br />
+            <strong>Ernesto — The Pizza Explained.</strong> · Version actuelle : V14.5 · août 2026<br />
             Conçu et développé par la section « Apprentissage et Informatisation » de l’EPPPN.
           </div>
         </div>

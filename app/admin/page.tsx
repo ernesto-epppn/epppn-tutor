@@ -7,11 +7,27 @@ type Stats = {
   users_total: number;
   users_last_7d: number;
   total_queries: number;
+  useful_feedbacks: number;
+  feedback_last_7d: number;
+  dossier_memories: number;
+  action_plans: number;
+  completed_action_plans: number;
+  knowledge_documents: number;
+  knowledge_chunks: number;
   top_users: Array<{
     user_id: string;
     free_queries_used: number;
     updated_at?: string | null;
   }>;
+};
+
+type KnowledgeDocument = {
+  id: number;
+  title: string;
+  source: string;
+  url?: string | null;
+  created_at?: string | null;
+  chunks: number;
 };
 
 type TraineeStatus = "active" | "invited" | "blocked" | "expired";
@@ -52,6 +68,10 @@ function formatDate(value?: string | null) {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("fr-FR");
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 export default function AdminPage() {
   const supabase = useMemo(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -61,6 +81,7 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [trainees, setTrainees] = useState<Trainee[]>([]);
+  const [knowledgeDocuments, setKnowledgeDocuments] = useState<KnowledgeDocument[]>([]);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
 
@@ -72,6 +93,17 @@ export default function AdminPage() {
   const [inviteMessage, setInviteMessage] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [updatingEmail, setUpdatingEmail] = useState("");
+
+  const [knowledgeTitle, setKnowledgeTitle] = useState("");
+  const [knowledgeSource, setKnowledgeSource] = useState("");
+  const [knowledgeUrl, setKnowledgeUrl] = useState("");
+  const [knowledgeContent, setKnowledgeContent] = useState("");
+  const [knowledgeFile, setKnowledgeFile] = useState<File | null>(null);
+  const [knowledgeConfirmed, setKnowledgeConfirmed] = useState(false);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [knowledgeMessage, setKnowledgeMessage] = useState("");
+  const [knowledgeError, setKnowledgeError] = useState("");
+  const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(null);
 
   async function getAccessToken() {
     if (!supabase) return null;
@@ -92,21 +124,25 @@ export default function AdminPage() {
 
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [traineesResponse, statsResponse] = await Promise.all([
+      const [traineesResponse, statsResponse, knowledgeResponse] = await Promise.all([
         fetch("/api/admin/trainees", { headers, cache: "no-store" }),
         fetch("/api/admin/stats", { headers, cache: "no-store" }),
+        fetch("/api/admin/knowledge", { headers, cache: "no-store" }),
       ]);
 
       const traineeData = await traineesResponse.json().catch(() => ({}));
       const statsData = await statsResponse.json().catch(() => ({}));
+      const knowledgeData = await knowledgeResponse.json().catch(() => ({}));
 
       if (!traineesResponse.ok) throw new Error(traineeData?.error || "Impossible de charger les stagiaires.");
       if (!statsResponse.ok) throw new Error(statsData?.error || "Impossible de charger les statistiques.");
+      if (!knowledgeResponse.ok) throw new Error(knowledgeData?.error || "Impossible de charger la base EPPPN.");
 
       setTrainees(traineeData.trainees || []);
       setStats(statsData as Stats);
-    } catch (error: any) {
-      setDashboardError(error?.message || "Erreur de chargement.");
+      setKnowledgeDocuments(knowledgeData.documents || []);
+    } catch (error: unknown) {
+      setDashboardError(errorMessage(error, "Erreur de chargement."));
     } finally {
       setDashboardLoading(false);
     }
@@ -114,6 +150,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadDashboard();
+    // The dashboard is loaded once; later refreshes are explicit after admin actions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function inviteTrainee(event: React.FormEvent) {
@@ -188,6 +226,86 @@ export default function AdminPage() {
     await loadDashboard();
   }
 
+  async function uploadKnowledge(event: React.FormEvent) {
+    event.preventDefault();
+    setKnowledgeMessage("");
+    setKnowledgeError("");
+    const token = await getAccessToken();
+    if (!token) {
+      setKnowledgeError("Session administrateur introuvable.");
+      return;
+    }
+    if (!knowledgeFile && !knowledgeContent.trim()) {
+      setKnowledgeError("Ajoutez un fichier PDF/TXT/MD ou collez le texte officiel.");
+      return;
+    }
+
+    const form = new FormData();
+    form.append("title", knowledgeTitle);
+    form.append("source", knowledgeSource);
+    form.append("url", knowledgeUrl);
+    form.append("content", knowledgeContent);
+    form.append("confirmedOfficial", String(knowledgeConfirmed));
+    if (knowledgeFile) form.append("file", knowledgeFile);
+
+    setKnowledgeLoading(true);
+    try {
+      const response = await fetch("/api/admin/knowledge", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const messages: Record<string, string> = {
+          official_confirmation_required: "Confirmez que le contenu est un document officiel EPPPN.",
+          title_source_and_content_required: "Le titre, la source et le contenu sont obligatoires.",
+          document_already_exists: "Ce document existe déjà dans la base.",
+          unsupported_file_type: "Format non pris en charge. Utilisez PDF, TXT ou Markdown.",
+          file_too_large: "Le fichier dépasse 8 Mo.",
+          document_content_too_short: "Le document ne contient pas assez de texte exploitable.",
+        };
+        throw new Error(messages[result?.error] || result?.error || "Import impossible.");
+      }
+      setKnowledgeMessage(
+        `« ${result.document?.title || knowledgeTitle} » ajouté avec ${result.document?.chunks || 0} fragments indexés.`
+      );
+      setKnowledgeTitle("");
+      setKnowledgeSource("");
+      setKnowledgeUrl("");
+      setKnowledgeContent("");
+      setKnowledgeFile(null);
+      setKnowledgeConfirmed(false);
+      await loadDashboard();
+    } catch (error: unknown) {
+      setKnowledgeError(errorMessage(error, "Import impossible."));
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }
+
+  async function deleteKnowledgeDocument(document: KnowledgeDocument) {
+    if (!window.confirm(`Retirer « ${document.title} » de la base de connaissances Ernesto ?`)) return;
+    const token = await getAccessToken();
+    if (!token) return;
+    setDeletingDocumentId(document.id);
+    setKnowledgeError("");
+    try {
+      const response = await fetch(`/api/admin/knowledge?id=${document.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result?.error || "Suppression impossible.");
+      setKnowledgeMessage(`« ${document.title} » a été retiré de la base.`);
+      await loadDashboard();
+    } catch (error: unknown) {
+      setKnowledgeError(errorMessage(error, "Suppression impossible."));
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  }
+
   const counts = trainees.reduce(
     (acc, trainee) => {
       acc.total += 1;
@@ -202,8 +320,8 @@ export default function AdminPage() {
       <header style={styles.header}>
         <div>
           <p style={styles.eyebrow}>Administration EPPPN</p>
-          <h1 style={styles.h1}>Ernesto v14.2.3</h1>
-          <p style={styles.subtitle}>Pilotage des accès stagiaires et suivi de l’utilisation.</p>
+          <h1 style={styles.h1}>Ernesto v14.5</h1>
+          <p style={styles.subtitle}>Accès, qualité pédagogique et base de connaissances officielle EPPPN.</p>
         </div>
         <button onClick={loadDashboard} disabled={dashboardLoading} style={styles.secondaryButton}>
           {dashboardLoading ? "Actualisation…" : "Actualiser"}
@@ -216,9 +334,114 @@ export default function AdminPage() {
         <Metric title="Invitations en attente" value={counts.invited} />
         <Metric title="Bloqués / expirés" value={counts.blocked + counts.expired} />
         <Metric title="Questions totales" value={stats?.total_queries ?? 0} />
+        <Metric title="Documents EPPPN" value={stats?.knowledge_documents ?? 0} />
+        <Metric title="Fragments indexés" value={stats?.knowledge_chunks ?? 0} />
       </section>
 
       {dashboardError ? <p style={styles.error}>Erreur : {dashboardError}</p> : null}
+
+      <section style={styles.card}>
+        <div style={styles.sectionHeader}>
+          <div>
+            <h2 style={styles.h2}>Base de connaissances EPPPN</h2>
+            <p style={styles.help}>
+              Ajoutez uniquement des protocoles, supports et cas validés officiellement par l’EPPPN. Ernesto indexe le texte pour l’utiliser dans ses réponses.
+            </p>
+          </div>
+          <span style={styles.countPill}>{knowledgeDocuments.length} document{knowledgeDocuments.length > 1 ? "s" : ""}</span>
+        </div>
+
+        <form onSubmit={uploadKnowledge} style={styles.knowledgeForm}>
+          <label style={styles.label}>
+            Titre du document *
+            <input
+              value={knowledgeTitle}
+              onChange={(event) => setKnowledgeTitle(event.target.value)}
+              required
+              style={styles.input}
+              placeholder="Ex. Protocole EPPPN — fermentation"
+            />
+          </label>
+          <label style={styles.label}>
+            Source officielle *
+            <input
+              value={knowledgeSource}
+              onChange={(event) => setKnowledgeSource(event.target.value)}
+              required
+              style={styles.input}
+              placeholder="EPPPN — support de formation 2026"
+            />
+          </label>
+          <label style={styles.label}>
+            Lien de référence — facultatif
+            <input
+              type="url"
+              value={knowledgeUrl}
+              onChange={(event) => setKnowledgeUrl(event.target.value)}
+              style={styles.input}
+              placeholder="https://…"
+            />
+          </label>
+          <label style={styles.label}>
+            Fichier officiel — PDF, TXT ou MD
+            <input
+              type="file"
+              accept=".pdf,.txt,.md,text/plain,text/markdown,application/pdf"
+              onChange={(event) => setKnowledgeFile(event.target.files?.[0] || null)}
+              style={styles.fileInput}
+            />
+          </label>
+          <label style={{ ...styles.label, gridColumn: "1 / -1" }}>
+            Ou coller le texte officiel
+            <textarea
+              value={knowledgeContent}
+              onChange={(event) => setKnowledgeContent(event.target.value)}
+              style={styles.textarea}
+              rows={7}
+              placeholder="Contenu du protocole ou du cas validé…"
+            />
+          </label>
+          <label style={styles.confirmationLabel}>
+            <input
+              type="checkbox"
+              checked={knowledgeConfirmed}
+              onChange={(event) => setKnowledgeConfirmed(event.target.checked)}
+              required
+            />
+            Je confirme qu’il s’agit d’un contenu officiel ou validé par l’EPPPN.
+          </label>
+          <button type="submit" disabled={knowledgeLoading} style={styles.primaryButton}>
+            {knowledgeLoading ? "Extraction et indexation…" : "Ajouter à la base Ernesto"}
+          </button>
+        </form>
+
+        {knowledgeMessage ? <p style={styles.success}>{knowledgeMessage}</p> : null}
+        {knowledgeError ? <p style={styles.error}>{knowledgeError}</p> : null}
+
+        <div style={styles.documentList}>
+          {knowledgeDocuments.map((document) => (
+            <div key={document.id} style={styles.documentItem}>
+              <div style={{ minWidth: 0 }}>
+                <strong>{document.title}</strong>
+                <div style={styles.documentMeta}>
+                  {document.source} · {document.chunks} fragment{document.chunks > 1 ? "s" : ""} · {formatDate(document.created_at)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => deleteKnowledgeDocument(document)}
+                disabled={deletingDocumentId === document.id}
+                style={styles.dangerButton}
+              >
+                {deletingDocumentId === document.id ? "Suppression…" : "Retirer"}
+              </button>
+            </div>
+          ))}
+          {!dashboardLoading && knowledgeDocuments.length === 0 ? (
+            <p style={styles.muted}>Aucun document indexé.</p>
+          ) : null}
+        </div>
+      </section>
 
       <section style={styles.card}>
         <h2 style={styles.h2}>Inviter un stagiaire</h2>
@@ -340,12 +563,17 @@ export default function AdminPage() {
       </section>
 
       <section style={styles.card}>
-        <h2 style={styles.h2}>Utilisation</h2>
-        <p style={styles.help}>Statistiques accessibles uniquement avec votre session administrateur Ernesto.</p>
+        <h2 style={styles.h2}>Utilisation et qualité pédagogique</h2>
+        <p style={styles.help}>Indicateurs agrégés, accessibles uniquement avec votre session administrateur Ernesto.</p>
         <div style={styles.metricsGrid}>
           <Metric title="Utilisateurs avec activité" value={stats?.users_total ?? 0} />
           <Metric title="Actifs sur 7 jours" value={stats?.users_last_7d ?? 0} />
           <Metric title="Questions totales" value={stats?.total_queries ?? 0} />
+          <Metric title="Réponses utiles" value={stats?.useful_feedbacks ?? 0} />
+          <Metric title="Utiles sur 7 jours" value={stats?.feedback_last_7d ?? 0} />
+          <Metric title="Dossiers mémorisés" value={stats?.dossier_memories ?? 0} />
+          <Metric title="Plans suivis" value={stats?.action_plans ?? 0} />
+          <Metric title="Plans terminés" value={stats?.completed_action_plans ?? 0} />
         </div>
       </section>
     </main>
@@ -382,8 +610,12 @@ const styles: Record<string, React.CSSProperties> = {
   help: { margin: "8px 0 20px", maxWidth: 780, opacity: 0.72, lineHeight: 1.5 },
   card: { marginBottom: 18, padding: 24, border: "1px solid #dfe5d8", borderRadius: 20, background: "#fff", boxShadow: "0 12px 38px rgba(50,65,37,.06)" },
   form: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 16 },
+  knowledgeForm: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 16 },
   label: { display: "grid", gap: 7, fontWeight: 700 },
   input: { minHeight: 44, padding: "0 12px", border: "1px solid #cbd4c4", borderRadius: 11, background: "white", fontSize: 15 },
+  fileInput: { minHeight: 44, padding: "9px 10px", border: "1px solid #cbd4c4", borderRadius: 11, background: "white", fontSize: 14 },
+  textarea: { width: "100%", minHeight: 130, padding: 12, border: "1px solid #cbd4c4", borderRadius: 11, background: "white", fontSize: 15, lineHeight: 1.5, resize: "vertical" },
+  confirmationLabel: { gridColumn: "1 / -1", display: "flex", gap: 9, alignItems: "flex-start", fontWeight: 750, lineHeight: 1.45 },
   primaryButton: { minHeight: 46, alignSelf: "end", border: 0, borderRadius: 12, background: "#526533", color: "white", fontWeight: 800, cursor: "pointer", padding: "0 16px" },
   secondaryButton: { minHeight: 42, padding: "0 14px", border: "1px solid #cbd4c4", borderRadius: 11, background: "white", color: "#3f5128", fontWeight: 750, cursor: "pointer" },
   smallButton: { minHeight: 34, padding: "0 11px", border: "1px solid #b8c5ad", borderRadius: 9, background: "#f7faf4", color: "#41562c", fontWeight: 750, cursor: "pointer" },
@@ -408,4 +640,7 @@ const styles: Record<string, React.CSSProperties> = {
   statusInvited: { background: "#f5f0df", color: "#765f27" },
   statusBlocked: { background: "#f8e8e8", color: "#8d3f42" },
   statusExpired: { background: "#ececec", color: "#626262" },
+  documentList: { display: "grid", gap: 9, marginTop: 20 },
+  documentItem: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, padding: 13, border: "1px solid #e5e9e0", borderRadius: 13, background: "#fbfcf9", flexWrap: "wrap" },
+  documentMeta: { marginTop: 5, fontSize: 12, opacity: 0.68, lineHeight: 1.4 },
 };

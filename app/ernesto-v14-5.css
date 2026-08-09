@@ -1,0 +1,353 @@
+/* Ernesto v14.5 — dossier continuity, interactive plans and before/after images */
+
+.appRoot .v145-flow-clarification {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid rgba(184, 138, 53, 0.26);
+  border-radius: 14px;
+  background: rgba(255, 252, 244, 0.96);
+  color: #5f4b20;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.appRoot .v145-flow-clarification-label,
+.appRoot .v145-dossier-summary-kicker,
+.appRoot .v145-dossier-summary-label {
+  display: block;
+  color: #6f7d3c;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+.appRoot .v145-flow-clarification-options,
+.appRoot .v145-flow-controls,
+.appRoot .v145-dossier-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.appRoot .v145-flow-clarification-options button,
+.appRoot .v145-flow-controls button,
+.appRoot .v145-flow-reset,
+.appRoot .v145-dossier-summary-actions button {
+  min-height: 34px;
+  border: 1px solid rgba(66, 82, 51, 0.2);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #425233;
+  padding: 7px 11px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.appRoot .v145-flow-clarification-options button:hover,
+.appRoot .v145-dossier-summary-actions button:hover {
+  border-color: rgba(111, 125, 60, 0.48);
+}
+
+.appRoot .v145-flow-progress {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 14px;
+  color: #425233;
+  font-size: 11px;
+}
+
+.appRoot .v145-flow-clarification-waiting {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.appRoot .v145-flow-progress-bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(66, 82, 51, 0.11);
+}
+
+.appRoot .v145-flow-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #6f7d3c;
+  transition: width 180ms ease;
+}
+
+.appRoot .v145-flow-reset {
+  width: fit-content;
+  min-height: 28px;
+  padding: 4px 9px;
+  background: transparent;
+  font-size: 10px;
+}
+
+.appRoot .v145-flow-controls {
+  width: min(100%, 620px);
+  justify-content: center;
+  margin-top: 9px;
+}
+
+.appRoot .v145-flow-controls button[aria-pressed="true"] {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.appRoot .v145-flow-control-ok[aria-pressed="true"] {
+  border-color: #52612f;
+  background: #52612f;
+}
+
+.appRoot .v145-flow-control-retry[aria-pressed="true"] {
+  border-color: #8b5949;
+  background: #8b5949;
+}
+
+.appRoot .v145-flow-step--ok .v144-flow-node--action {
+  border-color: rgba(82, 97, 47, 0.42);
+  background: rgba(247, 250, 239, 0.98);
+}
+
+.appRoot .v145-flow-step--retry .v144-flow-node--action {
+  border-color: rgba(139, 89, 73, 0.42);
+  background: rgba(255, 250, 247, 0.98);
+}
+
+.appRoot .v145-flow-status {
+  margin-left: auto;
+  border-radius: 999px;
+  background: rgba(66, 82, 51, 0.1);
+  padding: 4px 7px;
+  font-size: 9px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.appRoot .v145-flow-complete {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #425233;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.appRoot .v145-dossier-summary {
+  display: grid;
+  gap: 14px;
+  margin: 12px 0 16px;
+  padding: 16px;
+  border: 1px solid rgba(66, 82, 51, 0.16);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(194, 165, 107, 0.13), transparent 35%),
+    rgba(252, 253, 248, 0.98);
+  box-shadow: 0 12px 28px rgba(38, 56, 77, 0.07);
+}
+
+.appRoot .v145-dossier-summary-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.appRoot .v145-dossier-summary h2 {
+  margin: 3px 0 0;
+  color: #172033;
+  font-size: 19px;
+}
+
+.appRoot .v145-dossier-summary-close {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border: 1px solid rgba(66, 82, 51, 0.16);
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.appRoot .v145-dossier-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.8fr);
+  gap: 12px;
+}
+
+.appRoot .v145-dossier-summary-main,
+.appRoot .v145-dossier-summary-next,
+.appRoot .v145-dossier-fact,
+.appRoot .v145-dossier-questions {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(66, 82, 51, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #26384d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.appRoot .v145-dossier-summary-main p {
+  margin: 0;
+}
+
+.appRoot .v145-dossier-summary-next {
+  align-content: start;
+  border-color: rgba(184, 138, 53, 0.22);
+  background: rgba(255, 252, 244, 0.96);
+  color: #5f4b20;
+}
+
+.appRoot .v145-dossier-facts,
+.appRoot .v145-dossier-questions {
+  display: grid;
+  gap: 8px;
+}
+
+.appRoot .v145-dossier-facts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.appRoot .v145-dossier-fact span {
+  color: #6f7d3c;
+  font-size: 9px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.appRoot .v145-dossier-questions ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.appRoot .v145-dossier-summary-state,
+.appRoot .v145-dossier-summary-error {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #425233;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.appRoot .v145-dossier-summary-error {
+  background: rgba(255, 246, 242, 0.95);
+  color: #7b4a3b;
+}
+
+.appRoot .v145-image-comparison {
+  display: grid;
+  gap: 5px;
+}
+
+.appRoot .v145-image-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.appRoot .v145-image-preview {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  max-width: none !important;
+}
+
+.appRoot .v145-image-preview-frame {
+  position: relative;
+  width: 62px;
+  height: 50px;
+}
+
+.appRoot .v145-image-preview-frame img {
+  width: 100%;
+  height: 100%;
+  border-radius: 9px;
+  object-fit: cover;
+}
+
+.appRoot .v145-image-preview-frame span {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  padding: 2px 5px;
+  font-size: 8px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.appRoot .v145-image-comparison-hint {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.appRoot .toolBtn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.appRoot .v145-mobile-bilan-btn {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .appRoot .v145-mobile-bilan-btn {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(66, 82, 51, 0.18);
+    border-radius: 13px;
+    background: #ffffff;
+    color: #425233;
+    padding: 7px 11px;
+    font-size: 11px;
+    font-weight: 950;
+    cursor: pointer;
+  }
+
+  .appRoot .v145-dossier-summary {
+    margin-top: 7px;
+    padding: 13px 11px;
+    border-radius: 16px;
+  }
+
+  .appRoot .v145-dossier-summary-grid,
+  .appRoot .v145-dossier-facts-grid,
+  .appRoot .v145-image-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .appRoot .v145-flow-controls button,
+  .appRoot .v145-flow-clarification-options button {
+    flex: 1 1 100%;
+  }
+
+  .appRoot .v145-flow-status {
+    display: none;
+  }
+}

@@ -44,4 +44,4 @@ Les API `/api/dossier-memory` et `/api/feedback` exigent une session Supabase va
 
 ## Déploiement
 
-Appliquer la migration `supabase/migrations/20260808_ernesto_v14_4_memory_feedback.sql` dans Supabase avant d’attendre la persistance multi-appareil. Sans cette migration, Ernesto continue de fonctionner : le contexte récent local et les boutons de suivi restent actifs, tandis que mémoire distante et feedback serveur se désactivent silencieusement.
+La migration `supabase/migrations/20260808_ernesto_v14_4_memory_feedback.sql` a été appliquée au projet Supabase de production le 9 août 2026. La mémoire multi-appareil et le feedback serveur sont donc actifs.
