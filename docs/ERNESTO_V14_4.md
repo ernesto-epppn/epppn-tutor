@@ -23,22 +23,13 @@ Les dossiers mémorisés peuvent être recréés comme dossiers légers sur un a
 Chaque réponse Ernesto reçoit deux actions :
 
 - **Approfondir** : relance la réponse en mode Analyse avec la réponse précédente comme contexte interne ;
-- **Plan d’action** : transforme la réponse précédente en séquence opérationnelle en mode Action.
+- **Plan d’action** : transforme la réponse précédente en diagramme de flux opérationnel, avec actions, contrôles, branche conforme et correction à reprendre si le contrôle échoue.
 
 Le texte complet de la réponse précédente n’est pas recopié dans le message visible : il est transmis comme contexte interne.
 
 ## 3. Feedback stagiaire
 
-Chaque réponse propose :
-
-- 👍 Réponse utile ;
-- 👎 Réponse à améliorer.
-
-En cas de retour négatif, trois motifs rapides sont proposés :
-
-- Trop vague ;
-- Incorrect ;
-- Pas assez pratique.
+Chaque réponse propose un contrôle discret **✓ Utile**. Les icônes de pouce et le feedback négatif ont été retirés de l’interface afin de garder une interaction plus professionnelle et moins proche des réseaux sociaux.
 
 Les feedbacks stockent le dossier, la question, la réponse, le mode et le nombre de chunks RAG utilisés lorsqu’ils sont disponibles. Si la table Supabase n’est pas encore disponible, le feedback est mis en file locale et sera renvoyé plus tard.
 

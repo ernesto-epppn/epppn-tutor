@@ -1,6 +1,7 @@
 "use client";
 import { createClient } from "@supabase/supabase-js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ActionFlowchart, type ActionFlowchartData } from "./ActionFlowchart";
 import {
   ResponsiveContainer,
   Tooltip,
@@ -75,6 +76,7 @@ type ChatMsg = {
   role: "user" | "ernesto";
   text: string;
   graph?: GraphJSON | null;
+  flowchart?: ActionFlowchartData | null;
   rag?: { used?: number } | null;
   mode?: string | null;
   sourceMention?: boolean;
@@ -923,6 +925,7 @@ export default function Page() {
       // compat: alcuni backend rispondono con answer_fr
       const text_fr: string = data?.text_fr ?? data?.answer_fr ?? data?.text ?? "";
       const graph: GraphJSON | null = data?.graph ?? null;
+      const flowchart: ActionFlowchartData | null = data?.flowchart ?? null;
 
       setPizzaDone(true);
       setChat((prev) => [
@@ -932,6 +935,7 @@ export default function Page() {
           role: "ernesto",
           text: text_fr,
           graph,
+          flowchart,
           rag: data?.rag ?? null,
           mode: data?.mode ?? speed,
           sourceMention: Boolean(data?.source_mention),
@@ -2539,6 +2543,7 @@ export default function Page() {
                             <AnswerText text={m.text} />
                           </div>
                         ) : null}
+                        {m.flowchart ? <ActionFlowchart data={m.flowchart} /> : null}
                         {m.graph ? <ErnestoPanels graph={m.graph} /> : null}
                       </>
                     )}

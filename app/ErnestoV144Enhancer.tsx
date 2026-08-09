@@ -148,7 +148,11 @@ function readPendingFollowup(): PendingFollowup | null {
   }
 }
 
-function augmentContext(existing: string, memoryCache: Map<string, MemoryRow>) {
+function augmentContext(
+  existing: string,
+  memoryCache: Map<string, MemoryRow>,
+  pending: PendingFollowup | null
+) {
   const project = findActiveProject();
   const blocks: string[] = [];
 
@@ -172,7 +176,6 @@ function augmentContext(existing: string, memoryCache: Map<string, MemoryRow>) {
     }
   }
 
-  const pending = readPendingFollowup();
   if (pending) {
     blocks.push(
       `SUIVI INTERNE — l'utilisateur demande ${pending.kind === "analyse" ? "d'approfondir" : "de transformer en plan d'action"} la réponse précédente. Ne recopie pas cette réponse, utilise-la comme point de départ :\n${pending.answer.slice(0, 10000)}`
@@ -189,19 +192,22 @@ function cloneAndAugmentRequest(
   memoryCache: Map<string, MemoryRow>
 ) {
   if (!init?.body) return { input, init };
+  const pending = readPendingFollowup();
 
   if (init.body instanceof FormData) {
     const copy = new FormData();
     init.body.forEach((value, key) => copy.append(key, value));
     const existing = String(copy.get("contextText") || "");
-    copy.set("contextText", augmentContext(existing, memoryCache));
+    copy.set("contextText", augmentContext(existing, memoryCache, pending));
+    if (pending?.kind === "action") copy.set("presentation", "flowchart");
     return { input, init: { ...init, body: copy } };
   }
 
   if (typeof init.body === "string") {
     try {
       const parsed = JSON.parse(init.body);
-      parsed.contextText = augmentContext(String(parsed.contextText || ""), memoryCache);
+      parsed.contextText = augmentContext(String(parsed.contextText || ""), memoryCache, pending);
+      if (pending?.kind === "action") parsed.presentation = "flowchart";
       return { input, init: { ...init, body: JSON.stringify(parsed) } };
     } catch {
       return { input, init };
@@ -456,7 +462,7 @@ export default function ErnestoV144Enhancer() {
       }
     }
 
-    function buildFeedbackPayload(block: HTMLElement, rating: 1 | -1, reason: string | null) {
+    function buildFeedbackPayload(block: HTMLElement) {
       const answer = answerTextFromBlock(block);
       const project = findActiveProject();
       const meta = findMessageMetadata(project, answer);
@@ -466,13 +472,13 @@ export default function ErnestoV144Enhancer() {
         question: meta.question || null,
         answer,
         mode: meta.mode,
-        rating,
-        reason,
+        rating: 1,
+        reason: null,
         ragUsed: meta.ragUsed,
       };
     }
 
-    function markFeedbackSent(actions: HTMLElement, label = "Merci") {
+    function markFeedbackSent(actions: HTMLElement, label = "Enregistré") {
       actions.querySelectorAll<HTMLButtonElement>(".v144-feedback-btn").forEach((button) => {
         button.disabled = true;
       });
@@ -483,30 +489,6 @@ export default function ErnestoV144Enhancer() {
         actions.appendChild(status);
       }
       status.textContent = label;
-    }
-
-    function showNegativeReasons(actions: HTMLElement, block: HTMLElement) {
-      block.querySelector(".v144-feedback-reasons")?.remove();
-      const row = document.createElement("div");
-      row.className = "v144-feedback-reasons";
-      const reasons = [
-        ["Trop vague", "too_vague"],
-        ["Incorrect", "incorrect"],
-        ["Pas assez pratique", "not_practical"],
-      ] as const;
-      reasons.forEach(([label, value]) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = label;
-        button.addEventListener("click", async () => {
-          const payload = buildFeedbackPayload(block, -1, value);
-          await postFeedback(payload);
-          row.remove();
-          markFeedbackSent(actions);
-        });
-        row.appendChild(button);
-      });
-      actions.insertAdjacentElement("afterend", row);
     }
 
     function smartButton(label: string, className: string, onClick: () => void) {
@@ -537,25 +519,14 @@ export default function ErnestoV144Enhancer() {
           smartButton("Plan d’action", "v144-smart-action", () => queueFollowup("action", answer()))
         );
 
-        const feedbackLabel = document.createElement("span");
-        feedbackLabel.className = "v144-feedback-label";
-        feedbackLabel.textContent = "Utile ?";
-        actions.appendChild(feedbackLabel);
-
-        const up = smartButton("👍", "v144-feedback-btn", async () => {
-          const payload = buildFeedbackPayload(block, 1, null);
+        const useful = smartButton("✓ Utile", "v144-feedback-btn", async () => {
+          const payload = buildFeedbackPayload(block);
           await postFeedback(payload);
-          block.querySelector(".v144-feedback-reasons")?.remove();
           markFeedbackSent(actions);
         });
-        up.title = "Réponse utile";
-        up.setAttribute("aria-label", "Réponse utile");
-        actions.appendChild(up);
-
-        const down = smartButton("👎", "v144-feedback-btn", () => showNegativeReasons(actions, block));
-        down.title = "Réponse à améliorer";
-        down.setAttribute("aria-label", "Réponse à améliorer");
-        actions.appendChild(down);
+        useful.title = "Marquer cette réponse comme utile";
+        useful.setAttribute("aria-label", "Marquer cette réponse comme utile");
+        actions.appendChild(useful);
       });
       decorateMemoryBadge();
       scheduleSync();

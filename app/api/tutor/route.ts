@@ -77,6 +77,125 @@ function parseGraphJSON(raw: string) {
   return parsed;
 }
 
+type ActionFlowchartStep = {
+  action: string;
+  control: string;
+  if_ok: string;
+  if_not: string;
+};
+
+type ActionFlowchart = {
+  title: string;
+  start: string;
+  steps: ActionFlowchartStep[];
+  outcome: string;
+  caution: string;
+};
+
+const ACTION_FLOWCHART_FORMAT = {
+  type: "json_schema" as const,
+  name: "ernesto_action_flowchart",
+  description: "Un plan d'action Ernesto sous forme de diagramme de flux opérationnel.",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      answer: {
+        type: "string",
+        description: "Décision résumée en une à trois phrases, sans recopier le diagramme.",
+      },
+      flowchart: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          start: { type: "string" },
+          steps: {
+            type: "array",
+            minItems: 3,
+            maxItems: 5,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                action: { type: "string" },
+                control: { type: "string" },
+                if_ok: { type: "string" },
+                if_not: { type: "string" },
+              },
+              required: ["action", "control", "if_ok", "if_not"],
+            },
+          },
+          outcome: { type: "string" },
+          caution: { type: "string" },
+        },
+        required: ["title", "start", "steps", "outcome", "caution"],
+      },
+    },
+    required: ["answer", "flowchart"],
+  },
+};
+
+function cleanFlowchartText(value: unknown, maxLength: number) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function parseActionFlowchart(raw: string): { answer: string; flowchart: ActionFlowchart } | null {
+  const cleaned = raw
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  const first = cleaned.indexOf("{");
+  const last = cleaned.lastIndexOf("}");
+  if (first < 0 || last <= first) return null;
+
+  try {
+    const parsed = objectRecord(JSON.parse(cleaned.slice(first, last + 1)));
+    const flow = objectRecord(parsed?.flowchart);
+    const steps = Array.isArray(flow?.steps)
+      ? flow.steps
+          .slice(0, 5)
+          .map((value: unknown) => {
+            const step = objectRecord(value);
+            return {
+              action: cleanFlowchartText(step?.action, 220),
+              control: cleanFlowchartText(step?.control, 200),
+              if_ok: cleanFlowchartText(step?.if_ok, 180),
+              if_not: cleanFlowchartText(step?.if_not, 220),
+            };
+          })
+          .filter((step: ActionFlowchartStep) =>
+            Boolean(step.action && step.control && step.if_ok && step.if_not)
+          )
+      : [];
+
+    const answer = cleanFlowchartText(parsed?.answer, 900);
+    const flowchart: ActionFlowchart = {
+      title: cleanFlowchartText(flow?.title, 120),
+      start: cleanFlowchartText(flow?.start, 180),
+      steps,
+      outcome: cleanFlowchartText(flow?.outcome, 220),
+      caution: cleanFlowchartText(flow?.caution, 220),
+    };
+
+    if (!answer || !flowchart.title || !flowchart.start || !flowchart.outcome || steps.length < 3) {
+      return null;
+    }
+    return { answer, flowchart };
+  } catch {
+    return null;
+  }
+}
+
 function normalizeEmailForAccess(raw: unknown) {
   return String(raw || "").trim().toLowerCase();
 }
@@ -237,6 +356,7 @@ export async function POST(req: Request) {
     let imageDataUrl: string | null = null;
     let speedRaw: string | undefined = undefined;
     let responseIndexRaw: string | number | undefined = undefined;
+    let presentationRaw: string | undefined = undefined;
 
     if (ct.includes("multipart/form-data")) {
       const form = await req.formData();
@@ -244,6 +364,7 @@ export async function POST(req: Request) {
       contextText = ((form.get("contextText") as string | null) ?? undefined) || undefined;
       speedRaw = ((form.get("speed") as string | null) ?? undefined) || undefined;
       responseIndexRaw = ((form.get("responseIndex") as string | null) ?? undefined) || undefined;
+      presentationRaw = ((form.get("presentation") as string | null) ?? undefined) || undefined;
 
       const file = form.get("image") as File | null;
       if (file) {
@@ -258,11 +379,13 @@ export async function POST(req: Request) {
         contextText?: string;
         speed?: string;
         responseIndex?: number | string;
+        presentation?: string;
       };
       message = (body.message ?? "").trim();
       contextText = body.contextText;
       speedRaw = body.speed;
       responseIndexRaw = body.responseIndex;
+      presentationRaw = body.presentation;
     }
 
     if (!process.env.OPENAI_API_KEY) {
@@ -278,9 +401,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Empty message" }, { status: 400 });
     }
 
+    const wantsActionFlowchart = String(presentationRaw || "").toLowerCase() === "flowchart";
     const normalizedSpeed = String(speedRaw || "BANCO").toUpperCase();
     const responseMode =
-      normalizedSpeed === "APPROFONDIE" || normalizedSpeed === "ECOLE" ? "ECOLE" : "BANCO";
+      !wantsActionFlowchart && (normalizedSpeed === "APPROFONDIE" || normalizedSpeed === "ECOLE")
+        ? "ECOLE"
+        : "BANCO";
     const responseIndex = Number(responseIndexRaw ?? 0);
     const shouldMentionEPPPN =
       Number.isFinite(responseIndex) && responseIndex > 0 && responseIndex % 3 === 0;
@@ -618,6 +744,16 @@ Règles :
 - Une réponse Action peut être courte, mais elle ne doit jamais être banale : elle doit contenir un choix, un ordre d’action et un critère de contrôle.
 `}
 
+${wantsActionFlowchart ? `
+PRÉSENTATION DEMANDÉE — DIAGRAMME DE FLUX
+- Résume la décision en 1 à 3 phrases, puis construis un parcours visuel de 3 à 5 étapes.
+- Chaque étape associe une action concrète à un contrôle observable.
+- Pour chaque contrôle, indique la suite si le résultat est conforme et la correction à effectuer sinon.
+- La branche « non » doit ramener vers un nouveau contrôle, pas vers une impasse.
+- Utilise des formulations très courtes, lisibles sur téléphone, sans jargon inutile.
+- Le point de départ, le résultat attendu et l’éventuel point de vigilance doivent être explicites.
+` : ""}
+
 PHOTO (si fournie) :
 - Analyse-la comme une observation expérimentale : cornicione, alvéolage, cuisson, coloration, structure apparente.
 - Propose hypothèses + contrôles, jamais une certitude visuelle injustifiée.
@@ -644,15 +780,39 @@ ${message}
       userContent.push({ type: "input_image", image_url: imageDataUrl });
     }
 
-    const r = await openai.responses.create({
-      model: "gpt-4.1-mini",
-      input: [
-        { role: "system", content: [{ type: "input_text", text: systemPrompt }] },
-        { role: "user", content: userContent },
-      ],
-    });
+    const responseInput = [
+      { role: "system" as const, content: [{ type: "input_text" as const, text: systemPrompt }] },
+      { role: "user" as const, content: userContent },
+    ];
 
-    const answerText = r.output_text ?? "";
+    let answerText = "";
+    let flowchart: ActionFlowchart | null = null;
+
+    if (wantsActionFlowchart) {
+      try {
+        const structured = await openai.responses.create({
+          model: "gpt-4.1-mini",
+          input: responseInput,
+          text: { format: ACTION_FLOWCHART_FORMAT },
+        });
+        const parsed = parseActionFlowchart(structured.output_text ?? "");
+        if (parsed) {
+          answerText = parsed.answer;
+          flowchart = parsed.flowchart;
+        }
+      } catch (flowchartErr) {
+        console.warn("action flowchart generation skipped:", flowchartErr);
+      }
+    }
+
+    if (!answerText) {
+      const response = await openai.responses.create({
+        model: "gpt-4.1-mini",
+        input: responseInput,
+      });
+      answerText = response.output_text ?? "";
+    }
+
     let graph: any = null;
 
     if (responseMode === "ECOLE" && looksQuantifiable(message)) {
@@ -691,6 +851,7 @@ ${message}
     return NextResponse.json({
       usage: usageMeta,
       answer_fr: answerText,
+      flowchart,
       graph,
       source_mention: shouldMentionEPPPN,
       rag: {
