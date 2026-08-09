@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { PDFParse } from "pdf-parse";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -97,6 +96,7 @@ async function extractFileText(file: File) {
   const buffer = await file.arrayBuffer();
   if (!isPdf) return new TextDecoder("utf-8").decode(buffer);
 
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: new Uint8Array(buffer) });
   try {
     const result = await parser.getText();
