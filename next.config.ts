@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // pdf-parse relies on Node-specific PDF.js assets. Keep it outside the
-  // Turbopack server bundle and load it only for authenticated PDF imports.
-  serverExternalPackages: ["pdf-parse"],
+  // pdf-parse relies on Node-specific PDF.js/canvas assets. Keep them outside
+  // the Turbopack server bundle so PDF imports work in Vercel functions.
+  serverExternalPackages: ["pdf-parse", "@napi-rs/canvas"],
 
   async rewrites() {
     return {
