@@ -1,34 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ernesto">
   <rect width="512" height="512" rx="48" fill="#fbfaf6"/>
   <rect x="34" y="34" width="444" height="444" fill="none" stroke="#354622" stroke-width="8"/>
+
   <g fill="#354622" font-family="Arial, Helvetica, sans-serif" font-weight="800">
     <text x="92" y="226" font-size="150" letter-spacing="-7">ER</text>
     <text x="95" y="408" font-size="150" letter-spacing="-7">N</text>
   </g>
+
   <g transform="translate(348 330)">
-    <circle cx="0" cy="0" r="74" fill="none" stroke="#354622" stroke-width="9"/>
-    <g stroke="#354622" stroke-width="5" stroke-linecap="round">
-      <line x1="0" y1="0" x2="0" y2="-49"/>
-      <line x1="0" y1="0" x2="40" y2="-32"/>
-      <line x1="0" y1="0" x2="52" y2="8"/>
-      <line x1="0" y1="0" x2="0" y2="52"/>
-      <line x1="0" y1="0" x2="-41" y2="34"/>
-      <line x1="0" y1="0" x2="-52" y2="-18"/>
-      <line x1="0" y1="-49" x2="40" y2="-32"/>
-      <line x1="40" y1="-32" x2="52" y2="8"/>
-      <line x1="52" y1="8" x2="0" y2="52"/>
-      <line x1="0" y1="52" x2="-41" y2="34"/>
-      <line x1="-41" y1="34" x2="-52" y2="-18"/>
-      <line x1="-52" y1="-18" x2="0" y2="-49"/>
+    <circle cx="0" cy="0" r="74" fill="#fbfaf6" stroke="#354622" stroke-width="9"/>
+
+    <g fill="none" stroke="#354622" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0,-50 L41,-29 L50,12 L0,52 L-43,35 L-53,-19 Z"/>
+      <path d="M0,-50 L0,0 L41,-29"/>
+      <path d="M-53,-19 L0,0 L50,12"/>
+      <path d="M-43,35 L0,0 L0,52"/>
+      <path d="M41,-29 L0,0 L50,12"/>
     </g>
-    <circle cx="0" cy="0" r="11" fill="#354622"/>
-    <circle cx="0" cy="-49" r="9" fill="#354622"/>
-    <circle cx="40" cy="-32" r="9" fill="#354622"/>
-    <circle cx="52" cy="8" r="9" fill="#354622"/>
-    <circle cx="0" cy="52" r="9" fill="#354622"/>
-    <circle cx="-41" cy="34" r="9" fill="#354622"/>
-    <circle cx="-52" cy="-18" r="9" fill="#354622"/>
-    <circle cx="-38" cy="-40" r="8" fill="#b85b3d"/>
-    <circle cx="38" cy="34" r="8" fill="#b85b3d"/>
+
+    <g fill="#354622">
+      <circle cx="0" cy="0" r="11"/>
+      <circle cx="0" cy="-50" r="9"/>
+      <circle cx="41" cy="-29" r="9"/>
+      <circle cx="50" cy="12" r="9"/>
+      <circle cx="0" cy="52" r="9"/>
+      <circle cx="-43" cy="35" r="9"/>
+      <circle cx="-53" cy="-19" r="9"/>
+    </g>
+
+    <circle cx="-39" cy="-42" r="8" fill="#c05f3f"/>
+    <circle cx="40" cy="37" r="8" fill="#c05f3f"/>
+
+    <g fill="#354622" font-family="Arial, Helvetica, sans-serif" font-weight="500" font-size="20" text-anchor="middle">
+      <text x="-34" y="7">E</text>
+      <text x="4" y="-21">O</text>
+      <text x="32" y="5">T</text>
+      <text x="4" y="31">S</text>
+    </g>
   </g>
 </svg>
