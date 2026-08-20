@@ -96,8 +96,15 @@ async function extractFileText(file: File) {
   const buffer = await file.arrayBuffer();
   if (!isPdf) return new TextDecoder("utf-8").decode(buffer);
 
+  // pdf-parse v2 uses PDF.js, which needs the Node canvas implementation in
+  // serverless environments. Loading the worker first provides CanvasFactory
+  // and avoids the "DOMMatrix is not defined" crash seen on Vercel.
+  const { CanvasFactory } = await import("pdf-parse/worker");
   const { PDFParse } = await import("pdf-parse");
-  const parser = new PDFParse({ data: new Uint8Array(buffer) });
+  const parser = new PDFParse({
+    data: new Uint8Array(buffer),
+    CanvasFactory,
+  });
   try {
     const result = await parser.getText();
     return result.text;
