@@ -63,6 +63,23 @@
   font-weight: 780 !important;
 }
 
+/* Keep Ernesto and EPPPN marks in the same visual frame. */
+.appRoot .sidebarLogoEpppn,
+.appRoot .sidebarLogoErnesto {
+  width: 166px !important;
+  height: 166px !important;
+  max-width: 88% !important;
+  object-fit: contain !important;
+}
+
+.appRoot .brandLogoEpppn,
+.appRoot .brandLogoErnesto {
+  width: 78px !important;
+  height: 78px !important;
+  max-height: 78px !important;
+  object-fit: contain !important;
+}
+
 /* Editorial reading measure for long answers on desktop. */
 .appRoot .bubble.ernesto,
 .appRoot .bubble.ernesto.v13color {
