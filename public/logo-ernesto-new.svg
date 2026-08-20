@@ -1,40 +1,49 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 476 642" role="img" aria-labelledby="title desc">
   <title id="title">Ernesto — The Pizza Explained</title>
-  <desc id="desc">Logo Ernesto inspiré de l'identité EPPPN, avec un O en pizza neuronale.</desc>
+  <desc id="desc">Logo Ernesto avec monogramme ERNO, O en pizza neuronale et lettres E O T S intégrées au réseau.</desc>
   <rect width="476" height="642" fill="#fbfaf6"/>
-  <g fill="none" stroke="#354622" stroke-width="4">
-    <rect x="39" y="42" width="398" height="450"/>
-  </g>
+
+  <rect x="39" y="42" width="398" height="450" fill="none" stroke="#354622" stroke-width="4"/>
+
   <g fill="#354622" font-family="Arial, Helvetica, sans-serif" font-weight="800">
     <text x="96" y="226" font-size="150" letter-spacing="-7">ER</text>
     <text x="99" y="411" font-size="150" letter-spacing="-7">N</text>
   </g>
+
+  <!-- O : pizza + réseau de connaissances -->
   <g transform="translate(309 316)">
-    <circle cx="0" cy="0" r="70" fill="none" stroke="#354622" stroke-width="8"/>
-    <g stroke="#354622" stroke-width="4" stroke-linecap="round">
-      <line x1="0" y1="0" x2="0" y2="-46"/>
-      <line x1="0" y1="0" x2="37" y2="-30"/>
-      <line x1="0" y1="0" x2="49" y2="8"/>
-      <line x1="0" y1="0" x2="0" y2="49"/>
-      <line x1="0" y1="0" x2="-39" y2="32"/>
-      <line x1="0" y1="0" x2="-49" y2="-17"/>
-      <line x1="0" y1="-46" x2="37" y2="-30"/>
-      <line x1="37" y1="-30" x2="49" y2="8"/>
-      <line x1="49" y1="8" x2="0" y2="49"/>
-      <line x1="0" y1="49" x2="-39" y2="32"/>
-      <line x1="-39" y1="32" x2="-49" y2="-17"/>
-      <line x1="-49" y1="-17" x2="0" y2="-46"/>
+    <circle cx="0" cy="0" r="70" fill="#fbfaf6" stroke="#354622" stroke-width="8"/>
+
+    <g fill="none" stroke="#354622" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0,-47 L39,-27 L47,12 L0,48 L-40,31 L-49,-18 Z"/>
+      <path d="M0,-47 L0,0 L39,-27"/>
+      <path d="M-49,-18 L0,0 L47,12"/>
+      <path d="M-40,31 L0,0 L0,48"/>
+      <path d="M39,-27 L0,0 L47,12"/>
     </g>
-    <circle cx="0" cy="0" r="10" fill="#354622"/>
-    <circle cx="0" cy="-46" r="9" fill="#354622"/>
-    <circle cx="37" cy="-30" r="9" fill="#354622"/>
-    <circle cx="49" cy="8" r="9" fill="#354622"/>
-    <circle cx="0" cy="49" r="9" fill="#354622"/>
-    <circle cx="-39" cy="32" r="9" fill="#354622"/>
-    <circle cx="-49" cy="-17" r="9" fill="#354622"/>
-    <circle cx="-36" cy="-38" r="8" fill="#b85b3d"/>
-    <circle cx="36" cy="32" r="8" fill="#b85b3d"/>
+
+    <g fill="#354622">
+      <circle cx="0" cy="0" r="9"/>
+      <circle cx="0" cy="-47" r="8"/>
+      <circle cx="39" cy="-27" r="8"/>
+      <circle cx="47" cy="12" r="8"/>
+      <circle cx="0" cy="48" r="8"/>
+      <circle cx="-40" cy="31" r="8"/>
+      <circle cx="-49" cy="-18" r="8"/>
+    </g>
+
+    <circle cx="-35" cy="-39" r="7" fill="#c05f3f"/>
+    <circle cx="36" cy="34" r="7" fill="#c05f3f"/>
+
+    <!-- ERNESTO hidden in the neural pizza: E O T S complete ER + N + O -->
+    <g fill="#354622" font-family="Arial, Helvetica, sans-serif" font-weight="500" font-size="18" text-anchor="middle">
+      <text x="-32" y="6">E</text>
+      <text x="4" y="-20">O</text>
+      <text x="30" y="4">T</text>
+      <text x="4" y="28">S</text>
+    </g>
   </g>
+
   <g fill="#354622" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">
     <text x="238" y="552" font-size="49" font-weight="800" letter-spacing="14">ERNESTO</text>
     <text x="238" y="607" font-size="19" font-weight="700" letter-spacing="8">THE PIZZA EXPLAINED</text>
