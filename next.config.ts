@@ -8,10 +8,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
-        // Keep the existing UI reference but serve the new Ernesto identity.
-        { source: "/logo-ernesto.png", destination: "/logo-ernesto-new.svg" },
-        // Replace the legacy favicon without touching the old binary .ico file.
-        { source: "/favicon.ico", destination: "/favicon-ernesto.svg" },
+        // Keep the existing UI reference but serve the approved Ernesto image.
+        { source: "/logo-ernesto.png", destination: "/logo-ernesto-approved.png" },
+        // Serve the same approved Ernesto image as the site favicon.
+        { source: "/favicon.ico", destination: "/favicon-ernesto-approved.png" },
       ],
       afterFiles: [],
       fallback: [],
