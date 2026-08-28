@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+const APPROVED_ERNESTO_LOGO = "/logo-ernesto-approved.png?v=20260828-2";
+
 const TEXT_REPLACEMENTS: Array<[string, string]> = [
   [
     "Votre essai gratuit a atteint sa limite de sécurité.",
@@ -37,8 +39,61 @@ function patchTextNode(node: Node) {
   }
 }
 
+function patchBranding(root: Node) {
+  const images: HTMLImageElement[] = [];
+
+  if (
+    root instanceof HTMLImageElement &&
+    (root.classList.contains("sidebarLogoErnesto") || root.classList.contains("brandLogoErnesto"))
+  ) {
+    images.push(root);
+  }
+
+  if (root instanceof Element || root instanceof Document || root instanceof DocumentFragment) {
+    images.push(
+      ...Array.from(
+        root.querySelectorAll<HTMLImageElement>("img.sidebarLogoErnesto, img.brandLogoErnesto")
+      )
+    );
+  }
+
+  for (const image of images) {
+    image.style.display = "block";
+    image.src = APPROVED_ERNESTO_LOGO;
+    image.alt = "Logo Ernesto";
+  }
+}
+
+function patchFavicon() {
+  const iconLinks = Array.from(
+    document.head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"], link[rel="shortcut icon"]')
+  );
+
+  if (iconLinks.length === 0) {
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.type = "image/png";
+    link.href = APPROVED_ERNESTO_LOGO;
+    document.head.appendChild(link);
+  } else {
+    for (const link of iconLinks) {
+      link.type = "image/png";
+      link.href = APPROVED_ERNESTO_LOGO;
+    }
+  }
+
+  let appleIcon = document.head.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+  if (!appleIcon) {
+    appleIcon = document.createElement("link");
+    appleIcon.rel = "apple-touch-icon";
+    document.head.appendChild(appleIcon);
+  }
+  appleIcon.href = APPROVED_ERNESTO_LOGO;
+}
+
 function patchTree(root: Node) {
   patchTextNode(root);
+  patchBranding(root);
 
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let current = walker.nextNode();
@@ -56,6 +111,7 @@ function patchTree(root: Node) {
  */
 export default function ErnestoUiCleanup() {
   useEffect(() => {
+    patchFavicon();
     patchTree(document.body);
 
     const observer = new MutationObserver((mutations) => {
