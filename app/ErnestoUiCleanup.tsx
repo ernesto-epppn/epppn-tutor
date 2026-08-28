@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const APPROVED_ERNESTO_LOGO = "/logo-ernesto-approved.png?v=20260828-2";
+const APPROVED_ERNESTO_LOGO = "/logo-ernesto-approved.png?v=20260828-3";
 
 const TEXT_REPLACEMENTS: Array<[string, string]> = [
   [
@@ -39,29 +39,40 @@ function patchTextNode(node: Node) {
   }
 }
 
-function patchBranding(root: Node) {
-  const images: HTMLImageElement[] = [];
+function ensureApprovedBranding() {
+  const sidebarBrands = Array.from(document.querySelectorAll<HTMLElement>(".sidebarBrand"));
 
-  if (
-    root instanceof HTMLImageElement &&
-    (root.classList.contains("sidebarLogoErnesto") || root.classList.contains("brandLogoErnesto"))
-  ) {
-    images.push(root);
-  }
-
-  if (root instanceof Element || root instanceof Document || root instanceof DocumentFragment) {
-    images.push(
-      ...Array.from(
-        root.querySelectorAll<HTMLImageElement>("img.sidebarLogoErnesto, img.brandLogoErnesto")
-      )
+  for (const brand of sidebarBrands) {
+    const legacyImages = Array.from(
+      brand.querySelectorAll<HTMLImageElement>("img.sidebarLogoErnesto:not(.sidebarLogoErnestoApproved)")
     );
+    legacyImages.forEach((image) => {
+      image.style.display = "none";
+    });
+
+    let approved = brand.querySelector<HTMLImageElement>("img.sidebarLogoErnestoApproved");
+    if (!approved) {
+      approved = document.createElement("img");
+      approved.className = "sidebarLogoErnesto sidebarLogoErnestoApproved";
+      approved.alt = "Logo Ernesto";
+      approved.setAttribute("data-ernesto-approved", "1");
+      brand.appendChild(approved);
+    }
+
+    approved.src = APPROVED_ERNESTO_LOGO;
+    approved.style.display = "block";
+    approved.style.width = "166px";
+    approved.style.maxWidth = "88%";
+    approved.style.height = "auto";
+    approved.style.objectFit = "contain";
   }
 
-  for (const image of images) {
-    image.style.display = "block";
+  const headerLogos = Array.from(document.querySelectorAll<HTMLImageElement>("img.brandLogoErnesto"));
+  headerLogos.forEach((image) => {
     image.src = APPROVED_ERNESTO_LOGO;
     image.alt = "Logo Ernesto";
-  }
+    image.style.display = "block";
+  });
 }
 
 function patchFavicon() {
@@ -93,7 +104,6 @@ function patchFavicon() {
 
 function patchTree(root: Node) {
   patchTextNode(root);
-  patchBranding(root);
 
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let current = walker.nextNode();
@@ -101,6 +111,8 @@ function patchTree(root: Node) {
     patchTextNode(current);
     current = walker.nextNode();
   }
+
+  ensureApprovedBranding();
 }
 
 /**
