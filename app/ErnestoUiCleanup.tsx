@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const APPROVED_ERNESTO_LOGO = "/logo-ernesto-approved.png?v=20260828-3";
+const APPROVED_ERNESTO_LOGO = "/logo-ernesto-approved.png?v=20260828-4";
 
 const TEXT_REPLACEMENTS: Array<[string, string]> = [
   [
@@ -43,35 +43,40 @@ function ensureApprovedBranding() {
   const sidebarBrands = Array.from(document.querySelectorAll<HTMLElement>(".sidebarBrand"));
 
   for (const brand of sidebarBrands) {
-    const legacyImages = Array.from(
-      brand.querySelectorAll<HTMLImageElement>("img.sidebarLogoErnesto:not(.sidebarLogoErnestoApproved)")
-    );
-    legacyImages.forEach((image) => {
-      image.style.display = "none";
-    });
+    // Keep the EPPPN mark and replace any historical Ernesto image with the
+    // approved asset. The approved node deliberately does NOT reuse the old
+    // sidebarLogoErnesto class, because legacy CSS may hide that class.
+    brand
+      .querySelectorAll<HTMLImageElement>("img.sidebarLogoErnesto")
+      .forEach((image) => image.remove());
 
     let approved = brand.querySelector<HTMLImageElement>("img.sidebarLogoErnestoApproved");
     if (!approved) {
       approved = document.createElement("img");
-      approved.className = "sidebarLogoErnesto sidebarLogoErnestoApproved";
+      approved.className = "sidebarLogoErnestoApproved";
       approved.alt = "Logo Ernesto";
       approved.setAttribute("data-ernesto-approved", "1");
       brand.appendChild(approved);
     }
 
     approved.src = APPROVED_ERNESTO_LOGO;
-    approved.style.display = "block";
-    approved.style.width = "166px";
-    approved.style.maxWidth = "88%";
-    approved.style.height = "auto";
-    approved.style.objectFit = "contain";
+    approved.style.setProperty("display", "block", "important");
+    approved.style.setProperty("visibility", "visible", "important");
+    approved.style.setProperty("opacity", "1", "important");
+    approved.style.setProperty("width", "166px", "important");
+    approved.style.setProperty("max-width", "88%", "important");
+    approved.style.setProperty("height", "auto", "important");
+    approved.style.setProperty("object-fit", "contain", "important");
+    approved.style.setProperty("margin", "0 auto", "important");
   }
 
   const headerLogos = Array.from(document.querySelectorAll<HTMLImageElement>("img.brandLogoErnesto"));
   headerLogos.forEach((image) => {
     image.src = APPROVED_ERNESTO_LOGO;
     image.alt = "Logo Ernesto";
-    image.style.display = "block";
+    image.style.setProperty("display", "block", "important");
+    image.style.setProperty("visibility", "visible", "important");
+    image.style.setProperty("opacity", "1", "important");
   });
 }
 
