@@ -21,13 +21,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const approvedErnestoIcon = "/logo-ernesto-approved.png?v=20260828-4";
+
 export const metadata: Metadata = {
   title: "Ernesto — The Pizza Explained",
   description: "Tuteur numérique EPPPN pour la pizza, la panification et l’organisation du travail.",
   icons: {
-    icon: "/logo-ernesto-approved.png",
-    shortcut: "/logo-ernesto-approved.png",
-    apple: "/logo-ernesto-approved.png",
+    icon: approvedErnestoIcon,
+    shortcut: approvedErnestoIcon,
+    apple: approvedErnestoIcon,
   },
 };
 
