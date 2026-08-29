@@ -40,35 +40,11 @@ function patchTextNode(node: Node) {
 }
 
 function ensureApprovedBranding() {
-  const sidebarBrands = Array.from(document.querySelectorAll<HTMLElement>(".sidebarBrand"));
-
-  for (const brand of sidebarBrands) {
-    // Keep the EPPPN mark and replace any historical Ernesto image with the
-    // approved asset. The approved node deliberately does NOT reuse the old
-    // sidebarLogoErnesto class, because legacy CSS may hide that class.
-    brand
-      .querySelectorAll<HTMLImageElement>("img.sidebarLogoErnesto")
-      .forEach((image) => image.remove());
-
-    let approved = brand.querySelector<HTMLImageElement>("img.sidebarLogoErnestoApproved");
-    if (!approved) {
-      approved = document.createElement("img");
-      approved.className = "sidebarLogoErnestoApproved";
-      approved.alt = "Logo Ernesto";
-      approved.setAttribute("data-ernesto-approved", "1");
-      brand.appendChild(approved);
-    }
-
-    approved.src = APPROVED_ERNESTO_LOGO;
-    approved.style.setProperty("display", "block", "important");
-    approved.style.setProperty("visibility", "visible", "important");
-    approved.style.setProperty("opacity", "1", "important");
-    approved.style.setProperty("width", "166px", "important");
-    approved.style.setProperty("max-width", "88%", "important");
-    approved.style.setProperty("height", "auto", "important");
-    approved.style.setProperty("object-fit", "contain", "important");
-    approved.style.setProperty("margin", "0 auto", "important");
-  }
+  // Il logo Ernesto della sidebar è renderizzato direttamente da page.tsx.
+  // Rimuoviamo eventuali duplicati creati dalle versioni precedenti.
+  document
+    .querySelectorAll("img.sidebarLogoErnestoApproved")
+    .forEach((image) => image.remove());
 
   const headerLogos = Array.from(document.querySelectorAll<HTMLImageElement>("img.brandLogoErnesto"));
   headerLogos.forEach((image) => {

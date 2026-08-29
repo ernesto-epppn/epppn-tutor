@@ -2279,11 +2279,18 @@ export default function Page() {
           </div>
           <div className="sidebarBrand" aria-label="Identité EPPPN et Ernesto">
             <img className="sidebarLogoEpppn" src="/LOGOEPPPN21.png" alt="Logo EPPPN" />
-            <img
-              className="sidebarLogoErnesto"
-              src="/logo-ernesto.png"
-              alt="Logo Ernesto"
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            <div
+              role="img"
+              aria-label="Logo Ernesto"
+              style={{
+                width: 166,
+                height: 166,
+                maxWidth: "88%",
+                backgroundImage: 'url("/logo-ernesto-approved.png?v=20260828-5")',
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                backgroundSize: "contain",
+              }}
             />
           </div>
         </aside>
