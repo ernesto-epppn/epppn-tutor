@@ -45,11 +45,7 @@ function buildMeter() {
   title.className = "ernestoContextMeterTitle";
   title.textContent = "Précision du contexte";
 
-  const auto = document.createElement("span");
-  auto.className = "ernestoContextMeterAuto";
-  auto.innerHTML = '<span class="ernestoContextMeterAutoDot" aria-hidden="true"></span> automatique';
-
-  top.append(title, auto);
+  top.append(title);
 
   const track = document.createElement("div");
   track.className = "ernestoContextMeterTrack";
@@ -119,7 +115,7 @@ export default function ErnestoComposerPolish() {
       composerBox.dataset.contextLabel = quality.label;
       meter.dataset.contextLevel = quality.key;
       meter.dataset.contextIndex = String(quality.index);
-      meter.setAttribute("aria-label", `Précision du contexte : ${quality.label}. Indicateur automatique.`);
+      meter.setAttribute("aria-label", `Précision du contexte : ${quality.label}.`);
 
       meter.querySelectorAll<HTMLElement>(".ernestoContextMeterLabel").forEach((label) => {
         label.classList.toggle("isCurrent", label.dataset.level === quality.key);
