@@ -5,7 +5,15 @@ import { useEffect } from "react";
 const COMPOSER_PLACEHOLDER =
   "Décrivez ce que vous observez : pâte, température, durée, farine, cuisson…";
 
-function contextQuality(text: string, hasWorkContext: boolean) {
+const LEVELS = [
+  { key: "limited", label: "Contexte à préciser", index: 0 },
+  { key: "useful", label: "Contexte utile", index: 1 },
+  { key: "strong", label: "Contexte bien renseigné ✓", index: 2 },
+] as const;
+
+type ContextLevel = (typeof LEVELS)[number];
+
+function contextQuality(text: string, hasWorkContext: boolean): ContextLevel {
   const value = text.trim();
   let score = hasWorkContext ? 1 : 0;
 
@@ -19,21 +27,75 @@ function contextQuality(text: string, hasWorkContext: boolean) {
   if (/(service|froid|frigo|ouverture|cuisson|appr[eê]t|fermentation|p[eé]trissage|boulage|four)/i.test(value)) score += 1;
   if (/(collant|collante|d[eé]chir|p[aâ]le|acide|faible|molle|sec|s[eè]che|irr[eé]gulier|alv[eé]ol)/i.test(value)) score += 1;
 
-  if (!value) {
-    return { level: "limited", label: "Contexte à préciser" };
-  }
-  if (score >= 6) {
-    return { level: "strong", label: "Contexte bien renseigné ✓" };
-  }
-  if (score >= 3) {
-    return { level: "useful", label: "Contexte utile" };
-  }
-  return { level: "limited", label: "Contexte à préciser" };
+  if (!value || score < 3) return LEVELS[0];
+  if (score >= 6) return LEVELS[2];
+  return LEVELS[1];
+}
+
+function buildMeter() {
+  const meter = document.createElement("div");
+  meter.className = "ernestoContextMeter";
+  meter.setAttribute("role", "status");
+  meter.setAttribute("aria-live", "polite");
+
+  const top = document.createElement("div");
+  top.className = "ernestoContextMeterTop";
+
+  const title = document.createElement("span");
+  title.className = "ernestoContextMeterTitle";
+  title.textContent = "Précision du contexte";
+
+  const auto = document.createElement("span");
+  auto.className = "ernestoContextMeterAuto";
+  auto.innerHTML = '<span class="ernestoContextMeterAutoDot" aria-hidden="true"></span> automatique';
+
+  top.append(title, auto);
+
+  const track = document.createElement("div");
+  track.className = "ernestoContextMeterTrack";
+  track.setAttribute("aria-hidden", "true");
+
+  const fill = document.createElement("div");
+  fill.className = "ernestoContextMeterFill";
+
+  const thumb = document.createElement("div");
+  thumb.className = "ernestoContextMeterThumb";
+
+  ["8%", "50%", "92%"].forEach((left) => {
+    const dot = document.createElement("span");
+    dot.className = "ernestoContextMeterStepDot";
+    dot.style.left = left;
+    track.appendChild(dot);
+  });
+
+  track.append(fill, thumb);
+
+  const labels = document.createElement("div");
+  labels.className = "ernestoContextMeterLabels";
+  LEVELS.forEach((item) => {
+    const label = document.createElement("span");
+    label.className = "ernestoContextMeterLabel";
+    label.dataset.level = item.key;
+    label.textContent = item.label;
+    labels.appendChild(label);
+  });
+
+  meter.append(top, track, labels);
+  return meter;
 }
 
 export default function ErnestoComposerPolish() {
   useEffect(() => {
     let currentTextarea: HTMLTextAreaElement | null = null;
+
+    const ensureMeter = (composerBox: HTMLElement, textarea: HTMLTextAreaElement) => {
+      let meter = composerBox.querySelector<HTMLElement>(".ernestoContextMeter");
+      if (!meter) {
+        meter = buildMeter();
+        composerBox.insertBefore(meter, textarea);
+      }
+      return meter;
+    };
 
     const updateQuality = () => {
       const textarea = document.querySelector<HTMLTextAreaElement>(".appRoot textarea.chatTextarea");
@@ -51,8 +113,17 @@ export default function ErnestoComposerPolish() {
       );
 
       const quality = contextQuality(textarea.value, hasWorkContext);
-      composerBox.dataset.contextLevel = quality.level;
+      const meter = ensureMeter(composerBox, textarea);
+
+      composerBox.dataset.contextLevel = quality.key;
       composerBox.dataset.contextLabel = quality.label;
+      meter.dataset.contextLevel = quality.key;
+      meter.dataset.contextIndex = String(quality.index);
+      meter.setAttribute("aria-label", `Précision du contexte : ${quality.label}. Indicateur automatique.`);
+
+      meter.querySelectorAll<HTMLElement>(".ernestoContextMeterLabel").forEach((label) => {
+        label.classList.toggle("isCurrent", label.dataset.level === quality.key);
+      });
     };
 
     const attach = () => {
@@ -61,8 +132,10 @@ export default function ErnestoComposerPolish() {
 
       if (currentTextarea !== textarea) {
         currentTextarea?.removeEventListener("input", updateQuality);
+        currentTextarea?.removeEventListener("change", updateQuality);
         currentTextarea = textarea;
         currentTextarea.addEventListener("input", updateQuality);
+        currentTextarea.addEventListener("change", updateQuality);
       }
       updateQuality();
     };
@@ -73,6 +146,7 @@ export default function ErnestoComposerPolish() {
     observer.observe(document.body, {
       childList: true,
       subtree: true,
+      characterData: true,
       attributes: true,
       attributeFilter: ["placeholder"],
     });
@@ -80,6 +154,7 @@ export default function ErnestoComposerPolish() {
     return () => {
       observer.disconnect();
       currentTextarea?.removeEventListener("input", updateQuality);
+      currentTextarea?.removeEventListener("change", updateQuality);
     };
   }, []);
 
