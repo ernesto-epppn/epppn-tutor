@@ -2,8 +2,7 @@
 
 import { useEffect } from "react";
 
-const COMPOSER_PLACEHOLDER =
-  "Que se passe-t-il exactement ? Donnez à Ernesto les éléments qui peuvent faire la différence…";
+const COMPOSER_PLACEHOLDER = "Posez votre question à Ernesto…";
 
 const LEVELS = [
   { key: "limited", label: "Contexte à préciser", index: 0 },
