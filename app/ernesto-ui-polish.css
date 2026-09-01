@@ -115,6 +115,117 @@
   box-shadow: 0 0 0 3px rgba(111, 125, 60, 0.12) !important;
 }
 
+/* Composer: make the question the visual centre of Ernesto */
+.appRoot .chatComposer .composerInner {
+  width: min(100%, 940px) !important;
+}
+
+.appRoot .composerBox {
+  padding: 13px 14px 11px !important;
+  border: 1px solid rgba(67, 83, 49, 0.20) !important;
+  border-radius: 27px !important;
+  background:
+    radial-gradient(circle at 98% 0%, rgba(111, 125, 60, 0.055), transparent 27%),
+    rgba(255, 255, 255, 0.985) !important;
+  box-shadow: 0 16px 42px rgba(23, 33, 50, 0.09) !important;
+  transition: border-color 170ms ease, box-shadow 170ms ease, transform 170ms ease !important;
+}
+
+.appRoot .composerBox:focus-within {
+  border-color: rgba(82, 99, 60, 0.74) !important;
+  box-shadow:
+    0 0 0 4px rgba(111, 125, 60, 0.10),
+    0 20px 48px rgba(23, 33, 50, 0.12) !important;
+  transform: translateY(-1px);
+}
+
+.appRoot .composerBox::before {
+  content: "●  " attr(data-context-label);
+  display: inline-flex;
+  width: fit-content;
+  margin: 0 0 8px 3px;
+  padding: 5px 9px;
+  border: 1px solid rgba(184, 138, 53, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 249, 235, 0.95);
+  color: #8b6b2f;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.015em;
+  line-height: 1.2;
+  transition: color 170ms ease, background 170ms ease, border-color 170ms ease, box-shadow 170ms ease !important;
+}
+
+.appRoot .composerBox[data-context-level="useful"]::before {
+  border-color: rgba(111, 125, 60, 0.20);
+  background: rgba(244, 248, 236, 0.96);
+  color: #61703b;
+}
+
+.appRoot .composerBox[data-context-level="strong"]::before {
+  border-color: rgba(67, 83, 49, 0.26);
+  background: rgba(235, 242, 224, 0.98);
+  color: #435331;
+  box-shadow: 0 4px 13px rgba(67, 83, 49, 0.08);
+}
+
+.appRoot .chatTextarea {
+  min-height: 76px !important;
+  max-height: 210px !important;
+  padding: 4px 5px 8px !important;
+  color: #172132 !important;
+  font-size: 17px !important;
+  line-height: 1.52 !important;
+  letter-spacing: -0.006em;
+}
+
+.appRoot .chatTextarea::placeholder {
+  color: #8a9389 !important;
+  opacity: 1;
+}
+
+.appRoot .composerToolbar {
+  padding-top: 4px;
+  border-top: 1px solid rgba(67, 83, 49, 0.07);
+}
+
+.appRoot .composerTools .toolBtn,
+.appRoot .composerTools .answerDepth button {
+  opacity: 0.78;
+  transition: opacity 150ms ease, transform 150ms ease, background 150ms ease !important;
+}
+
+.appRoot .composerTools .toolBtn:hover,
+.appRoot .composerTools .answerDepth button:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.appRoot .sendBtn {
+  min-width: 132px !important;
+  min-height: 44px !important;
+  padding: 10px 17px !important;
+  border-radius: 15px !important;
+  border-color: transparent !important;
+  background: linear-gradient(135deg, #56683f, #3f5130) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 8px 20px rgba(63, 81, 48, 0.22) !important;
+  font-weight: 950 !important;
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease !important;
+}
+
+.appRoot .sendBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 11px 25px rgba(63, 81, 48, 0.27) !important;
+  filter: saturate(1.04);
+}
+
+.appRoot .sendBtn:disabled {
+  opacity: 0.55;
+  box-shadow: none !important;
+}
+
 @media (max-width: 860px) {
   .appRoot .statusCard.userCard,
   .appRoot .contextPanel,
@@ -125,5 +236,30 @@
   .appRoot .contextCompactBtn,
   .appRoot .userCard .userTopRow > div:last-child > button:first-child {
     min-height: 38px !important;
+  }
+
+  .appRoot .composerBox {
+    padding: 9px 9px 8px !important;
+    border-radius: 23px !important;
+  }
+
+  .appRoot .composerBox::before {
+    margin: 0 0 5px 3px;
+    padding: 4px 8px;
+    font-size: 9px;
+  }
+
+  .appRoot .chatTextarea {
+    min-height: 58px !important;
+    max-height: 126px !important;
+    padding: 3px 5px 6px !important;
+    font-size: 16px !important;
+  }
+
+  .appRoot .sendBtn {
+    min-width: 46px !important;
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    border-radius: 13px !important;
   }
 }
