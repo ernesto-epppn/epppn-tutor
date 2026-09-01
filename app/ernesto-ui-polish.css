@@ -226,6 +226,78 @@
   box-shadow: none !important;
 }
 
+/* Response modes: two clear visual identities, no extra copy. */
+.appRoot .composerTools .answerDepth {
+  gap: 6px !important;
+  padding: 3px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.appRoot .composerTools .answerDepth button {
+  min-height: 32px !important;
+  padding: 5px 11px !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+  font-weight: 900 !important;
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease !important;
+}
+
+.appRoot .composerTools .answerDepth button::before {
+  display: inline-block;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* Action — terracotta, remains the default mode through BANCO. */
+.appRoot .composerTools .answerDepth button:first-child {
+  border-color: rgba(180, 104, 77, 0.30) !important;
+  background: rgba(180, 104, 77, 0.08) !important;
+  color: #9e5d47 !important;
+  -webkit-text-fill-color: #9e5d47 !important;
+}
+
+.appRoot .composerTools .answerDepth button:first-child::before {
+  content: "🪛";
+}
+
+.appRoot .composerTools .answerDepth button:first-child.active {
+  border-color: #b4684d !important;
+  background: linear-gradient(135deg, #bd7258, #a75f48) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 5px 14px rgba(180, 104, 77, 0.23) !important;
+}
+
+/* Analyse — slate blue. */
+.appRoot .composerTools .answerDepth button:nth-child(2) {
+  border-color: rgba(82, 103, 122, 0.30) !important;
+  background: rgba(82, 103, 122, 0.07) !important;
+  color: #52677a !important;
+  -webkit-text-fill-color: #52677a !important;
+}
+
+.appRoot .composerTools .answerDepth button:nth-child(2)::before {
+  content: "🔍";
+}
+
+.appRoot .composerTools .answerDepth button:nth-child(2).active {
+  border-color: #52677a !important;
+  background: linear-gradient(135deg, #60778d, #465c70) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 5px 14px rgba(70, 92, 112, 0.23) !important;
+}
+
+.appRoot .composerTools .answerDepth button:hover {
+  transform: translateY(-1px) !important;
+}
+
 @media (max-width: 860px) {
   .appRoot .statusCard.userCard,
   .appRoot .contextPanel,
@@ -261,5 +333,20 @@
     min-height: 40px !important;
     padding: 8px 12px !important;
     border-radius: 13px !important;
+  }
+
+  .appRoot .composerTools .answerDepth {
+    gap: 4px !important;
+  }
+
+  .appRoot .composerTools .answerDepth button {
+    min-height: 30px !important;
+    padding: 4px 9px !important;
+    gap: 4px !important;
+    font-size: 11px !important;
+  }
+
+  .appRoot .composerTools .answerDepth button::before {
+    font-size: 12px;
   }
 }
