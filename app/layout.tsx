@@ -4,6 +4,7 @@ import ErnestoUiCleanup from "./ErnestoUiCleanup";
 import ErnestoV144Enhancer from "./ErnestoV144Enhancer";
 import ErnestoSmartClarification from "./ErnestoSmartClarification";
 import ErnestoConversationFocus from "./ErnestoConversationFocus";
+import ErnestoComposerPolish from "./ErnestoComposerPolish";
 import ErnestoFooter from "./ErnestoFooter";
 import "./globals.css";
 import "./ernesto-v14-3-responsive.css";
@@ -47,6 +48,7 @@ export default function RootLayout({
         <ErnestoV144Enhancer />
         <ErnestoSmartClarification />
         <ErnestoConversationFocus />
+        <ErnestoComposerPolish />
         {children}
         <ErnestoFooter />
       </body>
