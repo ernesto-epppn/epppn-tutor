@@ -1,0 +1,31 @@
+/* Final response-mode accents: Action = green + yellow wrench, Analyse = slate blue. */
+
+.appRoot .composerTools .answerDepth button:first-child {
+  border-color: rgba(95, 118, 52, 0.34) !important;
+  background: rgba(111, 125, 60, 0.09) !important;
+  color: #56682f !important;
+  -webkit-text-fill-color: #56682f !important;
+}
+
+.appRoot .composerTools .answerDepth button:first-child::before {
+  content: "" !important;
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 14px !important;
+  display: inline-block !important;
+  background: #f2c94c !important;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M21.7 19.3l-8.8-8.8a6 6 0 0 0-7.8-7.7l3.2 3.2-2.4 2.4-3.2-3.2a6 6 0 0 0 7.7 7.8l8.8 8.8a1.8 1.8 0 1 0 2.5-2.5z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M21.7 19.3l-8.8-8.8a6 6 0 0 0-7.8-7.7l3.2 3.2-2.4 2.4-3.2-3.2a6 6 0 0 0 7.7 7.8l8.8 8.8a1.8 1.8 0 1 0 2.5-2.5z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+.appRoot .composerTools .answerDepth button:first-child.active {
+  border-color: #5f7634 !important;
+  background: linear-gradient(135deg, #738a43, #50662e) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 5px 14px rgba(80, 102, 46, 0.24) !important;
+}
+
+.appRoot .composerTools .answerDepth button:first-child.active::before {
+  background: #f4cf55 !important;
+}
