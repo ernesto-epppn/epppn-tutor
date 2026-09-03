@@ -45,9 +45,12 @@ export async function POST(req: Request) {
         .maybeSingle();
 
       if (allowedError) return NextResponse.json({ error: "access_lookup_failed" }, { status: 500 });
+      if (!allowed) return NextResponse.json({ ok: false, tracked: false }, { status: 200 });
 
-      const expired = Boolean(allowed?.access_ends_at) && new Date(allowed.access_ends_at).getTime() <= Date.now();
-      if (!allowed || allowed.active !== true || allowed.blocked_at || allowed.paused_at || expired) {
+      const expired = allowed.access_ends_at
+        ? new Date(allowed.access_ends_at).getTime() <= Date.now()
+        : false;
+      if (allowed.active !== true || allowed.blocked_at || allowed.paused_at || expired) {
         return NextResponse.json({ ok: false, tracked: false }, { status: 200 });
       }
     }
