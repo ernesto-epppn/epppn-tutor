@@ -26,7 +26,7 @@ function addMonthsClamped(date: Date, months: number) {
 function envAdminEmails() {
   return (process.env.ERNESTO_ADMIN_EMAILS || "")
     .split(",")
-    .map((email) => normalizeEmail(email))
+    .map(normalizeEmail)
     .filter(Boolean);
 }
 
@@ -44,17 +44,11 @@ export async function POST(req: Request) {
 
     const authHeader = req.headers.get("authorization") || "";
     const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-
-    if (!bearer) {
-      return NextResponse.json({ error: "auth_required" }, { status: 401 });
-    }
+    if (!bearer) return NextResponse.json({ error: "auth_required" }, { status: 401 });
 
     const { data: userData, error: userError } = await supabase.auth.getUser(bearer);
     const adminUser = userData?.user;
-
-    if (userError || !adminUser) {
-      return NextResponse.json({ error: "invalid_session" }, { status: 401 });
-    }
+    if (userError || !adminUser) return NextResponse.json({ error: "invalid_session" }, { status: 401 });
 
     const adminEmail = normalizeEmail(adminUser.email);
     const { data: profile } = await supabase
@@ -62,11 +56,8 @@ export async function POST(req: Request) {
       .select("role")
       .eq("user_id", adminUser.id)
       .maybeSingle();
-
     const isAdmin = profile?.role === "admin" || envAdminEmails().includes(adminEmail);
-    if (!isAdmin) {
-      return NextResponse.json({ error: "admin_required" }, { status: 403 });
-    }
+    if (!isAdmin) return NextResponse.json({ error: "admin_required" }, { status: 403 });
 
     const body = (await req.json().catch(() => ({}))) as {
       email?: string;
@@ -99,6 +90,8 @@ export async function POST(req: Request) {
           access_ends_at: accessEndsAt.toISOString(),
           blocked_at: null,
           blocked_reason: null,
+          paused_at: null,
+          paused_reason: null,
           invited_at: now.toISOString(),
           invited_by: adminUser.id,
           updated_at: now.toISOString(),
@@ -107,12 +100,10 @@ export async function POST(req: Request) {
       );
 
     if (allowlistError) {
-      console.error("V14.2 allowlist upsert failed:", allowlistError.message);
+      console.error("V14 allowlist upsert failed:", allowlistError.message);
       return NextResponse.json({ error: "allowlist_update_failed" }, { status: 500 });
     }
 
-    // Usa automaticamente il dominio corrente:
-    // Preview Vercel durante i test, dominio ufficiale in produzione.
     const siteUrl = new URL(req.url).origin;
     const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
       email,
@@ -126,25 +117,28 @@ export async function POST(req: Request) {
     );
 
     if (inviteError) {
-      console.error("V14.2 invite failed:", inviteError.message);
-      return NextResponse.json(
-        {
-          error: "invite_failed",
-          message: "L’adresse est autorisée, mais l’invitation n’a pas pu être envoyée.",
-        },
-        { status: 500 }
-      );
+      const alreadyRegistered = /already|registered|exists/i.test(inviteError.message || "");
+      if (!alreadyRegistered) {
+        console.error("V14 invite failed:", inviteError.message);
+        return NextResponse.json(
+          {
+            error: "invite_failed",
+            message: "L’adresse est autorisée, mais l’invitation n’a pas pu être envoyée.",
+          },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({
       ok: true,
       email,
-      user_id: inviteData.user?.id || null,
+      user_id: inviteData?.user?.id || null,
       access_months: accessMonths,
       access_ends_at: accessEndsAt.toISOString(),
     });
   } catch (error) {
-    console.error("V14.2 invite route failed:", error);
+    console.error("V14 invite route failed:", error);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
