@@ -5,6 +5,8 @@ import ErnestoV144Enhancer from "./ErnestoV144Enhancer";
 import ErnestoSmartClarification from "./ErnestoSmartClarification";
 import ErnestoConversationFocus from "./ErnestoConversationFocus";
 import ErnestoComposerPolish from "./ErnestoComposerPolish";
+import ErnestoAccessTracker from "./ErnestoAccessTracker";
+import ErnestoEpppnGrounding from "./ErnestoEpppnGrounding";
 import ErnestoFooter from "./ErnestoFooter";
 import "./globals.css";
 import "./ernesto-v14-3-responsive.css";
@@ -15,6 +17,7 @@ import "./ernesto-v14-5-3.css";
 import "./ernesto-ui-polish.css";
 import "./ernesto-context-meter.css";
 import "./ernesto-mode-override.css";
+import "./ernesto-epppn-grounding.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +54,8 @@ export default function RootLayout({
         <ErnestoSmartClarification />
         <ErnestoConversationFocus />
         <ErnestoComposerPolish />
+        <ErnestoAccessTracker />
+        <ErnestoEpppnGrounding />
         {children}
         <ErnestoFooter />
       </body>
