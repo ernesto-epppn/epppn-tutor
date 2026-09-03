@@ -29,33 +29,54 @@ function tutorRequest(input: RequestInfo | URL) {
   return value.includes("/api/tutor");
 }
 
-function addGrounding(answer: string, responseIndex: number, ragUsed: number) {
-  const clean = String(answer || "").trim();
-  if (!clean || /\bEPPPN\b/i.test(clean.slice(0, 500))) return clean;
-
-  if (responseIndex === 1) {
-    if (ragUsed > 0) {
-      return `Référence EPPPN — cette réponse s’appuie sur la documentation et les protocoles EPPPN intégrés à Ernesto.\n\n${clean}`;
-    }
-    return `Repère EPPPN — Ernesto s’appuie en priorité sur la base de connaissances EPPPN. Pour cette question, aucun passage suffisamment direct n’a été retrouvé dans la documentation indexée ; l’analyse est donc complétée avec ses connaissances générales.\n\n${clean}`;
-  }
-
-  if (ragUsed > 0 && responseIndex > 0 && responseIndex % 3 === 0) {
-    return `Base EPPPN — cette analyse mobilise la documentation EPPPN indexée dans Ernesto.\n\n${clean}`;
-  }
-
-  return clean;
+function shouldWeaveEpppn(responseIndex: number) {
+  return responseIndex === 1 || responseIndex === 2 || (responseIndex > 2 && responseIndex % 4 === 0);
 }
 
-function ensureBadges() {
-  document.querySelectorAll<HTMLElement>(".appRoot .answerBlock").forEach((answer) => {
-    if (answer.querySelector(":scope > .epppnKnowledgeBadge")) return;
-    const badge = document.createElement("div");
-    badge.className = "epppnKnowledgeBadge";
-    badge.setAttribute("aria-label", "Ernesto, base de connaissances EPPPN");
-    badge.innerHTML = '<span class="epppnKnowledgeDot" aria-hidden="true"></span><span>EPPPN · base de connaissances</span>';
-    answer.insertBefore(badge, answer.firstChild);
-  });
+function epppnSentence(responseIndex: number, ragUsed: number) {
+  if (ragUsed > 0) {
+    const variants = [
+      "Cette lecture s’inscrit naturellement dans les repères EPPPN intégrés à Ernesto, avec une priorité donnée aux variables réellement observables.",
+      "Dans la logique EPPPN intégrée à Ernesto, on privilégie ici une correction progressive et vérifiable plutôt qu’une règle isolée.",
+      "C’est aussi l’approche EPPPN qu’Ernesto mobilise ici : relier la situation réelle aux paramètres qui changent effectivement la décision.",
+    ];
+    return variants[Math.abs(responseIndex) % variants.length];
+  }
+
+  const variants = [
+    "Dans le cadre de raisonnement EPPPN intégré à Ernesto, l’idée reste de partir de la situation réelle avant de modifier le protocole.",
+    "Ernesto reste ici dans la logique de travail EPPPN : observer, hiérarchiser les causes, puis corriger de façon progressive.",
+    "Cette manière de raisonner correspond au cadre pédagogique EPPPN codifié dans Ernesto : une décision doit rester liée à des observations vérifiables.",
+  ];
+  return variants[Math.abs(responseIndex) % variants.length];
+}
+
+function weaveIntoAnswer(answer: string, responseIndex: number, ragUsed: number) {
+  const clean = String(answer || "").trim();
+  if (!clean || !shouldWeaveEpppn(responseIndex) || /\bEPPPN\b/i.test(clean)) return clean;
+
+  const sentence = epppnSentence(responseIndex, ragUsed);
+  const blocks = clean.split(/\n{2,}/);
+  if (blocks.length <= 1) {
+    const sentenceEnd = clean.search(/[.!?](?:\s|$)/);
+    if (sentenceEnd >= 0 && sentenceEnd < clean.length - 1) {
+      return `${clean.slice(0, sentenceEnd + 1)} ${sentence} ${clean.slice(sentenceEnd + 1).trimStart()}`;
+    }
+    return `${clean}\n\n${sentence}`;
+  }
+
+  let insertAfter = 0;
+  for (let i = 0; i < Math.min(blocks.length, 3); i += 1) {
+    const block = blocks[i].trim();
+    const headingOnly = /^#{1,3}\s+[^\n]+$/.test(block);
+    if (!headingOnly && block.length > 20) {
+      insertAfter = i;
+      break;
+    }
+  }
+
+  blocks.splice(insertAfter + 1, 0, sentence);
+  return blocks.join("\n\n");
 }
 
 export default function ErnestoEpppnGrounding() {
@@ -74,13 +95,11 @@ export default function ErnestoEpppnGrounding() {
         const data = await response.clone().json();
         const ragUsed = Number(data?.rag?.used || 0);
         const answer = String(data?.answer_fr || "");
-        const grounded = addGrounding(answer, index, ragUsed);
-        if (grounded === answer) return response;
+        const woven = weaveIntoAnswer(answer, index, ragUsed);
+        if (woven === answer) return response;
 
-        data.answer_fr = grounded;
-        if (ragUsed > 0 && (index === 1 || (index > 0 && index % 3 === 0))) {
-          data.source_mention = true;
-        }
+        data.answer_fr = woven;
+        data.source_mention = ragUsed > 0;
 
         const headers = new Headers(response.headers);
         headers.delete("content-length");
@@ -95,8 +114,13 @@ export default function ErnestoEpppnGrounding() {
       }
     };
 
-    ensureBadges();
-    const observer = new MutationObserver(ensureBadges);
+    // No visual EPPPN badge is injected above answers: the identity is woven into
+    // the response itself, in passing, rather than presented as a source banner.
+    document.querySelectorAll<HTMLElement>(".epppnKnowledgeBadge").forEach((badge) => badge.remove());
+
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll<HTMLElement>(".epppnKnowledgeBadge").forEach((badge) => badge.remove());
+    });
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
