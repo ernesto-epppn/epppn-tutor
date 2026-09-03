@@ -7,6 +7,7 @@ import ErnestoConversationFocus from "./ErnestoConversationFocus";
 import ErnestoComposerPolish from "./ErnestoComposerPolish";
 import ErnestoAccessTracker from "./ErnestoAccessTracker";
 import ErnestoEpppnGrounding from "./ErnestoEpppnGrounding";
+import ErnestoRagUsageTracker from "./ErnestoRagUsageTracker";
 import ErnestoFooter from "./ErnestoFooter";
 import "./globals.css";
 import "./ernesto-v14-3-responsive.css";
@@ -57,6 +58,7 @@ export default function RootLayout({
         <ErnestoComposerPolish />
         <ErnestoAccessTracker />
         <ErnestoEpppnGrounding />
+        <ErnestoRagUsageTracker />
         {children}
         <ErnestoFooter />
       </body>
