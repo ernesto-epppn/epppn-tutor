@@ -61,7 +61,8 @@ function stripLegacyEpppnPhrases(answer: string) {
 }
 
 function shouldWeaveEpppn(responseIndex: number) {
-  return responseIndex > 0;
+  // First Ernesto answer in every dossier, then a discreet reminder about every 3–4 answers.
+  return responseIndex === 1 || (responseIndex > 1 && responseIndex % 4 === 0);
 }
 
 function epppnSentence(responseIndex: number) {
