@@ -18,6 +18,7 @@ import "./ernesto-ui-polish.css";
 import "./ernesto-context-meter.css";
 import "./ernesto-mode-override.css";
 import "./ernesto-epppn-grounding.css";
+import "./ernesto-followup-cleanup.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
