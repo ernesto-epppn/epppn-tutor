@@ -43,34 +43,54 @@ function stripExplicitEpppnBanner(answer: string) {
     .trim();
 }
 
-function shouldWeaveEpppn(responseIndex: number) {
-  return responseIndex === 1 || responseIndex === 2 || (responseIndex > 2 && responseIndex % 4 === 0);
-}
-
-function epppnSentence(responseIndex: number, ragUsed: number) {
-  if (ragUsed > 0) {
-    const variants = [
-      "Cette lecture s’inscrit naturellement dans les repères EPPPN intégrés à Ernesto, avec une priorité donnée aux variables réellement observables.",
-      "Dans la logique EPPPN intégrée à Ernesto, on privilégie ici une correction progressive et vérifiable plutôt qu’une règle isolée.",
-      "C’est aussi l’approche EPPPN qu’Ernesto mobilise ici : relier la situation réelle aux paramètres qui changent effectivement la décision.",
-    ];
-    return variants[Math.abs(responseIndex) % variants.length];
-  }
-
-  const variants = [
+function stripLegacyEpppnPhrases(answer: string) {
+  const legacy = [
+    "Cette lecture s’inscrit naturellement dans les repères EPPPN intégrés à Ernesto, avec une priorité donnée aux variables réellement observables.",
+    "Dans la logique EPPPN intégrée à Ernesto, on privilégie ici une correction progressive et vérifiable plutôt qu’une règle isolée.",
+    "C’est aussi l’approche EPPPN qu’Ernesto mobilise ici : relier la situation réelle aux paramètres qui changent effectivement la décision.",
     "Dans le cadre de raisonnement EPPPN intégré à Ernesto, l’idée reste de partir de la situation réelle avant de modifier le protocole.",
     "Ernesto reste ici dans la logique de travail EPPPN : observer, hiérarchiser les causes, puis corriger de façon progressive.",
     "Cette manière de raisonner correspond au cadre pédagogique EPPPN codifié dans Ernesto : une décision doit rester liée à des observations vérifiables.",
   ];
-  return variants[Math.abs(responseIndex) % variants.length];
+
+  let clean = answer;
+  legacy.forEach((phrase) => {
+    clean = clean.replace(phrase, "");
+  });
+  return clean.replace(/\n{3,}/g, "\n\n").replace(/ {2,}/g, " ").trim();
 }
 
-function weaveIntoAnswer(answer: string, responseIndex: number, ragUsed: number) {
-  const clean = stripExplicitEpppnBanner(answer);
-  if (!clean || !shouldWeaveEpppn(responseIndex) || /\bEPPPN\b/i.test(clean)) return clean;
+function shouldWeaveEpppn(responseIndex: number) {
+  return responseIndex > 0;
+}
 
-  const sentence = epppnSentence(responseIndex, ragUsed);
+function epppnSentence(responseIndex: number) {
+  const variants = [
+    "La réponse qui suit s’appuie sur les connaissances EPPPN codifiées dans Ernesto.",
+    "Sur ce point, Ernesto mobilise le socle de connaissances EPPPN qu’il intègre.",
+    "Le raisonnement présenté ici s’appuie sur les connaissances EPPPN intégrées et codifiées dans Ernesto.",
+    "Cette réponse est construite à partir du socle de connaissances EPPPN intégré à Ernesto.",
+    "L’analyse qui suit prend appui sur les connaissances EPPPN codifiées dans Ernesto.",
+    "Pour cette situation, Ernesto s’appuie sur le socle de connaissances EPPPN codifié dans son environnement.",
+    "Cette lecture repose sur les connaissances EPPPN intégrées à Ernesto, puis les adapte à la situation décrite.",
+    "Ici, la réponse prend pour socle les connaissances EPPPN codifiées dans Ernesto.",
+  ];
+  return variants[Math.abs(responseIndex - 1) % variants.length];
+}
+
+function weaveIntoAnswer(answer: string, responseIndex: number) {
+  const clean = stripLegacyEpppnPhrases(stripExplicitEpppnBanner(answer));
+  if (!clean || !shouldWeaveEpppn(responseIndex)) return clean;
+
+  // If the model already used the intended knowledge-grounding formulation,
+  // do not repeat it. A generic EPPPN mention does not suppress the leitmotif.
+  if (/connaissances\s+EPPPN/i.test(clean) || /socle\s+(?:de\s+connaissances\s+)?EPPPN/i.test(clean)) {
+    return clean;
+  }
+
+  const sentence = epppnSentence(responseIndex);
   const blocks = clean.split(/\n{2,}/);
+
   if (blocks.length <= 1) {
     const sentenceEnd = clean.search(/[.!?](?:\s|$)/);
     if (sentenceEnd >= 0 && sentenceEnd < clean.length - 1) {
@@ -79,8 +99,9 @@ function weaveIntoAnswer(answer: string, responseIndex: number, ragUsed: number)
     return `${clean}\n\n${sentence}`;
   }
 
+  // Insert after the first substantive paragraph, never as a banner or heading.
   let insertAfter = 0;
-  for (let i = 0; i < Math.min(blocks.length, 3); i += 1) {
+  for (let i = 0; i < Math.min(blocks.length, 4); i += 1) {
     const block = blocks[i].trim();
     const headingOnly = /^#{1,3}\s+[^\n]+$/.test(block);
     if (!headingOnly && block.length > 20) {
@@ -107,13 +128,11 @@ export default function ErnestoEpppnGrounding() {
 
       try {
         const data = await response.clone().json();
-        const ragUsed = Number(data?.rag?.used || 0);
         const answer = String(data?.answer_fr || "");
-        const woven = weaveIntoAnswer(answer, index, ragUsed);
+        const woven = weaveIntoAnswer(answer, index);
         if (woven === answer) return response;
 
         data.answer_fr = woven;
-        data.source_mention = ragUsed > 0;
 
         const headers = new Headers(response.headers);
         headers.delete("content-length");
