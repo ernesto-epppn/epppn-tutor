@@ -41,21 +41,38 @@ export async function GET(req: Request) {
     }
 
     const email = normalizeEmail(user.email);
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const [{ data: profile, error: profileError }, { data: allowed, error: allowedError }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("epppn_allowed_emails")
+        .select("app_role")
+        .eq("email", email)
+        .maybeSingle(),
+    ]);
 
     if (profileError) {
       console.error("Admin check profile lookup failed:", profileError.message);
       return NextResponse.json({ error: "profile_lookup_failed" }, { status: 500 });
     }
+    if (allowedError) {
+      console.warn("Admin check allowlist role lookup failed:", allowedError.message);
+    }
 
-    const isAdmin = profile?.role === "admin" || envAdminEmails().includes(email);
+    const assignedAdmin = allowed?.app_role === "admin";
+    const isAdmin = profile?.role === "admin" || assignedAdmin || envAdminEmails().includes(email);
 
     if (!isAdmin) {
       return NextResponse.json({ error: "admin_required" }, { status: 403 });
+    }
+
+    if (assignedAdmin && profile?.role !== "admin") {
+      await supabase
+        .from("profiles")
+        .upsert({ user_id: user.id, role: "admin" }, { onConflict: "user_id" });
     }
 
     return NextResponse.json({ ok: true, role: "admin", email });
