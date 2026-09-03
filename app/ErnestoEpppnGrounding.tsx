@@ -29,6 +29,20 @@ function tutorRequest(input: RequestInfo | URL) {
   return value.includes("/api/tutor");
 }
 
+function stripExplicitEpppnBanner(answer: string) {
+  return String(answer || "")
+    .trim()
+    .replace(
+      /^(?:Référence|Repère|Base)\s+EPPPN\s*[—:-]\s*[^\n]*(?:\n\n|\n|$)/i,
+      ""
+    )
+    .replace(
+      /^Ernesto s’appuie en priorité sur la base de connaissances EPPPN\.[^\n]*(?:\n\n|\n|$)/i,
+      ""
+    )
+    .trim();
+}
+
 function shouldWeaveEpppn(responseIndex: number) {
   return responseIndex === 1 || responseIndex === 2 || (responseIndex > 2 && responseIndex % 4 === 0);
 }
@@ -52,7 +66,7 @@ function epppnSentence(responseIndex: number, ragUsed: number) {
 }
 
 function weaveIntoAnswer(answer: string, responseIndex: number, ragUsed: number) {
-  const clean = String(answer || "").trim();
+  const clean = stripExplicitEpppnBanner(answer);
   if (!clean || !shouldWeaveEpppn(responseIndex) || /\bEPPPN\b/i.test(clean)) return clean;
 
   const sentence = epppnSentence(responseIndex, ragUsed);
@@ -114,8 +128,6 @@ export default function ErnestoEpppnGrounding() {
       }
     };
 
-    // No visual EPPPN badge is injected above answers: the identity is woven into
-    // the response itself, in passing, rather than presented as a source banner.
     document.querySelectorAll<HTMLElement>(".epppnKnowledgeBadge").forEach((badge) => badge.remove());
 
     const observer = new MutationObserver(() => {
