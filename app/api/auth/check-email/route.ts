@@ -21,21 +21,13 @@ export async function POST(req: Request) {
 
     if (!normalizedEmail || !normalizedEmail.includes("@")) {
       return NextResponse.json(
-        {
-          allowed: false,
-          error: "invalid_email",
-          message: "Indiquez une adresse email valide.",
-        },
+        { allowed: false, error: "invalid_email", message: "Indiquez une adresse email valide." },
         { status: 400 }
       );
     }
 
     if (adminEmails().includes(normalizedEmail)) {
-      return NextResponse.json({
-        allowed: true,
-        reason: "admin_email",
-        access_type: "admin",
-      });
+      return NextResponse.json({ allowed: true, reason: "admin_email", access_type: "admin" });
     }
 
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -57,32 +49,39 @@ export async function POST(req: Request) {
 
     const { data, error } = await supabase
       .from("epppn_allowed_emails")
-      .select(
-        "email,active,access_months,activated_at,access_ends_at,blocked_at,blocked_reason"
-      )
+      .select("email,active,access_months,activated_at,access_ends_at,blocked_at,blocked_reason,paused_at,paused_reason")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
     if (error) {
-      console.error("V14.1 check-email lookup failed:", error.message);
+      console.error("Ernesto check-email lookup failed:", error.message);
       return NextResponse.json(
         {
           allowed: false,
           error: "allowlist_lookup_failed",
-          message:
-            "Impossible de vérifier l’accès pour le moment. Réessayez dans quelques instants.",
+          message: "Impossible de vérifier l’accès pour le moment. Réessayez dans quelques instants.",
         },
         { status: 500 }
       );
     }
 
-    if (!data || data.active !== true) {
+    if (!data) {
       return NextResponse.json(
         {
           allowed: false,
           error: "email_not_allowed",
-          message:
-            "Cette adresse email n’est pas associée à un accès Ernesto. Dans cette première phase, Ernesto est réservé aux stagiaires formés à l’EPPPN.",
+          message: "Cette adresse email n’est pas associée à un accès Ernesto autorisé par l’EPPPN.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (data.paused_at) {
+      return NextResponse.json(
+        {
+          allowed: false,
+          error: "access_paused",
+          message: "Cet accès Ernesto est actuellement en pause. Contactez l’EPPPN pour le réactiver.",
         },
         { status: 403 }
       );
@@ -93,8 +92,18 @@ export async function POST(req: Request) {
         {
           allowed: false,
           error: "email_blocked",
-          message:
-            "Cet accès est temporairement bloqué pour des raisons de sécurité.",
+          message: "Cet accès Ernesto a été désactivé par l’administrateur EPPPN.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (data.active !== true) {
+      return NextResponse.json(
+        {
+          allowed: false,
+          error: "email_not_allowed",
+          message: "Cette adresse email n’est pas associée à un accès Ernesto actif.",
         },
         { status: 403 }
       );
@@ -105,8 +114,7 @@ export async function POST(req: Request) {
         {
           allowed: false,
           error: "access_expired",
-          message:
-            "La période d’accès à Ernesto associée à cette adresse email est arrivée à son terme.",
+          message: "La période d’accès à Ernesto associée à cette adresse email est arrivée à son terme.",
         },
         { status: 403 }
       );
@@ -116,12 +124,12 @@ export async function POST(req: Request) {
       allowed: true,
       reason: "epppn_allowed_email",
       access_type: "stagiaire_epppn",
-      access_months: data.access_months ?? 6,
+      access_months: data.access_months ?? 4,
       activated_at: data.activated_at,
       access_ends_at: data.access_ends_at,
     });
   } catch (err) {
-    console.error("V14.1 check-email route failed:", err);
+    console.error("Ernesto check-email route failed:", err);
     return NextResponse.json(
       {
         allowed: false,
