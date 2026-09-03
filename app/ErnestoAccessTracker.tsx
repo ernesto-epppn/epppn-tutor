@@ -12,10 +12,11 @@ export default function ErnestoAccessTracker() {
 
   useEffect(() => {
     if (!supabase) return;
+    const client = supabase;
     let cancelled = false;
 
     async function track() {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await client.auth.getSession();
       const session = data.session;
       if (!session || cancelled) return;
 
@@ -35,8 +36,7 @@ export default function ErnestoAccessTracker() {
     }
 
     track();
-    const { data: subscription } = supabase.auth.onAuthStateChange(() => {
-      sessionStorage.removeItem("ernesto_access_ping:anonymous");
+    const { data: subscription } = client.auth.onAuthStateChange(() => {
       track();
     });
 
