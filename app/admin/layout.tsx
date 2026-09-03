@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import AdminRagUsagePanel from "./AdminRagUsagePanel";
+import AdminRolesPanel from "./AdminRolesPanel";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => {
@@ -82,6 +83,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <>
       {children}
+      <AdminRolesPanel />
       <AdminRagUsagePanel />
     </>
   );
