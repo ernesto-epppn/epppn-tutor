@@ -177,7 +177,7 @@ async function pdfObject(page, name) {
         settled = true;
         resolve(result || null);
       };
-      const timer = window.setTimeout(() => finish(null), 1400);
+      const timer = window.setTimeout(() => finish(null), 1600);
       try {
         store.get(name, (result) => {
           window.clearTimeout(timer);
@@ -195,8 +195,8 @@ async function pdfObject(page, name) {
 
 async function imageObjectToCanvas(image) {
   if (!image) return null;
-  const width = Math.max(1, Number(image.width || image.bitmap?.width || image.naturalWidth || 0));
-  const height = Math.max(1, Number(image.height || image.bitmap?.height || image.naturalHeight || 0));
+  const width = Number(image.width || image.bitmap?.width || image.naturalWidth || 0);
+  const height = Number(image.height || image.bitmap?.height || image.naturalHeight || 0);
   if (!width || !height) return null;
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -206,7 +206,7 @@ async function imageObjectToCanvas(image) {
 
   try {
     const drawable = image.bitmap || image;
-    if (drawable && typeof ctx.drawImage === "function" && !image.data) {
+    if (drawable && !image.data) {
       ctx.drawImage(drawable, 0, 0, width, height);
       return canvas;
     }
@@ -222,8 +222,7 @@ async function imageObjectToCanvas(image) {
 
   const raw = image.data;
   if (!raw || !raw.length) {
-    canvas.width = 1;
-    canvas.height = 1;
+    canvas.width = 1; canvas.height = 1;
     return null;
   }
 
@@ -261,18 +260,22 @@ async function imageObjectToCanvas(image) {
 
 async function extractLargestEmbeddedScan(page, pdfjs) {
   const ops = await page.getOperatorList();
-  const ids = [];
+  const candidates = [];
   for (let i = 0; i < ops.fnArray.length; i += 1) {
     const fn = ops.fnArray[i];
-    if (fn === pdfjs.OPS.paintImageXObject || fn === pdfjs.OPS.paintJpegXObject) {
-      const id = ops.argsArray[i]?.[0];
-      if (id && !ids.includes(id)) ids.push(id);
+    const args = ops.argsArray[i] || [];
+    if (fn === pdfjs.OPS.paintInlineImageXObject && args[0]) {
+      candidates.push({ image: args[0] });
+    } else if (fn === pdfjs.OPS.paintImageXObject || fn === pdfjs.OPS.paintJpegXObject || fn === pdfjs.OPS.paintImageXObjectRepeat) {
+      const id = args[0];
+      if (id && !candidates.some((item) => item.id === id)) candidates.push({ id });
     }
   }
+
   let best = null;
   let bestArea = 0;
-  for (const id of ids) {
-    const image = await pdfObject(page, id);
+  for (const candidate of candidates) {
+    const image = candidate.image || await pdfObject(page, candidate.id);
     const area = Number(image?.width || image?.bitmap?.width || 0) * Number(image?.height || image?.bitmap?.height || 0);
     if (area <= bestArea) continue;
     const canvas = await imageObjectToCanvas(image);
@@ -285,7 +288,7 @@ async function extractLargestEmbeddedScan(page, pdfjs) {
 }
 
 async function bestPageCanvas(page, pdfjs, targetPixels = 12_000_000) {
-  let rendered = await renderPdfPage(page, targetPixels);
+  const rendered = await renderPdfPage(page, targetPixels);
   const renderedInk = canvasInkRatio(rendered);
   if (renderedInk >= 0.004) return { canvas: rendered, direct: false, ink: renderedInk };
 
@@ -505,11 +508,9 @@ export default function AdminLargePdfPanelV5() {
           const nativeText = cleanText((textContent.items || []).map((item) => `${String(item?.str || "")}${item?.hasEOL ? "\n" : " "}`).join(""));
           if (!nativeNeedsOcr(nativeText) && usefulText(nativeText, 34)) return { text: nativeText, method: "native" };
 
-          sourceCanvas = (await bestPageCanvas(page, pdfjs, diagnostic ? 14_000_000 : 11_000_000)).canvas;
-          const directResult = await bestPageCanvas(page, pdfjs, diagnostic ? 14_000_000 : 11_000_000);
-          if (sourceCanvas) { sourceCanvas.width = 1; sourceCanvas.height = 1; }
-          sourceCanvas = directResult.canvas;
-          if (directResult.direct) setDirectScanPages((n) => n + 1);
+          const pageCanvas = await bestPageCanvas(page, pdfjs, diagnostic ? 14_000_000 : 11_000_000);
+          sourceCanvas = pageCanvas.canvas;
+          if (pageCanvas.direct) setDirectScanPages((n) => n + 1);
           if (diagnostic) setPreview(previewDataUrl(sourceCanvas));
 
           enhanced = enhancedCopy(sourceCanvas);
@@ -518,14 +519,15 @@ export default function AdminLargePdfPanelV5() {
           const localText = cleanText(localResult?.data?.text || "");
           setLocalOcrPages((n) => n + 1);
           let bestText = scoreText(localText, Number(localResult?.data?.confidence || 0)) > scoreText(nativeText, 0) ? localText : nativeText;
-          if (usefulText(bestText, 38) || !allowAi) return { text: bestText, method: directResult.direct ? "scan-direct" : "local" };
+          if (usefulText(bestText, 38) || !allowAi) return { text: bestText, method: pageCanvas.direct ? "scan-direct" : "local" };
 
           const tiles = makeVisionTiles(sourceCanvas);
+          if (!tiles.length) return { text: bestText, method: pageCanvas.direct ? "scan-direct" : "local" };
           setStage(`Secours IA · page ${pageNumber}/${totalPages}`);
           const visionText = await aiOcr(tiles, pageNumber).catch(() => "");
           setAiOcrPages((n) => n + 1);
           if (scoreText(visionText, 90) > scoreText(bestText, 0)) bestText = visionText;
-          return { text: bestText, method: directResult.direct ? "scan-direct+ia" : "ia" };
+          return { text: bestText, method: pageCanvas.direct ? "scan-direct+ia" : "ia" };
         } finally {
           if (enhanced) { enhanced.width = 1; enhanced.height = 1; }
           if (sourceCanvas) { sourceCanvas.width = 1; sourceCanvas.height = 1; }
@@ -533,7 +535,6 @@ export default function AdminLargePdfPanelV5() {
         }
       };
 
-      // Before traversing hundreds of pages, test pages distributed through the book.
       let diagnosticOk = false;
       for (const pageNumber of diagnosticPages(totalPages)) {
         if (abortRef.current) throw new Error("indexation_cancelled");
@@ -674,7 +675,7 @@ export default function AdminLargePdfPanelV5() {
         </div> : null}
 
         {error ? <div className="errorBox">{error}</div> : null}
-        {preview ? <div className="previewBox"><div><strong>Aperçu réellement envoyé à l’OCR</strong><span>Diagnostic local — aucune image n’est conservée par Ernesto.</span></div><img src={preview} alt="Aperçu de la page utilisée pour le diagnostic OCR" /></div> : null}
+        {preview ? <div className="previewBox"><div><strong>Aperçu réellement utilisé par l’OCR</strong><span>Diagnostic local — cet aperçu reste dans votre navigateur.</span></div><img src={preview} alt="Aperçu de la page utilisée pour le diagnostic OCR" /></div> : null}
         <div className="notes"><span>✓ Diagnostic réparti</span><span>✓ Extraction image intégrée</span><span>✓ OCR local</span><span>✓ Vision IA en dernier recours</span><span>✓ Aperçu diagnostic</span></div>
 
         <div className="jobsHead"><strong>Imports volumineux récents</strong><button type="button" onClick={() => void loadJobs()} disabled={loadingJobs}>{loadingJobs ? "…" : "Actualiser"}</button></div>
