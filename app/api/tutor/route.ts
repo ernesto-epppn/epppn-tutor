@@ -388,6 +388,56 @@ async function ensureV14ClosedAccess(params: {
 }
 
 export async function POST(req: Request) {
+  const requestStartedAt = Date.now();
+  let runtimeSupabase: any = null;
+  let runtimeUserId: string | null = null;
+  let runtimeUserEmail = "";
+  let runtimeMode = "BANCO";
+  let runtimeImageCount = 0;
+  let runtimeRagUsed = 0;
+  let runtimeInputTokens = 0;
+  let runtimeOutputTokens = 0;
+  let runtimeEmbeddingTokens = 0;
+  let runtimeModelRequests = 0;
+
+  const addResponseUsage = (response: any) => {
+    const usage = response?.usage;
+    runtimeInputTokens += Number(usage?.input_tokens || 0);
+    runtimeOutputTokens += Number(usage?.output_tokens || 0);
+    runtimeModelRequests += 1;
+  };
+
+  const writeRuntime = async (ok: boolean, statusCode: number, errorCode?: string | null) => {
+    if (!runtimeSupabase) return;
+    const estimatedCostUsd =
+      (runtimeInputTokens / 1_000_000) * 0.4 +
+      (runtimeOutputTokens / 1_000_000) * 1.6 +
+      (runtimeEmbeddingTokens / 1_000_000) * 0.02;
+    try {
+      await runtimeSupabase.from("ernesto_runtime_events").insert({
+        user_id: runtimeUserId,
+        user_email: runtimeUserEmail || null,
+        route: "/api/tutor",
+        mode: runtimeMode,
+        ok,
+        status_code: statusCode,
+        latency_ms: Math.max(0, Date.now() - requestStartedAt),
+        model: "gpt-4.1-mini",
+        model_requests: runtimeModelRequests,
+        input_tokens: runtimeInputTokens,
+        output_tokens: runtimeOutputTokens,
+        total_tokens: runtimeInputTokens + runtimeOutputTokens + runtimeEmbeddingTokens,
+        embedding_tokens: runtimeEmbeddingTokens,
+        rag_used: runtimeRagUsed,
+        image_count: runtimeImageCount,
+        estimated_cost_usd: estimatedCostUsd,
+        error_code: errorCode || null,
+      });
+    } catch (telemetryError) {
+      console.warn("Runtime telemetry skipped:", telemetryError);
+    }
+  };
+
   try {
     const ct = req.headers.get("content-type") || "";
 
@@ -437,6 +487,8 @@ export async function POST(req: Request) {
       presentationRaw = body.presentation;
     }
 
+    runtimeImageCount = imageDataUrls.length;
+
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
     }
@@ -456,6 +508,7 @@ export async function POST(req: Request) {
       !wantsActionFlowchart && (normalizedSpeed === "APPROFONDIE" || normalizedSpeed === "ECOLE")
         ? "ECOLE"
         : "BANCO";
+    runtimeMode = responseMode;
     const responseIndex = Number(responseIndexRaw ?? 0);
     const shouldMentionEPPPN =
       Number.isFinite(responseIndex) && responseIndex > 0 && responseIndex % 3 === 0;
@@ -464,6 +517,7 @@ export async function POST(req: Request) {
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
+    runtimeSupabase = supabase;
 
     const authHeader = req.headers.get("authorization") || "";
     const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -488,6 +542,8 @@ export async function POST(req: Request) {
     const userId = user.id;
     const now = new Date();
     const userEmail = (user.email || "").trim().toLowerCase();
+    runtimeUserId = userId;
+    runtimeUserEmail = userEmail;
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -510,6 +566,39 @@ export async function POST(req: Request) {
       hasPaidPlan &&
       ent?.status === "active" &&
       (!ent.current_period_end || new Date(ent.current_period_end) > now);
+
+    const { data: systemSettings } = await supabase
+      .from("ernesto_system_settings")
+      .select("maintenance_mode,suspend_trainees,rag_enabled,images_enabled,maintenance_message")
+      .eq("id", "global")
+      .maybeSingle();
+
+    if (!isAdmin && systemSettings?.maintenance_mode === true) {
+      await writeRuntime(false, 503, "maintenance_mode");
+      return NextResponse.json(
+        {
+          error: "maintenance_mode",
+          message: systemSettings.maintenance_message || "Ernesto est momentanément en maintenance. Réessayez un peu plus tard.",
+        },
+        { status: 503 }
+      );
+    }
+
+    if (!isAdmin && !isPaidPro && systemSettings?.suspend_trainees === true) {
+      await writeRuntime(false, 503, "pilot_suspended");
+      return NextResponse.json(
+        { error: "pilot_suspended", message: "L’accès stagiaire est momentanément suspendu par l’EPPPN." },
+        { status: 503 }
+      );
+    }
+
+    if (!isAdmin && imageDataUrls.length > 0 && systemSettings?.images_enabled === false) {
+      await writeRuntime(false, 503, "images_disabled");
+      return NextResponse.json(
+        { error: "images_disabled", message: "L’analyse d’images est momentanément désactivée." },
+        { status: 503 }
+      );
+    }
 
     let closedAccess: any = null;
     if (!isAdmin && !isPaidPro) {
@@ -629,24 +718,30 @@ export async function POST(req: Request) {
       );
     }
 
-    const emb = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: message,
-    });
-    const queryEmbedding = emb.data[0].embedding;
+    let retrieved: any[] = [];
+    if (systemSettings?.rag_enabled !== false) {
+      const emb = await openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: message,
+      });
+      runtimeEmbeddingTokens += Number((emb as any)?.usage?.total_tokens || (emb as any)?.usage?.prompt_tokens || 0);
+      runtimeModelRequests += 1;
+      const queryEmbedding = emb.data[0].embedding;
 
-    const { data: matches, error: matchErr } = await supabase.rpc("match_chunks", {
-      query_embedding: queryEmbedding,
-      match_count: 6,
-    });
+      const { data: matches, error: matchErr } = await supabase.rpc("match_chunks", {
+        query_embedding: queryEmbedding,
+        match_count: 6,
+      });
 
-    if (matchErr) {
-      console.warn("match_chunks error:", matchErr);
+      if (matchErr) {
+        console.warn("match_chunks error:", matchErr);
+      }
+
+      retrieved = (matches ?? [])
+        .filter((m: any) => (m.similarity ?? 0) >= 0.2)
+        .slice(0, 6);
     }
-
-    const retrieved = (matches ?? [])
-      .filter((m: any) => (m.similarity ?? 0) >= 0.2)
-      .slice(0, 6);
+    runtimeRagUsed = retrieved.length;
 
     const retrievedContext =
       retrieved.length > 0
@@ -849,6 +944,7 @@ ${message}
           input: responseInput,
           text: { format: ACTION_FLOWCHART_FORMAT },
         });
+        addResponseUsage(structured);
         const parsed = parseActionFlowchart(structured.output_text ?? "");
         if (parsed) {
           answerText = parsed.answer;
@@ -864,6 +960,7 @@ ${message}
         model: "gpt-4.1-mini",
         input: responseInput,
       });
+      addResponseUsage(response);
       answerText = response.output_text ?? "";
     }
 
@@ -895,12 +992,15 @@ ${message}
             },
           ],
         });
+        addResponseUsage(g);
         graph = parseGraphJSON(g.output_text ?? "");
       } catch (graphErr) {
         console.warn("graph generation skipped:", graphErr);
         graph = null;
       }
     }
+
+    await writeRuntime(true, 200, null);
 
     return NextResponse.json({
       usage: usageMeta,
@@ -926,6 +1026,7 @@ ${message}
     });
   } catch (e: any) {
     console.error(e);
+    await writeRuntime(false, 500, String(e?.message ?? "server_error").slice(0, 180));
     return NextResponse.json(
       { error: "Server error", details: String(e?.message ?? e) },
       { status: 500 }
