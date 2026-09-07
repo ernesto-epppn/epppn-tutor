@@ -127,6 +127,24 @@ export async function POST(req: Request) {
     const compactLength = text.replace(/\s/g, "").length;
     const usable = Boolean(text && text !== "[NO_TEXT]" && compactLength >= 35);
 
+    // Diagnostic only: never log the OCR text itself. This lets the admin pipeline
+    // distinguish a genuinely blank/visual page from a transport or rendering issue.
+    console.info(
+      "ERNESTO_OCR_DIAG",
+      JSON.stringify({
+        page: pageNumber,
+        images: images.length,
+        image_chars: totalChars,
+        output_chars: text.length,
+        compact_chars: compactLength,
+        no_text: text === "[NO_TEXT]",
+        usable,
+        model: "gpt-5.6-terra",
+        input_tokens: Number((response.usage as any)?.input_tokens || 0),
+        output_tokens: Number((response.usage as any)?.output_tokens || 0),
+      })
+    );
+
     return NextResponse.json({
       ok: true,
       page_number: pageNumber,
