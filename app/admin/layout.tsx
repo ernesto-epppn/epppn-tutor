@@ -3,7 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import AdminLargePdfBridge from "./AdminLargePdfBridge";
-import AdminLargePdfPanelV2 from "./AdminLargePdfPanelV2";
+import AdminLargePdfPanelV3 from "./AdminLargePdfPanelV3";
 import AdminPilotConsole from "./AdminPilotConsole";
 import AdminRagUsagePanel from "./AdminRagUsagePanel";
 import AdminRolesPanel from "./AdminRolesPanel";
@@ -176,7 +176,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <div className={section === "knowledge" ? "adminPane active" : "adminPane"} aria-hidden={section !== "knowledge"}>
-          <AdminLargePdfPanelV2 />
+          <AdminLargePdfPanelV3 />
           <AdminRagUsagePanel />
         </div>
 
