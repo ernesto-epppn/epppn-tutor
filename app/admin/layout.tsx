@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import AdminLargePdfBridge from "./AdminLargePdfBridge";
 import AdminLargePdfPanel from "./AdminLargePdfPanel";
+import AdminPilotConsole from "./AdminPilotConsole";
 import AdminRagUsagePanel from "./AdminRagUsagePanel";
 import AdminRolesPanel from "./AdminRolesPanel";
 
@@ -85,6 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <>
       {children}
+      <AdminPilotConsole />
       <AdminLargePdfPanel />
       <AdminLargePdfBridge />
       <AdminRolesPanel />
