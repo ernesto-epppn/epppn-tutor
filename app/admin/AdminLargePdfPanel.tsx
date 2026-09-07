@@ -269,7 +269,7 @@ export default function AdminLargePdfPanel() {
     currentJobRef.current = null;
 
     let pdfDocument: any = null;
-    let ocrWorker: OcrWorker | null = null;
+    let ocrWorker: any = null;
     let jobId = "";
 
     try {
