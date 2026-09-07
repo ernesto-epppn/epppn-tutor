@@ -10,6 +10,12 @@ export default function AdminLargePdfBridge() {
     if (!legacy) return;
     const form = legacy.closest("form");
 
+    function openKnowledgeSection() {
+      window.dispatchEvent(
+        new CustomEvent("ernesto:admin-section", { detail: { section: "knowledge" } })
+      );
+    }
+
     function handoff(selected: File) {
       if (selected.size <= LEGACY_LIMIT) return false;
       const largeInput = document.querySelector<HTMLInputElement>(".largeDrop input[type='file']");
@@ -22,11 +28,11 @@ export default function AdminLargePdfBridge() {
         largeInput.files = transfer.files;
         largeInput.dispatchEvent(new Event("change", { bubbles: true }));
       } catch {
-        // If a browser blocks programmatic FileList assignment, the target zone
-        // is still brought into view and the administrator can select it there.
+        // Some browsers block programmatic FileList assignment.
       }
 
-      shell.scrollIntoView({ behavior: "smooth", block: "start" });
+      openKnowledgeSection();
+      window.setTimeout(() => shell.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
       return true;
     }
 
