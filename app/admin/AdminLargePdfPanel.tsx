@@ -29,10 +29,30 @@ type PendingChunk = {
   page_end: number;
 };
 
+type OcrWorker = {
+  recognize: (image: HTMLCanvasElement) => Promise<{ data?: { text?: string; confidence?: number } }>;
+  terminate: () => Promise<void>;
+};
+
+declare global {
+  interface Window {
+    Tesseract?: {
+      createWorker: (
+        languages?: string,
+        oem?: number,
+        options?: { logger?: (message: { status?: string; progress?: number }) => void }
+      ) => Promise<OcrWorker>;
+    };
+  }
+}
+
 const BATCH_SIZE = 20;
 const CHUNK_SIZE = 1_850;
 const CHUNK_OVERLAP = 170;
 const MAX_CHUNKS = 7_500;
+const MIN_NATIVE_TEXT_CHARS = 70;
+const OCR_SCRIPT_ID = "ernesto-tesseract-runtime";
+const OCR_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
 
 function humanSize(bytes?: number | null) {
   const value = Number(bytes || 0);
@@ -91,6 +111,47 @@ function stageLabel(job: LargeJob) {
   return job.stage_label || "En cours";
 }
 
+function loadTesseractRuntime() {
+  if (typeof window === "undefined") return Promise.reject(new Error("ocr_browser_only"));
+  if (window.Tesseract?.createWorker) return Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    const existing = document.getElementById(OCR_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existing) {
+      if (window.Tesseract?.createWorker) {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("ocr_runtime_unavailable")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = OCR_SCRIPT_ID;
+    script.src = OCR_SCRIPT_URL;
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.onload = () => {
+      if (window.Tesseract?.createWorker) resolve();
+      else reject(new Error("ocr_runtime_unavailable"));
+    };
+    script.onerror = () => reject(new Error("ocr_runtime_unavailable"));
+    document.head.appendChild(script);
+  });
+}
+
+function renderScaleForPage(page: any) {
+  const base = page.getViewport({ scale: 1 });
+  let scale = 1.65;
+  const maxPixels = 3_600_000;
+  const projected = Number(base.width || 0) * Number(base.height || 0) * scale * scale;
+  if (projected > maxPixels && projected > 0) {
+    scale *= Math.sqrt(maxPixels / projected);
+  }
+  return Math.max(1.15, Math.min(1.8, scale));
+}
+
 export default function AdminLargePdfPanel() {
   const supabase = useMemo(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -104,11 +165,14 @@ export default function AdminLargePdfPanel() {
   const [category, setCategory] = useState("Général");
   const [versionLabel, setVersionLabel] = useState("");
   const [referenceUrl, setReferenceUrl] = useState("");
+  const [ocrLanguage, setOcrLanguage] = useState("eng+fra");
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("Prêt");
   const [pagesDone, setPagesDone] = useState(0);
   const [pagesTotal, setPagesTotal] = useState(0);
   const [chunksDone, setChunksDone] = useState(0);
+  const [ocrPagesDone, setOcrPagesDone] = useState(0);
+  const [ocrProgress, setOcrProgress] = useState(0);
   const [error, setError] = useState("");
   const [jobs, setJobs] = useState<LargeJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
@@ -199,10 +263,13 @@ export default function AdminLargePdfPanel() {
     setPagesDone(0);
     setPagesTotal(0);
     setChunksDone(0);
+    setOcrPagesDone(0);
+    setOcrProgress(0);
     setStage("Préparation");
     currentJobRef.current = null;
 
     let pdfDocument: any = null;
+    let ocrWorker: OcrWorker | null = null;
     let jobId = "";
 
     try {
@@ -243,6 +310,7 @@ export default function AdminLargePdfPanel() {
       let pending: PendingChunk[] = [];
       let nextChunkIndex = 0;
       let totalTextChars = 0;
+      let ocrPages = 0;
 
       const flush = async (pageNumber: number) => {
         if (!pending.length) return;
@@ -260,54 +328,124 @@ export default function AdminLargePdfPanel() {
         pending = [];
       };
 
+      const getOcrWorker = async () => {
+        if (ocrWorker) return ocrWorker;
+        setStage("Activation de l’OCR automatique");
+        await loadTesseractRuntime();
+        if (!window.Tesseract?.createWorker) throw new Error("ocr_runtime_unavailable");
+        ocrWorker = await window.Tesseract.createWorker(ocrLanguage, 1, {
+          logger: (message) => {
+            if (message.status === "recognizing text" && Number.isFinite(message.progress)) {
+              setOcrProgress(Math.max(0, Math.min(1, Number(message.progress || 0))));
+            }
+          },
+        });
+        return ocrWorker;
+      };
+
+      const ocrPage = async (page: any, pageNumber: number) => {
+        const worker = await getOcrWorker();
+        setOcrProgress(0);
+        setStage(`OCR automatique · page ${pageNumber}/${totalPages}`);
+        await api({
+          action: "progress",
+          job_id: jobId,
+          pages_total: totalPages,
+          pages_done: Math.max(0, pageNumber - 1),
+          stage_label: `OCR automatique · page ${pageNumber}/${totalPages}`,
+        });
+
+        const scale = renderScaleForPage(page);
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.ceil(viewport.width));
+        canvas.height = Math.max(1, Math.ceil(viewport.height));
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) throw new Error("ocr_canvas_unavailable");
+
+        try {
+          await page.render({ canvasContext: context, viewport }).promise;
+          const result = await worker.recognize(canvas);
+          const text = cleanPageText(String(result?.data?.text || ""));
+          const confidence = Number(result?.data?.confidence || 0);
+          return confidence >= 18 || text.length >= 120 ? text : "";
+        } finally {
+          canvas.width = 1;
+          canvas.height = 1;
+        }
+      };
+
       for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
         setStage(`Extraction du texte · page ${pageNumber}/${totalPages}`);
         const page = await pdfDocument.getPage(pageNumber);
-        const textContent = await page.getTextContent();
-        const pageText = cleanPageText(
-          (textContent.items || [])
-            .map((item: any) => `${String(item?.str || "")}${item?.hasEOL ? "\n" : " "}`)
-            .join("")
-        );
-        page.cleanup?.();
 
-        totalTextChars += pageText.length;
-        const pageChunks = splitPageText(pageText, pageNumber, nextChunkIndex);
-        if (pageChunks.length) {
-          pending.push(...pageChunks);
-          nextChunkIndex += pageChunks.length;
-        }
+        try {
+          const textContent = await page.getTextContent();
+          const nativeText = cleanPageText(
+            (textContent.items || [])
+              .map((item: any) => `${String(item?.str || "")}${item?.hasEOL ? "\n" : " "}`)
+              .join("")
+          );
 
-        if (nextChunkIndex > MAX_CHUNKS) {
-          throw new Error(`Ce PDF produit plus de ${MAX_CHUNKS} fragments. Il est préférable de le séparer en volumes ou chapitres.`);
-        }
+          let pageText = nativeText;
+          if (nativeText.replace(/\s/g, "").length < MIN_NATIVE_TEXT_CHARS) {
+            try {
+              const recognized = await ocrPage(page, pageNumber);
+              if (recognized.length > pageText.length) pageText = recognized;
+              ocrPages += 1;
+              setOcrPagesDone(ocrPages);
+            } catch (ocrError) {
+              const code = ocrError instanceof Error ? ocrError.message : "ocr_failed";
+              if (["ocr_runtime_unavailable", "ocr_canvas_unavailable"].includes(code)) {
+                throw new Error("L’OCR automatique n’a pas pu démarrer dans ce navigateur. Vérifiez la connexion réseau puis relancez l’indexation.");
+              }
+              throw ocrError;
+            }
+          }
 
-        setPagesDone(pageNumber);
-        if (pending.length >= BATCH_SIZE || pageNumber === totalPages) {
-          await flush(pageNumber);
-        } else if (pageNumber % 12 === 0) {
-          await api({
-            action: "progress",
-            job_id: jobId,
-            pages_total: totalPages,
-            pages_done: pageNumber,
-            stage_label: `Extraction du texte · page ${pageNumber}/${totalPages}`,
-          });
-        }
+          totalTextChars += pageText.length;
+          const pageChunks = splitPageText(pageText, pageNumber, nextChunkIndex);
+          if (pageChunks.length) {
+            pending.push(...pageChunks);
+            nextChunkIndex += pageChunks.length;
+          }
 
-        if (pageNumber >= Math.min(60, totalPages) && totalTextChars < 800) {
-          throw new Error("Le PDF semble principalement composé d’images et ne contient pas de couche texte exploitable. Une version OCR est nécessaire.");
+          if (nextChunkIndex > MAX_CHUNKS) {
+            throw new Error(`Ce PDF produit plus de ${MAX_CHUNKS} fragments. Il est préférable de le séparer en volumes ou chapitres.`);
+          }
+
+          setPagesDone(pageNumber);
+          if (pending.length >= BATCH_SIZE || pageNumber === totalPages) {
+            await flush(pageNumber);
+          } else if (pageNumber % 12 === 0) {
+            await api({
+              action: "progress",
+              job_id: jobId,
+              pages_total: totalPages,
+              pages_done: pageNumber,
+              stage_label: ocrPages > 0
+                ? `Extraction + OCR · ${pageNumber}/${totalPages} pages`
+                : `Extraction du texte · page ${pageNumber}/${totalPages}`,
+            });
+          }
+        } finally {
+          page.cleanup?.();
         }
       }
 
       if (totalTextChars < 800 || nextChunkIndex === 0) {
-        throw new Error("Le PDF ne contient pas assez de texte exploitable pour le RAG.");
+        throw new Error(
+          ocrPages > 0
+            ? "L’OCR automatique n’a pas retrouvé assez de texte exploitable dans ce PDF."
+            : "Le PDF ne contient pas assez de texte exploitable pour le RAG."
+        );
       }
 
       setStage("Finalisation de la base EPPPN");
       const finished = await api({ action: "finish", job_id: jobId, pages_total: totalPages });
       setChunksDone(Number(finished?.chunks || nextChunkIndex));
       setPagesDone(totalPages);
+      setOcrProgress(1);
       setStage("Indexé dans Ernesto ✓");
       await loadJobs();
 
@@ -321,6 +459,11 @@ export default function AdminLargePdfPanel() {
       if (jobId) await markFailed(jobId, message);
       await loadJobs();
     } finally {
+      try {
+        await ocrWorker?.terminate?.();
+      } catch {
+        // no-op
+      }
       try {
         await pdfDocument?.destroy?.();
       } catch {
@@ -352,10 +495,10 @@ export default function AdminLargePdfPanel() {
             <div className="largePdfEyebrow">Connaissances · grands PDF</div>
             <h2>Import intelligent des manuels volumineux</h2>
             <p>
-              Pour les gros PDF, Ernesto lit le document localement dans votre navigateur et envoie uniquement le texte utile à l’indexation. Le fichier original de plusieurs centaines de Mo n’a donc pas besoin de transiter par Vercel ou Supabase Storage.
+              Ernesto extrait d’abord la couche texte du PDF. Pour les pages scannées ou composées d’images, il bascule automatiquement en OCR local dans votre navigateur, puis indexe uniquement le texte utile dans le RAG.
             </p>
           </div>
-          <div className="localBadge">Extraction locale</div>
+          <div className="localBadge">Extraction + OCR local</div>
         </div>
 
         <form className="largePdfForm" onSubmit={indexLargePdf}>
@@ -393,6 +536,13 @@ export default function AdminLargePdfPanel() {
               <option>Recettes</option>
               <option>Science & technique</option>
             </select>
+            <select value={ocrLanguage} onChange={(event) => setOcrLanguage(event.target.value)} disabled={busy} title="Langue utilisée si une page nécessite l’OCR">
+              <option value="eng+fra">OCR · Français + anglais</option>
+              <option value="fra">OCR · Français</option>
+              <option value="eng">OCR · Anglais</option>
+              <option value="ita">OCR · Italien</option>
+              <option value="fra+eng+ita">OCR · FR + EN + IT</option>
+            </select>
             <input value={versionLabel} onChange={(event) => setVersionLabel(event.target.value)} placeholder="Version / édition — facultatif" disabled={busy} />
             <input type="url" value={referenceUrl} onChange={(event) => setReferenceUrl(event.target.value)} placeholder="Lien de référence — facultatif" disabled={busy} />
             <button className="largePrimary" disabled={!file || busy}>
@@ -405,10 +555,22 @@ export default function AdminLargePdfPanel() {
           <div className={`largeProgress ${error ? "failed" : stage.includes("✓") ? "done" : ""}`}>
             <div className="largeProgressTop">
               <strong>{stage}</strong>
-              <span>{pagesTotal ? `${pagesDone}/${pagesTotal} pages` : "Préparation"} · {chunksDone} fragments</span>
+              <span>
+                {pagesTotal ? `${pagesDone}/${pagesTotal} pages` : "Préparation"} · {chunksDone} fragments
+                {ocrPagesDone > 0 ? ` · ${ocrPagesDone} pages OCR` : ""}
+              </span>
             </div>
             <div className="largeProgressTrack"><span style={{ width: `${stage.includes("✓") ? 100 : percent}%` }} /></div>
-            <small>{busy ? "Gardez cet onglet ouvert jusqu’à « Indexé ✓ ». L’opération peut durer plusieurs minutes pour un ouvrage très volumineux." : ""}</small>
+            {stage.startsWith("OCR automatique") ? (
+              <div className="ocrMiniTrack"><span style={{ width: `${Math.round(ocrProgress * 100)}%` }} /></div>
+            ) : null}
+            <small>
+              {busy
+                ? ocrPagesDone > 0
+                  ? "OCR en cours localement. Gardez cet onglet ouvert : un ouvrage scanné de plusieurs centaines de pages peut demander nettement plus de temps qu’un PDF avec texte natif."
+                  : "Gardez cet onglet ouvert jusqu’à « Indexé ✓ ». Ernesto active automatiquement l’OCR si une page n’a pas de couche texte."
+                : ""}
+            </small>
           </div>
         ) : null}
 
@@ -416,9 +578,9 @@ export default function AdminLargePdfPanel() {
 
         <div className="largeNotes">
           <span>✓ Pas de limite à 8 Mo</span>
+          <span>✓ OCR automatique des pages scannées</span>
           <span>✓ Indexation par lots</span>
           <span>✓ Progression page par page</span>
-          <span>✓ Détection des PDF scannés sans OCR</span>
         </div>
 
         <div className="largeJobsHead">
@@ -454,7 +616,7 @@ const largePdfCss = `
   .largePdfHead{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}.largePdfEyebrow{font-size:11px;font-weight:900;letter-spacing:.11em;text-transform:uppercase;color:#6f7d3c}.largePdfHead h2{margin:5px 0 6px;font-size:25px;letter-spacing:-.035em}.largePdfHead p{margin:0;max-width:900px;color:#64748b;line-height:1.55;font-size:14px}.localBadge{white-space:nowrap;border:1px solid #dbe4d2;background:#f3f7ef;color:#53653d;padding:8px 11px;border-radius:999px;font-size:11px;font-weight:850}
   .largePdfForm{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(420px,1.2fr);gap:16px;margin-top:18px}.largeDrop{min-height:190px;border:1.5px dashed #8d9d66;border-radius:18px;background:#f5f8f1;padding:20px;display:flex;align-items:center;gap:16px;cursor:pointer}.largeDrop input{display:none}.largeDrop.selected{border-style:solid;background:#f2f6ed}.largePdfIcon{width:52px;height:52px;border-radius:15px;background:#435331;color:#fff;display:grid;place-items:center;font-size:12px;font-weight:950;flex:0 0 auto}.largeDrop strong{display:block;font-size:14px;line-height:1.4;overflow-wrap:anywhere}.largeDrop small{display:block;margin-top:5px;color:#7e887b;font-size:11px}
   .largeMeta{display:grid;grid-template-columns:1fr 1fr;gap:10px}.largeMeta input,.largeMeta select{border:1px solid #dde3d9;background:#fbfcfa;border-radius:12px;padding:11px 13px;min-width:0;color:#172132;font:inherit}.largeMeta input[type=url]{grid-column:1 / -1}.largeMeta input:focus,.largeMeta select:focus{outline:2px solid rgba(111,125,60,.15);border-color:#8a9a65}.largePrimary{grid-column:1 / -1;border:0;border-radius:13px;padding:12px 16px;background:#435331;color:#fff;font-weight:900;cursor:pointer;box-shadow:0 6px 16px rgba(67,83,49,.18)}.largePrimary:disabled{opacity:.5;cursor:not-allowed}
-  .largeProgress{margin-top:14px;border:1px solid #dfe5d9;background:#f8faf6;border-radius:15px;padding:13px}.largeProgress.failed{border-color:#f3cec2;background:#fff5f1}.largeProgress.done{border-color:#cddcbd;background:#f4f8ef}.largeProgressTop{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12px}.largeProgressTop span{color:#6d786a}.largeProgressTrack{height:7px;border-radius:999px;background:#e8ece4;overflow:hidden;margin-top:9px}.largeProgressTrack span{height:100%;display:block;background:#6f7d3c;border-radius:999px;transition:width .28s ease}.largeProgress small{display:block;margin-top:8px;color:#7b8578;font-size:10px}.largeError{margin-top:12px;padding:11px 13px;border-radius:12px;background:#fff0eb;border:1px solid #f4d2c7;color:#9a503b;font-size:12px;font-weight:750}
+  .largeProgress{margin-top:14px;border:1px solid #dfe5d9;background:#f8faf6;border-radius:15px;padding:13px}.largeProgress.failed{border-color:#f3cec2;background:#fff5f1}.largeProgress.done{border-color:#cddcbd;background:#f4f8ef}.largeProgressTop{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12px}.largeProgressTop span{color:#6d786a}.largeProgressTrack,.ocrMiniTrack{height:7px;border-radius:999px;background:#e8ece4;overflow:hidden;margin-top:9px}.largeProgressTrack span,.ocrMiniTrack span{height:100%;display:block;background:#6f7d3c;border-radius:999px;transition:width .28s ease}.ocrMiniTrack{height:4px;background:#edf0e9;margin-top:6px}.ocrMiniTrack span{background:#455b6d}.largeProgress small{display:block;margin-top:8px;color:#7b8578;font-size:10px}.largeError{margin-top:12px;padding:11px 13px;border-radius:12px;background:#fff0eb;border:1px solid #f4d2c7;color:#9a503b;font-size:12px;font-weight:750}
   .largeNotes{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.largeNotes span{font-size:10px;font-weight:800;color:#65715f;background:#f3f6f0;padding:5px 8px;border-radius:999px}.largeJobsHead{display:flex;justify-content:space-between;align-items:center;margin-top:19px;padding-top:16px;border-top:1px solid #e8ebe6}.largeJobsHead strong{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#687362}.largeJobsHead button{border:0;background:transparent;color:#52633f;font-weight:800;font-size:11px;cursor:pointer}.largeJobs{display:grid;gap:8px;margin-top:9px}.largeJob{border:1px solid #e6e9e4;border-radius:13px;padding:11px 12px;display:flex;justify-content:space-between;gap:14px;align-items:center}.largeJob>div:first-child{display:grid;gap:3px}.largeJob strong{font-size:12px}.largeJob span{font-size:10px;color:#778174}.largeJobState{display:flex;gap:8px;align-items:center}.largeJobState>span{font-weight:850;color:#53604f;white-space:nowrap}.largeJob.status-failed .largeJobState>span{color:#a0543c}.largeJobState button{border:1px solid #f1d4ca;background:#fff6f3;color:#9a513d;border-radius:9px;padding:5px 8px;font-size:10px;font-weight:850;cursor:pointer}.largeEmpty{border:1px dashed #d8ddd5;border-radius:12px;padding:18px;text-align:center;color:#818a7e;font-size:12px}
   @media(max-width:860px){.largePdfShell{padding:0 12px 18px}.largePdfCard{padding:16px;border-radius:18px}.largePdfHead{display:grid}.localBadge{justify-self:start}.largePdfForm{grid-template-columns:1fr}.largeDrop{min-height:130px}.largeMeta{grid-template-columns:1fr}.largeMeta input[type=url],.largePrimary{grid-column:auto}.largeProgressTop,.largeJob{align-items:flex-start;display:grid}.largeJobState{justify-content:space-between}.largeJobState>span{white-space:normal}}
 `;
