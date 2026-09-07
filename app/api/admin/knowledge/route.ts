@@ -45,12 +45,12 @@ async function requireAdmin(req: Request) {
     return { response: NextResponse.json({ error: "invalid_session" }, { status: 401 }) };
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  const isAdmin = profile?.role === "admin" || envAdminEmails().includes(normalizeEmail(user.email));
+  const email = normalizeEmail(user.email);
+  const [{ data: profile }, { data: allowed }] = await Promise.all([
+    supabase.from("profiles").select("role").eq("user_id", user.id).maybeSingle(),
+    supabase.from("epppn_allowed_emails").select("app_role").eq("email", email).maybeSingle(),
+  ]);
+  const isAdmin = profile?.role === "admin" || allowed?.app_role === "admin" || envAdminEmails().includes(email);
   if (!isAdmin) return { response: NextResponse.json({ error: "admin_required" }, { status: 403 }) };
 
   return { supabase, user };
@@ -96,9 +96,6 @@ async function extractFileText(file: File) {
   const buffer = await file.arrayBuffer();
   if (!isPdf) return new TextDecoder("utf-8").decode(buffer);
 
-  // pdf-parse v2 uses PDF.js, which needs the Node canvas implementation in
-  // serverless environments. Loading the worker first provides CanvasFactory
-  // and avoids the "DOMMatrix is not defined" crash seen on Vercel.
   const { CanvasFactory } = await import("pdf-parse/worker");
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({
@@ -119,7 +116,8 @@ export async function GET(req: Request) {
 
   const { data, error } = await auth.supabase
     .from("documents")
-    .select("id,title,source,url,created_at,document_chunks(count)")
+    .select("id,title,source,url,created_at,indexed_at,active,status,category,version_label,file_name,file_size_bytes,document_chunks(count)")
+    .eq("status", "indexed")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -132,6 +130,13 @@ export async function GET(req: Request) {
       source: document.source,
       url: document.url,
       created_at: document.created_at,
+      indexed_at: document.indexed_at,
+      active: document.active !== false,
+      status: document.status,
+      category: document.category || "Général",
+      version_label: document.version_label,
+      file_name: document.file_name,
+      file_size_bytes: document.file_size_bytes,
       chunks: Number(relation?.count || 0),
     };
   });
@@ -167,6 +172,7 @@ export async function POST(req: Request) {
       .select("id")
       .eq("title", title)
       .eq("source", source)
+      .eq("status", "indexed")
       .maybeSingle();
     if (duplicate) return NextResponse.json({ error: "document_already_exists" }, { status: 409 });
 
@@ -186,6 +192,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "embedding_count_mismatch" }, { status: 502 });
     }
 
+    const nowIso = new Date().toISOString();
     const { data: document, error: documentError } = await auth.supabase
       .from("documents")
       .insert({
@@ -193,6 +200,12 @@ export async function POST(req: Request) {
         source,
         url: url || null,
         storage_path: null,
+        active: true,
+        status: "indexed",
+        category: "Général",
+        file_name: file?.name || null,
+        file_size_bytes: file?.size || null,
+        indexed_at: nowIso,
       })
       .select("id,title,source,url,created_at")
       .single();
