@@ -4,7 +4,9 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const MAX_IMAGE_DATA_URL_CHARS = 3_800_000;
+const MAX_IMAGES = 4;
+const MAX_IMAGE_DATA_URL_CHARS = 2_200_000;
+const MAX_TOTAL_IMAGE_CHARS = 7_200_000;
 
 function normalizeEmail(value: unknown) {
   return String(value || "").trim().toLowerCase();
@@ -52,7 +54,11 @@ function cleanOcrText(value: unknown) {
     .replace(/```$/i, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
-    .slice(0, 28_000);
+    .slice(0, 40_000);
+}
+
+function validImageDataUrl(value: string) {
+  return /^data:image\/(jpeg|jpg|webp|png);base64,/i.test(value);
 }
 
 export async function POST(req: Request) {
@@ -69,57 +75,66 @@ export async function POST(req: Request) {
 
     const body = (await req.json().catch(() => ({}))) as {
       image_data_url?: string;
+      image_data_urls?: string[];
       page_number?: number;
       language?: string;
     };
 
-    const imageDataUrl = String(body.image_data_url || "");
-    if (!/^data:image\/(jpeg|jpg|webp|png);base64,/i.test(imageDataUrl)) {
+    const legacy = String(body.image_data_url || "");
+    const supplied = Array.isArray(body.image_data_urls)
+      ? body.image_data_urls.map((value) => String(value || "")).filter(Boolean)
+      : [];
+    const images = (supplied.length ? supplied : legacy ? [legacy] : []).slice(0, MAX_IMAGES);
+
+    if (!images.length || images.some((value) => !validImageDataUrl(value))) {
       return NextResponse.json({ error: "invalid_image" }, { status: 400 });
     }
-    if (imageDataUrl.length > MAX_IMAGE_DATA_URL_CHARS) {
+    if (images.some((value) => value.length > MAX_IMAGE_DATA_URL_CHARS)) {
       return NextResponse.json({ error: "image_too_large" }, { status: 413 });
+    }
+    const totalChars = images.reduce((sum, value) => sum + value.length, 0);
+    if (totalChars > MAX_TOTAL_IMAGE_CHARS) {
+      return NextResponse.json({ error: "images_too_large" }, { status: 413 });
     }
 
     const pageNumber = Math.max(1, Math.floor(Number(body.page_number || 1)));
     const language = String(body.language || "eng").slice(0, 40);
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+    const content: Array<Record<string, unknown>> = [
+      {
+        type: "input_text",
+        text:
+          `OCR transcription task. Page ${pageNumber}. Expected language hint: ${language}. ` +
+          (images.length > 1
+            ? "The following images are overlapping crops from the SAME printed page. Reconstruct the page text across all crops, using the visual layout to determine reading order and removing duplicated lines caused by overlap. "
+            : "The following image is the printed page to transcribe. ") +
+          "Transcribe every readable heading, paragraph, caption, label, table entry and technical value faithfully. Preserve headings and paragraph order when possible. " +
+          "Do not summarize, explain, translate, infer missing wording, or describe photographs. Return only the transcription. " +
+          "If there is genuinely no readable printed text in any supplied image, return exactly [NO_TEXT].",
+      },
+      ...images.map((imageUrl) => ({ type: "input_image", image_url: imageUrl, detail: "high" })),
+    ];
+
     const response = await openai.responses.create({
-      model: "gpt-5.6-luna",
+      model: "gpt-5.6-terra",
       reasoning: { effort: "none" },
-      max_output_tokens: 6000,
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text:
-                `OCR transcription task. Page ${pageNumber}. Expected language hint: ${language}. ` +
-                "Transcribe all readable printed text on the page faithfully. Preserve headings and paragraph order when possible. " +
-                "Ignore photographs and decorative elements unless they contain readable text. Do not summarize, explain, translate, or add commentary. " +
-                "Return only the transcribed text. If there is genuinely no readable text, return exactly [NO_TEXT].",
-            },
-            {
-              type: "input_image",
-              image_url: imageDataUrl,
-              detail: "high",
-            },
-          ],
-        },
-      ],
+      max_output_tokens: 9000,
+      input: [{ role: "user", content: content as any }],
     });
 
     const text = cleanOcrText(response.output_text);
-    const usable = Boolean(text && text !== "[NO_TEXT]" && text.replace(/\s/g, "").length >= 45);
+    const compactLength = text.replace(/\s/g, "").length;
+    const usable = Boolean(text && text !== "[NO_TEXT]" && compactLength >= 35);
 
     return NextResponse.json({
       ok: true,
       page_number: pageNumber,
       usable,
       text: usable ? text : "",
-      model: "gpt-5.6-luna",
+      model: "gpt-5.6-terra",
+      image_count: images.length,
+      text_chars: usable ? text.length : 0,
       usage: response.usage || null,
     });
   } catch (error) {
