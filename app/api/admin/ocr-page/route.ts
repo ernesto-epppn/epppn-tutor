@@ -4,9 +4,9 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const MAX_IMAGES = 4;
-const MAX_IMAGE_DATA_URL_CHARS = 2_200_000;
-const MAX_TOTAL_IMAGE_CHARS = 7_200_000;
+const MAX_IMAGES = 6;
+const MAX_IMAGE_DATA_URL_CHARS = 1_600_000;
+const MAX_TOTAL_IMAGE_CHARS = 8_500_000;
 
 function normalizeEmail(value: unknown) {
   return String(value || "").trim().toLowerCase();
@@ -54,11 +54,40 @@ function cleanOcrText(value: unknown) {
     .replace(/```$/i, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
-    .slice(0, 40_000);
+    .slice(0, 45_000);
 }
 
 function validImageDataUrl(value: string) {
   return /^data:image\/(jpeg|jpg|webp|png);base64,/i.test(value);
+}
+
+async function transcribe(openai: OpenAI, model: string, images: string[], pageNumber: number, language: string) {
+  const content: Array<Record<string, unknown>> = [
+    {
+      type: "input_text",
+      text:
+        `OCR transcription task. Page ${pageNumber}. Expected language hint: ${language}. ` +
+        "The images are overlapping high-resolution crops from the SAME printed page, ordered from top to bottom and left to right. " +
+        "Inspect each crop closely and reconstruct all readable printed text, removing only duplicate lines caused by overlap. " +
+        "Transcribe headings, paragraphs, captions, labels, table cells, formulas and technical values faithfully. " +
+        "Do not summarize, translate, explain, infer missing wording, or describe photographs. Return only the transcription. " +
+        "A page may contain small typography over photographs or coloured backgrounds: inspect carefully before deciding it contains no text. " +
+        "If there is genuinely no readable printed text in any supplied crop, return exactly [NO_TEXT].",
+    },
+    ...images.map((imageUrl) => ({ type: "input_image", image_url: imageUrl, detail: "high" })),
+  ];
+
+  const response = await openai.responses.create({
+    model,
+    reasoning: { effort: "none" },
+    max_output_tokens: 10000,
+    input: [{ role: "user", content: content as any }],
+  });
+
+  const text = cleanOcrText(response.output_text);
+  const compactLength = text.replace(/\s/g, "").length;
+  const usable = Boolean(text && text !== "[NO_TEXT]" && compactLength >= 28);
+  return { response, text, compactLength, usable };
 }
 
 export async function POST(req: Request) {
@@ -101,59 +130,44 @@ export async function POST(req: Request) {
     const language = String(body.language || "eng").slice(0, 40);
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const content: Array<Record<string, unknown>> = [
-      {
-        type: "input_text",
-        text:
-          `OCR transcription task. Page ${pageNumber}. Expected language hint: ${language}. ` +
-          (images.length > 1
-            ? "The following images are overlapping crops from the SAME printed page. Reconstruct the page text across all crops, using the visual layout to determine reading order and removing duplicated lines caused by overlap. "
-            : "The following image is the printed page to transcribe. ") +
-          "Transcribe every readable heading, paragraph, caption, label, table entry and technical value faithfully. Preserve headings and paragraph order when possible. " +
-          "Do not summarize, explain, translate, infer missing wording, or describe photographs. Return only the transcription. " +
-          "If there is genuinely no readable printed text in any supplied image, return exactly [NO_TEXT].",
-      },
-      ...images.map((imageUrl) => ({ type: "input_image", image_url: imageUrl, detail: "high" })),
-    ];
+    let attempt = await transcribe(openai, "gpt-5.6-terra", images, pageNumber, language);
+    let model = "gpt-5.6-terra";
 
-    const response = await openai.responses.create({
-      model: "gpt-5.6-terra",
-      reasoning: { effort: "none" },
-      max_output_tokens: 9000,
-      input: [{ role: "user", content: content as any }],
-    });
+    // Dense scans are unusual enough to justify one stronger pass, but only when
+    // Terra explicitly fails to recover text from high-resolution page crops.
+    if (!attempt.usable && images.length >= 4) {
+      const stronger = await transcribe(openai, "gpt-5.6-sol", images, pageNumber, language);
+      if (stronger.usable || stronger.compactLength > attempt.compactLength) {
+        attempt = stronger;
+        model = "gpt-5.6-sol";
+      }
+    }
 
-    const text = cleanOcrText(response.output_text);
-    const compactLength = text.replace(/\s/g, "").length;
-    const usable = Boolean(text && text !== "[NO_TEXT]" && compactLength >= 35);
-
-    // Diagnostic only: never log the OCR text itself. This lets the admin pipeline
-    // distinguish a genuinely blank/visual page from a transport or rendering issue.
     console.info(
       "ERNESTO_OCR_DIAG",
       JSON.stringify({
         page: pageNumber,
         images: images.length,
         image_chars: totalChars,
-        output_chars: text.length,
-        compact_chars: compactLength,
-        no_text: text === "[NO_TEXT]",
-        usable,
-        model: "gpt-5.6-terra",
-        input_tokens: Number((response.usage as any)?.input_tokens || 0),
-        output_tokens: Number((response.usage as any)?.output_tokens || 0),
+        output_chars: attempt.text.length,
+        compact_chars: attempt.compactLength,
+        no_text: attempt.text === "[NO_TEXT]",
+        usable: attempt.usable,
+        model,
+        input_tokens: Number((attempt.response.usage as any)?.input_tokens || 0),
+        output_tokens: Number((attempt.response.usage as any)?.output_tokens || 0),
       })
     );
 
     return NextResponse.json({
       ok: true,
       page_number: pageNumber,
-      usable,
-      text: usable ? text : "",
-      model: "gpt-5.6-terra",
+      usable: attempt.usable,
+      text: attempt.usable ? attempt.text : "",
+      model,
       image_count: images.length,
-      text_chars: usable ? text.length : 0,
-      usage: response.usage || null,
+      text_chars: attempt.usable ? attempt.text.length : 0,
+      usage: attempt.response.usage || null,
     });
   } catch (error) {
     console.error("Admin AI OCR fallback failed:", error);
