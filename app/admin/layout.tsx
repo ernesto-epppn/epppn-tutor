@@ -12,7 +12,7 @@ type AdminSection = "pilot" | "management" | "knowledge" | "roles";
 
 const ADMIN_SECTIONS: Array<{ key: AdminSection; label: string; note: string }> = [
   { key: "pilot", label: "Pilotage", note: "Santé, stagiaires, qualité et coûts" },
-  { key: "management", label: "Gestion", note: "Accès et administration courante" },
+  { key: "management", label: "Utilisateurs", note: "Accréditer par email, suspendre ou prolonger les accès" },
   { key: "knowledge", label: "Connaissances EPPPN", note: "PDF, RAG et diagnostic documentaire" },
   { key: "roles", label: "Rôles", note: "Utilisateur, formateur, administrateur" },
 ];
