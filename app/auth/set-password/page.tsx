@@ -3,17 +3,45 @@
 import { createClient } from "@supabase/supabase-js";
 import { useMemo, useState } from "react";
 
+class StepTimeoutError extends Error {
+  constructor(public step: string) {
+    super(`timeout:${step}`);
+    this.name = "StepTimeoutError";
+  }
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, step: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new StepTimeoutError(step)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export default function SetPasswordPage() {
   const supabase = useMemo(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !anon) return null;
-    return createClient(url, anon);
+    return createClient(url, anon, {
+      auth: {
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    });
   }, []);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingLabel, setLoadingLabel] = useState("Activation…");
   const [message, setMessage] = useState("");
   const [done, setDone] = useState(false);
 
@@ -38,62 +66,92 @@ export default function SetPasswordPage() {
 
     setLoading(true);
 
-    // The invitation session is only used to identify the invited account and
-    // authorize the one-time password creation. After the password changes we
-    // explicitly sign in again to obtain a fresh session before activating the
-    // Ernesto entitlement. This avoids reusing a stale invitation JWT.
-    const { data: invitedUserData, error: invitedUserError } = await supabase.auth.getUser();
-    const invitedEmail = invitedUserData.user?.email?.trim().toLowerCase();
+    let passwordSaved = false;
 
-    if (invitedUserError || !invitedEmail) {
-      setLoading(false);
-      setMessage("Le lien d’invitation est invalide ou expiré. Demandez une nouvelle invitation à l’EPPPN.");
-      return;
-    }
+    try {
+      setLoadingLabel("Vérification…");
+      const { data: sessionData, error: sessionError } = await withTimeout(
+        supabase.auth.getSession(),
+        8000,
+        "session"
+      );
 
-    const { error: passwordError } = await supabase.auth.updateUser({ password });
-    if (passwordError) {
-      setLoading(false);
-      setMessage("Le lien d’invitation est invalide ou expiré. Demandez une nouvelle invitation à l’EPPPN.");
-      return;
-    }
-
-    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-      email: invitedEmail,
-      password,
-    });
-
-    const token = loginData.session?.access_token;
-
-    if (loginError || !token) {
-      setLoading(false);
-      setMessage("Le mot de passe est enregistré. Connectez-vous maintenant depuis la page de connexion Ernesto.");
-      return;
-    }
-
-    const activationResponse = await fetch("/api/auth/activate-account", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const activation = await activationResponse.json().catch(() => ({}));
-    setLoading(false);
-
-    if (!activationResponse.ok) {
-      if (activation?.error === "account_already_bound") {
-        setMessage("Ce compte EPPPN est déjà associé à un autre utilisateur. Contactez l’EPPPN.");
-      } else if (activation?.error === "access_expired") {
-        setMessage("Votre période d’accès pédagogique est arrivée à son terme.");
-      } else if (activation?.error === "invalid_session") {
-        setMessage("Votre mot de passe est enregistré. Reconnectez-vous depuis la page de connexion Ernesto pour terminer l’activation.");
-      } else {
-        setMessage("Le compte a été créé, mais son accès Ernesto n’a pas pu être activé. Contactez l’EPPPN.");
+      const invitationSession = sessionData.session;
+      if (sessionError || !invitationSession?.access_token) {
+        setMessage("Le lien d’invitation est invalide ou expiré. Demandez une nouvelle invitation à l’EPPPN.");
+        return;
       }
-      return;
-    }
 
-    setDone(true);
-    setMessage("Votre mot de passe et votre accès Ernesto ont été activés.");
+      setLoadingLabel("Enregistrement…");
+      const { error: passwordError } = await withTimeout(
+        supabase.auth.updateUser({ password }),
+        12000,
+        "password"
+      );
+
+      if (passwordError) {
+        const weakPassword = /password|weak|characters|caract/i.test(passwordError.message || "");
+        setMessage(
+          weakPassword
+            ? "Ce mot de passe n’est pas accepté. Choisissez-en un autre d’au moins 10 caractères."
+            : "Le lien d’invitation est invalide ou expiré. Demandez une nouvelle invitation à l’EPPPN."
+        );
+        return;
+      }
+
+      passwordSaved = true;
+      setLoadingLabel("Activation…");
+
+      const controller = new AbortController();
+      const activationTimer = window.setTimeout(() => controller.abort(), 12000);
+      let activationResponse: Response;
+      try {
+        activationResponse = await fetch("/api/auth/activate-account", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${invitationSession.access_token}` },
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(activationTimer);
+      }
+
+      const activation = await activationResponse.json().catch(() => ({}));
+
+      if (!activationResponse.ok) {
+        if (activation?.error === "account_already_bound") {
+          setMessage("Ce compte EPPPN est déjà associé à un autre utilisateur. Contactez l’EPPPN.");
+        } else if (activation?.error === "access_expired") {
+          setMessage("Votre période d’accès pédagogique est arrivée à son terme.");
+        } else if (activation?.error === "invalid_session") {
+          setMessage("Le mot de passe est enregistré. Connectez-vous depuis la page de connexion Ernesto pour terminer l’activation.");
+        } else {
+          setMessage("Le mot de passe est enregistré. Connectez-vous depuis la page de connexion Ernesto pour terminer l’activation.");
+        }
+        return;
+      }
+
+      setDone(true);
+      setMessage("Votre accès Ernesto est activé.");
+    } catch (error) {
+      if (error instanceof StepTimeoutError) {
+        if (passwordSaved) {
+          setMessage("Le mot de passe est enregistré. L’activation a pris trop de temps : connectez-vous maintenant à Ernesto avec ce mot de passe.");
+        } else {
+          setMessage("La connexion prend trop de temps. Rechargez la page et réessayez une fois.");
+        }
+      } else if (error instanceof DOMException && error.name === "AbortError") {
+        setMessage("Le mot de passe est enregistré. L’activation a pris trop de temps : connectez-vous maintenant à Ernesto avec ce mot de passe.");
+      } else {
+        setMessage(
+          passwordSaved
+            ? "Le mot de passe est enregistré. Connectez-vous maintenant à Ernesto pour terminer l’activation."
+            : "L’activation n’a pas abouti. Rechargez la page et réessayez."
+        );
+      }
+    } finally {
+      setLoading(false);
+      setLoadingLabel("Activation…");
+    }
   }
 
   return (
@@ -119,6 +177,7 @@ export default function SetPasswordPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 style={styles.input}
                 required
+                disabled={loading}
               />
             </label>
 
@@ -131,11 +190,12 @@ export default function SetPasswordPage() {
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 style={styles.input}
                 required
+                disabled={loading}
               />
             </label>
 
             <button type="submit" disabled={loading} style={styles.button}>
-              {loading ? "Activation…" : "Activer mon compte"}
+              {loading ? loadingLabel : "Activer mon compte"}
             </button>
           </form>
         ) : (
@@ -143,6 +203,9 @@ export default function SetPasswordPage() {
         )}
 
         {message ? <p style={styles.message}>{message}</p> : null}
+        {!done && message.includes("mot de passe est enregistré") ? (
+          <a href="/connexion" style={styles.secondaryLink}>Se connecter à Ernesto</a>
+        ) : null}
         <p style={styles.note}>Votre compte est nominatif et ne doit pas être partagé.</p>
       </section>
     </main>
@@ -213,6 +276,14 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 13,
     background: "#315d45",
     color: "white",
+    fontWeight: 800,
+    textDecoration: "none",
+  },
+  secondaryLink: {
+    display: "inline-block",
+    marginTop: 12,
+    color: "#315d45",
+    fontSize: 14,
     fontWeight: 800,
     textDecoration: "none",
   },
