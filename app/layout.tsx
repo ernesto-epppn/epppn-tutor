@@ -32,7 +32,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const approvedErnestoIcon = "/logo-ernesto-approved.png?v=20260828-4";
+const approvedErnestoIcon = "/logo-ernesto-approved.png";
 
 export const viewport: Viewport = {
   themeColor: "#fffaf5",
