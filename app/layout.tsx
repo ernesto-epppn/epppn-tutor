@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ErnestoAccountStorageGuard from "./ErnestoAccountStorageGuard";
 import ErnestoUiCleanup from "./ErnestoUiCleanup";
@@ -34,9 +34,23 @@ const geistMono = Geist_Mono({
 
 const approvedErnestoIcon = "/logo-ernesto-approved.png?v=20260828-4";
 
+export const viewport: Viewport = {
+  themeColor: "#fffaf5",
+};
+
 export const metadata: Metadata = {
   title: "Ernesto — The Pizza Explained",
+  applicationName: "Ernesto",
   description: "Tuteur numérique EPPPN pour la pizza, la panification et l’organisation du travail.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Ernesto",
+    statusBarStyle: "default",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   icons: {
     icon: approvedErnestoIcon,
     shortcut: approvedErnestoIcon,
