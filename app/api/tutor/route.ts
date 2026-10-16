@@ -8,6 +8,10 @@ export const runtime = "nodejs";
 const STUDENT_DAILY_QUERY_LIMIT = 40;
 const STUDENT_DAILY_IMAGE_REQUEST_LIMIT = 10;
 const STUDENT_MIN_REQUEST_INTERVAL_SECONDS = 4;
+const MAX_MESSAGE_CHARS = 6000;
+const MAX_CONTEXT_CHARS = 12000;
+const MAX_JSON_BODY_BYTES = 128 * 1024;
+const MAX_MULTIPART_BODY_BYTES = 6 * 1024 * 1024;
 
 function looksQuantifiable(input: string) {
   const s = input.toLowerCase();
@@ -477,6 +481,16 @@ export async function POST(req: Request) {
 
   try {
     const ct = req.headers.get("content-type") || "";
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    const maxBodyBytes = ct.includes("multipart/form-data")
+      ? MAX_MULTIPART_BODY_BYTES
+      : MAX_JSON_BODY_BYTES;
+    if (Number.isFinite(contentLength) && contentLength > maxBodyBytes) {
+      return NextResponse.json(
+        { error: "request_too_large", message: "La requête envoyée est trop volumineuse." },
+        { status: 413 }
+      );
+    }
 
     let message = "";
     let contextText: string | undefined = undefined;
@@ -525,6 +539,19 @@ export async function POST(req: Request) {
     }
 
     runtimeImageCount = imageDataUrls.length;
+
+    if (message.length > MAX_MESSAGE_CHARS) {
+      return NextResponse.json(
+        {
+          error: "message_too_long",
+          message: `La question est trop longue. Limite : ${MAX_MESSAGE_CHARS.toLocaleString("fr-FR")} caractères.`,
+        },
+        { status: 413 }
+      );
+    }
+    if (contextText && contextText.length > MAX_CONTEXT_CHARS) {
+      contextText = contextText.slice(0, MAX_CONTEXT_CHARS);
+    }
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
@@ -1078,6 +1105,7 @@ ${message}
         const structured = await openai.responses.create({
           model: "gpt-4.1-mini",
           input: responseInput,
+          max_output_tokens: 1200,
           text: { format: ACTION_FLOWCHART_FORMAT },
         });
         addResponseUsage(structured);
@@ -1095,6 +1123,7 @@ ${message}
       const response = await openai.responses.create({
         model: "gpt-4.1-mini",
         input: responseInput,
+        max_output_tokens: 1400,
       });
       addResponseUsage(response);
       answerText = response.output_text ?? "";
@@ -1107,6 +1136,7 @@ ${message}
       try {
         const verification = await openai.responses.create({
           model: "gpt-4.1-mini",
+          max_output_tokens: 1400,
           input: [
             {
               role: "system",
@@ -1202,6 +1232,7 @@ ${answerText}
       try {
         const g = await openai.responses.create({
           model: "gpt-4.1-mini",
+          max_output_tokens: 900,
           input: [
             {
               role: "system",
