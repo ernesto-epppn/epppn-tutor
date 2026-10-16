@@ -107,8 +107,8 @@ export async function retrieveEpppnKnowledge(params: {
 
   if (documentErr) throw documentErr;
 
-  const documentsById = new Map(
-    (documentRows ?? []).map((doc: any) => [Number(doc.id), doc])
+  const documentsById = new Map<number, any>(
+    (documentRows ?? []).map((doc: any): [number, any] => [Number(doc.id), doc])
   );
 
   const reranked = candidates
