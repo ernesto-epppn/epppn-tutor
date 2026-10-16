@@ -116,13 +116,24 @@ export async function retrieveEpppnKnowledge(params: {
       const document = documentsById.get(Number(m.document_id));
       const priority = knowledgePriorityForTitle(document?.title);
       const similarity = Number(m.similarity ?? 0);
+      const title = String(document?.title || m?.metadata?.title || "");
+      const normalizedTitle = normalizeKnowledgeTitle(title);
+      const breadQuery = /\b(pain|panification|baguette|miche|mie)\b/i.test(message);
+      const domainBoost = breadQuery
+        ? normalizedTitle === normalizeKnowledgeTitle("pane - Fulvio MArino")
+          ? 0.22
+          : normalizedTitle === normalizeKnowledgeTitle("MANUEL 2026 impression")
+            ? 0.08
+            : 0
+        : 0;
       return {
         ...m,
-        document_title: document?.title || m?.metadata?.title || "",
+        document_title: title,
         document_source: document?.source || m?.metadata?.source || "",
         source_label: priority.label,
         source_boost: priority.boost,
-        retrieval_score: similarity + priority.boost,
+        domain_boost: domainBoost,
+        retrieval_score: similarity + priority.boost + domainBoost,
       };
     })
     .sort((a: any, b: any) => b.retrieval_score - a.retrieval_score);
@@ -168,9 +179,38 @@ export async function retrieveEpppnKnowledge(params: {
 }
 
 export function extractOperationalNumbers(text: string) {
+  const raw = String(text || "");
   const result = new Set<string>();
-  const regex = /(?:\bW\s?\d{2,4}\b)|(?:\bpH\s?\d+(?:[.,]\d+)?\b)|(?:\bP\/L\s?\d+(?:[.,]\d+)?\b)|(?:\b\d+(?:[.,]\d+)?\s?(?:%|°\s?C|°C|kg|kilogrammes?|chilogrammi?|g|grammes?|grammi?|ml|millilitres?|millilitri?|l|litres?|litri?|min|minutes?|minuti?|h|heures?|ore?|ora|jours?|giorni?|giorno|s|sec|secondes?|secondi?|W)\b)|(?:\b\d+(?:[.,]\d+)?\s*:\s*\d+(?:[.,]\d+)?\b)|(?:\b\d+\s*\/\s*\d+\b)/gi;
-  for (const match of String(text || "").matchAll(regex)) {
+
+  const addRangeEndpoints = (
+    regex: RegExp,
+    makeToken: (value: string, unit?: string) => string
+  ) => {
+    for (const match of raw.matchAll(regex)) {
+      result.add(makeToken(match[1], match[3]));
+      result.add(makeToken(match[2], match[3]));
+    }
+  };
+
+  addRangeEndpoints(
+    /\bW\s*(\d{2,4}(?:[.,]\d+)?)\s*(?:-|–|—|à)\s*(\d{2,4}(?:[.,]\d+)?)/gi,
+    (value) => "W " + value
+  );
+  addRangeEndpoints(
+    /\bpH\s*(\d+(?:[.,]\d+)?)\s*(?:-|–|—|à)\s*(\d+(?:[.,]\d+)?)/gi,
+    (value) => "pH " + value
+  );
+  addRangeEndpoints(
+    /\bP\/L\s*(\d+(?:[.,]\d+)?)\s*(?:-|–|—|à)\s*(\d+(?:[.,]\d+)?)/gi,
+    (value) => "P/L " + value
+  );
+  addRangeEndpoints(
+    /\b(\d+(?:[.,]\d+)?)\s*(?:-|–|—|à)\s*(\d+(?:[.,]\d+)?)\s*(%|°\s?C|°C|kg|kilogrammes?|chilogrammi?|g|grammes?|grammi?|ml|millilitres?|millilitri?|l|litres?|litri?|min|minutes?|minuti?|h|heures?|ore?|ora|jours?|giorni?|giorno|s|sec|secondes?|secondi?)\b/gi,
+    (value, unit) => value + (unit || "")
+  );
+
+  const regex = /(?:\bW\s?\d{2,4}(?:[.,]\d+)?\b)|(?:\bpH\s?\d+(?:[.,]\d+)?\b)|(?:\bP\/L\s?\d+(?:[.,]\d+)?\b)|(?:\b\d+(?:[.,]\d+)?\s?(?:%|°\s?C|°C|kg|kilogrammes?|chilogrammi?|g|grammes?|grammi?|ml|millilitres?|millilitri?|l|litres?|litri?|min|minutes?|minuti?|h|heures?|ore?|ora|jours?|giorni?|giorno|s|sec|secondes?|secondi?|W)\b)|(?:\b\d+(?:[.,]\d+)?\s*:\s*\d+(?:[.,]\d+)?\b)/gi;
+  for (const match of raw.matchAll(regex)) {
     result.add(match[0]);
   }
   return [...result];
@@ -242,12 +282,43 @@ export function operationalNumberSignature(value: string) {
     return "ratio:" + roundedSignature(Number(match[1]) / Number(match[2]));
   }
 
-  match = token.match(/^(\d+)\/(\d+)$/);
-  if (match && Number(match[2]) !== 0) {
-    return "ratio:" + roundedSignature(Number(match[1]) / Number(match[2]));
+  return token;
+}
+
+type ComparableOperationalValue = { kind: string; value: number };
+
+function comparableFromSignature(signature: string): ComparableOperationalValue | null {
+  const match = String(signature || "").match(/^([a-z_]+):(-?\d+(?:\.\d+)?)$/i);
+  if (!match) return null;
+  const value = Number(match[2]);
+  return Number.isFinite(value) ? { kind: match[1], value } : null;
+}
+
+function extractOperationalRanges(text: string) {
+  const raw = String(text || "");
+  const ranges: Array<{ kind: string; min: number; max: number }> = [];
+
+  const add = (aToken: string, bToken: string) => {
+    const a = comparableFromSignature(operationalNumberSignature(aToken));
+    const b = comparableFromSignature(operationalNumberSignature(bToken));
+    if (!a || !b || a.kind !== b.kind) return;
+    ranges.push({ kind: a.kind, min: Math.min(a.value, b.value), max: Math.max(a.value, b.value) });
+  };
+
+  for (const m of raw.matchAll(/\bW\s*(\d{2,4}(?:[.,]\d+)?)\s*(?:-|–|—|à)\s*(\d{2,4}(?:[.,]\d+)?)/gi)) {
+    add("W " + m[1], "W " + m[2]);
+  }
+  for (const m of raw.matchAll(/\bpH\s*(\d+(?:[.,]\d+)?)\s*(?:-|–|—|à)\s*(\d+(?:[.,]\d+)?)/gi)) {
+    add("pH " + m[1], "pH " + m[2]);
+  }
+  for (const m of raw.matchAll(/\bP\/L\s*(\d+(?:[.,]\d+)?)\s*(?:-|–|—|à)\s*(\d+(?:[.,]\d+)?)/gi)) {
+    add("P/L " + m[1], "P/L " + m[2]);
+  }
+  for (const m of raw.matchAll(/\b(\d+(?:[.,]\d+)?)\s*(?:-|–|—|à)\s*(\d+(?:[.,]\d+)?)\s*(%|°\s?C|°C|kg|kilogrammes?|chilogrammi?|g|grammes?|grammi?|ml|millilitres?|millilitri?|l|litres?|litri?|min|minutes?|minuti?|h|heures?|ore?|ora|jours?|giorni?|giorno|s|sec|secondes?|secondi?)\b/gi)) {
+    add(m[1] + m[3], m[2] + m[3]);
   }
 
-  return token;
+  return ranges;
 }
 
 function documentedDivisors(context: string) {
@@ -306,8 +377,6 @@ export function supportedOperationalSignatures(params: {
   const percentages = documentedPercentages(context);
   const divisors = documentedDivisors(context);
 
-  // Safe arithmetic derivation: a quantity supplied by the learner may be
-  // combined with a proportion explicitly documented in retrieved knowledge.
   for (const grams of masses) {
     for (const percentage of percentages) {
       signatures.add("mass_g:" + roundedSignature((grams * percentage) / 100));
@@ -327,8 +396,150 @@ export function findUnsupportedOperationalNumbers(params: {
   allowDocumentedDerivations?: boolean;
 }) {
   const supported = supportedOperationalSignatures(params);
-  return extractOperationalNumbers(params.answer).filter(
-    (value) => !supported.has(operationalNumberSignature(value))
-  );
+  const ranges = [
+    ...extractOperationalRanges(params.question),
+    ...extractOperationalRanges(params.context),
+  ];
+
+  return extractOperationalNumbers(params.answer).filter((value) => {
+    const signature = operationalNumberSignature(value);
+    if (supported.has(signature)) return false;
+
+    const comparable = comparableFromSignature(signature);
+    if (!comparable) return true;
+
+    return !ranges.some(
+      (range) =>
+        range.kind === comparable.kind &&
+        comparable.value >= range.min &&
+        comparable.value <= range.max
+    );
+  });
 }
 
+export function stripUnsupportedOperationalLines(params: {
+  answer: string;
+  question: string;
+  context: string;
+}) {
+  const removed = new Set<string>();
+  const lines = String(params.answer || "").split("\n");
+  const kept = lines.filter((line) => {
+    if (!line.trim()) return true;
+    const unsupported = findUnsupportedOperationalNumbers({
+      answer: line,
+      question: params.question,
+      context: params.context,
+      allowDocumentedDerivations: true,
+    });
+    unsupported.forEach((value) => removed.add(value));
+    return unsupported.length === 0;
+  });
+
+  return {
+    text: kept.join("\n").replace(/\n{3,}/g, "\n\n").trim(),
+    removed: [...removed],
+  };
+}
+
+export async function secureTechnicalNumericAdvice(params: {
+  openai: OpenAI;
+  answer: string;
+  question: string;
+  context: string;
+  onResponse?: (response: any) => void;
+}) {
+  const { openai, question, context, onResponse } = params;
+  let answer = String(params.answer || "").trim();
+  const initialUnsupported = findUnsupportedOperationalNumbers({
+    answer,
+    question,
+    context,
+    allowDocumentedDerivations: true,
+  });
+
+  let rewritten = false;
+  if (initialUnsupported.length) {
+    try {
+      const response = await openai.responses.create({
+        model: "gpt-4.1-mini",
+        input: [
+          {
+            role: "system",
+            content: [
+              {
+                type: "input_text",
+                text: [
+                  "Tu es le garde-fou numérique final d’Ernesto.",
+                  "Réécris la réponse sans aucune valeur opératoire non fondée.",
+                  "Les valeurs listées comme NON AUTORISÉES doivent disparaître, ainsi que toute recommandation qui en dépend.",
+                  "Tu peux conserver une valeur seulement si elle est directement présente dans la question ou les connaissances internes, ou si elle est le résultat exact d’un calcul entre une quantité utilisateur et une proportion explicitement documentée.",
+                  "N’ajoute aucun nouveau chiffre. Si une valeur manque, formule la recommandation qualitativement et indique ce qu’il faut mesurer.",
+                  "Ne cite pas les sources internes. Retourne uniquement la réponse finale corrigée.",
+                ].join("\n"),
+              },
+            ],
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: [
+                  "QUESTION :",
+                  question,
+                  "",
+                  "CONNAISSANCES INTERNES :",
+                  context,
+                  "",
+                  "VALEURS NON AUTORISÉES DÉTECTÉES :",
+                  initialUnsupported.join(", "),
+                  "",
+                  "RÉPONSE À SÉCURISER :",
+                  answer,
+                ].join("\n"),
+              },
+            ],
+          },
+        ],
+      });
+      onResponse?.(response);
+      const rewrittenText = String(response.output_text || "").trim();
+      if (rewrittenText) {
+        answer = rewrittenText;
+        rewritten = true;
+      }
+    } catch {
+      // The deterministic final gate below still prevents unsupported values.
+    }
+  }
+
+  const finalUnsupported = findUnsupportedOperationalNumbers({
+    answer,
+    question,
+    context,
+    allowDocumentedDerivations: true,
+  });
+
+  let removed: string[] = [];
+  if (finalUnsupported.length) {
+    const stripped = stripUnsupportedOperationalLines({ answer, question, context });
+    removed = stripped.removed;
+    answer =
+      stripped.text ||
+      "Les références internes disponibles ne permettent pas de confirmer un réglage chiffré fiable pour ce cas. Je peux expliquer les variables à contrôler, mais je préfère ne pas proposer de valeur non documentée.";
+  }
+
+  return {
+    answer,
+    initialUnsupported,
+    finalUnsupported: findUnsupportedOperationalNumbers({
+      answer,
+      question,
+      context,
+      allowDocumentedDerivations: true,
+    }),
+    rewritten,
+    removed,
+  };
+}
