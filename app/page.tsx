@@ -492,6 +492,10 @@ export default function Page() {
     trial_active?: boolean;
     safety_limit?: number;
     usage_cost?: number;
+    daily_image_used?: number;
+    daily_image_remaining?: number;
+    daily_image_limit?: number;
+    monthly_pilot_cost_usd?: number;
     is_pro?: boolean;
     is_admin?: boolean;
     plan?: string;
@@ -856,7 +860,7 @@ export default function Page() {
 
     // must be logged in (we need bearer token)
     if (!session?.access_token) {
-      setAuthInfo("Connectez-vous pour utiliser Ernesto. L’essai gratuit de 10 jours est inclus.");
+      setAuthInfo("Connectez-vous avec votre compte autorisé EPPPN pour utiliser Ernesto.");
       return;
     }
 
@@ -922,6 +926,33 @@ export default function Page() {
       if (res.status === 402 && data?.paywall) {
         setPaywall(data);
         if (data?.usage) setUsage(data.usage);
+        return;
+      }
+
+      // 429: quota quotidien ou protection anti-abus
+      if (res.status === 429) {
+        if (data?.quota) {
+          setUsage((prev) => ({
+            ...(prev || {}),
+            used: Number(data.quota.used || 0),
+            remaining: Number(data.quota.remaining || 0),
+            safety_limit: Number(data.quota.safety_limit || 40),
+            daily_image_used: Number(data.quota.image_used || 0),
+            daily_image_remaining: Number(data.quota.image_remaining || 0),
+            daily_image_limit: Number(data.quota.image_limit || 10),
+            plan: prev?.plan || "stagiaire_epppn",
+            is_pro: prev?.is_pro ?? true,
+            is_admin: false,
+          }));
+        }
+        setChat((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            role: "ernesto",
+            text: data?.message || "La limite d’utilisation est atteinte pour le moment.",
+          },
+        ]);
         return;
       }
 
@@ -1219,7 +1250,13 @@ export default function Page() {
     usage?.is_admin
       ? "Mode administrateur — accès illimité"
       : usage?.plan === "stagiaire_epppn"
-      ? `Accès stagiaire EPPPN actif${usage.trial_ends_at ? ` — jusqu’au ${new Date(usage.trial_ends_at).toLocaleDateString("fr-FR")}` : ""}`
+      ? [
+          `Accès stagiaire EPPPN actif${usage.trial_ends_at ? ` jusqu’au ${new Date(usage.trial_ends_at).toLocaleDateString("fr-FR")}` : ""}`,
+          usage.safety_limit ? `${usage.remaining ?? 0}/${usage.safety_limit} questions restantes aujourd’hui` : "",
+          usage.daily_image_limit != null
+            ? `${usage.daily_image_remaining ?? 0}/${usage.daily_image_limit} demandes avec image restantes`
+            : "",
+        ].filter(Boolean).join(" · ")
       : usage?.is_pro
       ? "Accès actif — Ernesto disponible"
       : usage
@@ -2452,7 +2489,7 @@ export default function Page() {
                 <div style={{ marginTop: 7, lineHeight: 1.5, color: "#334155" }}>
                   {paywall.reason === "usage_limit_reached"
                     ? "Votre essai gratuit a atteint sa limite de sécurité."
-                    : "Votre essai gratuit de 10 jours est terminé."}
+                    : "Votre accès Ernesto n’est plus actif."}
                 </div>
               </div>
               <button
