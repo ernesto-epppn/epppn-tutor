@@ -9,10 +9,11 @@ import {
 import {
   findUnsupportedOperationalNumbers,
   retrieveEpppnKnowledge,
+  secureTechnicalNumericAdvice,
 } from "../../../lib/epppnKnowledge";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 function normalizeEmail(value: unknown) {
   return String(value || "").trim().toLowerCase();
@@ -126,8 +127,10 @@ function generationPrompt(test: EpppnBenchmarkCase, context: string) {
     "",
     "RÈGLES TECHNIQUES :",
     "- Diagnostic avant protocole.",
-    "- Toute valeur précise concernant levure, hydratation, farine/W, température, temps, pré-ferment ou cuisson doit être soutenue par les connaissances internes ci-dessous ou par les données de la question.",
-    "- Si le contexte manque, ne crée pas de fausse précision : indique ce qui manque et ce qu'il faut contrôler.",
+    "- Toute valeur précise concernant levure, hydratation, farine/W, P/L, pH, température, temps, pré-ferment ou cuisson doit être soutenue par les connaissances internes ci-dessous ou par les données de la question.",
+    "- Une valeur calculée est admise uniquement si elle découle d'une quantité fournie par l'utilisateur et d'une proportion ou conversion explicitement documentée dans les connaissances internes.",
+    "- N'utilise jamais un chiffre simplement plausible ou connu par le modèle.",
+    "- Si le contexte manque, reste qualitatif : indique ce qui manque et ce qu'il faut contrôler.",
     "- Ne transpose pas une valeur d'un produit ou procédé à un autre sans justification.",
     "- N'invente aucune marque ni modèle de matériel. Moretti / Serie S ne doit apparaître que si la question ou les connaissances internes le mentionnent.",
     "- Ne cite pas les sources internes dans la réponse.",
@@ -214,7 +217,14 @@ async function runCase(params: {
       },
     ],
   });
-  const answer = String(response.output_text || "").trim();
+  const rawAnswer = String(response.output_text || "").trim();
+  const secured = await secureTechnicalNumericAdvice({
+    openai,
+    answer: rawAnswer,
+    question: test.question,
+    context: knowledge.context,
+  });
+  const answer = secured.answer;
 
   const unsupportedNumbers = findUnsupportedOperationalNumbers({
     answer,
@@ -286,7 +296,7 @@ async function runCase(params: {
     grounding: Number(parsed.grounding || 0),
     technical_coherence: Number(parsed.technical_coherence || 0),
     uncertainty_management: Number(parsed.uncertainty_management || 0),
-    brand_safety: Number(parsed.brand_safety || 0),
+    brand_safety: brandHallucination ? 0 : 5,
   };
   const dimensionValues = Object.values(dimensions).map((value) =>
     Math.max(0, Math.min(5, Number(value) || 0))
@@ -325,6 +335,9 @@ async function runCase(params: {
     pass,
     score,
     answer,
+    raw_answer: rawAnswer,
+    numeric_guard_triggered: secured.initialUnsupported.length > 0,
+    numeric_values_removed: [...new Set([...secured.initialUnsupported, ...secured.removed])],
     sources,
     top_matches: knowledge.retrieved.slice(0, 5).map((item: any) => ({
       document_title: item.document_title,
