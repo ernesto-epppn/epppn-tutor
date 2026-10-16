@@ -169,7 +169,7 @@ export async function retrieveEpppnKnowledge(params: {
 
 export function extractOperationalNumbers(text: string) {
   const result = new Set<string>();
-  const regex = /(?:\b\d+(?:[.,]\d+)?\s?(?:%|°\s?C|°C|kg|kilogrammes?|chilogrammi?|g|grammes?|grammi?|min|minutes?|minuti?|h|heures?|ore?|ora|jours?|giorni?|giorno|s|sec|secondes?|secondi?|W)\b)|(?:\bW\s?\d{2,4}\b)/gi;
+  const regex = /(?:\bW\s?\d{2,4}\b)|(?:\bpH\s?\d+(?:[.,]\d+)?\b)|(?:\bP\/L\s?\d+(?:[.,]\d+)?\b)|(?:\b\d+(?:[.,]\d+)?\s?(?:%|°\s?C|°C|kg|kilogrammes?|chilogrammi?|g|grammes?|grammi?|ml|millilitres?|millilitri?|l|litres?|litri?|min|minutes?|minuti?|h|heures?|ore?|ora|jours?|giorni?|giorno|s|sec|secondes?|secondi?|W)\b)|(?:\b\d+(?:[.,]\d+)?\s*:\s*\d+(?:[.,]\d+)?\b)|(?:\b\d+\s*\/\s*\d+\b)/gi;
   for (const match of String(text || "").matchAll(regex)) {
     result.add(match[0]);
   }
@@ -190,7 +190,145 @@ export function normalizeOperationalNumber(value: string) {
     .replace(/(?:secondes?|secondi?|sec)$/i, "s")
     .replace(/(?:kilogrammes?|chilogrammi?)$/i, "kg")
     .replace(/(?:grammes?|grammi?)$/i, "g")
+    .replace(/(?:millilitres?|millilitri?)$/i, "ml")
+    .replace(/(?:litres?|litri?)$/i, "l")
     .replace(/°c$/i, "°c");
 
   return token;
 }
+
+function roundedSignature(value: number) {
+  return Number.isFinite(value) ? Math.round(value * 1000000) / 1000000 : NaN;
+}
+
+export function operationalNumberSignature(value: string) {
+  const token = normalizeOperationalNumber(value);
+
+  let match = token.match(/^w(\d+(?:\.\d+)?)$/i) || token.match(/^(\d+(?:\.\d+)?)w$/i);
+  if (match) return "w:" + roundedSignature(Number(match[1]));
+
+  match = token.match(/^ph(\d+(?:\.\d+)?)$/i);
+  if (match) return "ph:" + roundedSignature(Number(match[1]));
+
+  match = token.match(/^p\/l(\d+(?:\.\d+)?)$/i);
+  if (match) return "pl:" + roundedSignature(Number(match[1]));
+
+  match = token.match(/^(\d+(?:\.\d+)?)%$/);
+  if (match) return "pct:" + roundedSignature(Number(match[1]));
+
+  match = token.match(/^(\d+(?:\.\d+)?)°c$/);
+  if (match) return "temp_c:" + roundedSignature(Number(match[1]));
+
+  match = token.match(/^(\d+(?:\.\d+)?)(kg|g)$/);
+  if (match) {
+    const grams = Number(match[1]) * (match[2] === "kg" ? 1000 : 1);
+    return "mass_g:" + roundedSignature(grams);
+  }
+
+  match = token.match(/^(\d+(?:\.\d+)?)(l|ml)$/);
+  if (match) {
+    const ml = Number(match[1]) * (match[2] === "l" ? 1000 : 1);
+    return "volume_ml:" + roundedSignature(ml);
+  }
+
+  match = token.match(/^(\d+(?:\.\d+)?)(d|h|min|s)$/);
+  if (match) {
+    const multipliers: Record<string, number> = { d: 86400, h: 3600, min: 60, s: 1 };
+    return "time_s:" + roundedSignature(Number(match[1]) * multipliers[match[2]]);
+  }
+
+  match = token.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
+  if (match && Number(match[2]) !== 0) {
+    return "ratio:" + roundedSignature(Number(match[1]) / Number(match[2]));
+  }
+
+  match = token.match(/^(\d+)\/(\d+)$/);
+  if (match && Number(match[2]) !== 0) {
+    return "ratio:" + roundedSignature(Number(match[1]) / Number(match[2]));
+  }
+
+  return token;
+}
+
+function documentedDivisors(context: string) {
+  const divisors = new Set<number>();
+  const raw = String(context || "").toLowerCase().replace(",", ".");
+
+  for (const match of raw.matchAll(/\b(\d+(?:\.\d+)?)\s*fois\s*moins\b/g)) {
+    const value = Number(match[1]);
+    if (value > 0) divisors.add(value);
+  }
+  if (/\bun\s+tiers\b|\b1\s*\/\s*3\b/.test(raw)) divisors.add(3);
+  if (/\bun\s+quart\b|\b1\s*\/\s*4\b/.test(raw)) divisors.add(4);
+  if (/\bla\s+moiti[ée]\b|\b1\s*\/\s*2\b/.test(raw)) divisors.add(2);
+
+  return [...divisors];
+}
+
+function questionMassesInGrams(question: string) {
+  const masses: number[] = [];
+  for (const token of extractOperationalNumbers(question)) {
+    const sig = operationalNumberSignature(token);
+    if (sig.startsWith("mass_g:")) {
+      const value = Number(sig.slice("mass_g:".length));
+      if (Number.isFinite(value) && value > 0) masses.push(value);
+    }
+  }
+  return masses;
+}
+
+function documentedPercentages(context: string) {
+  const values: number[] = [];
+  for (const token of extractOperationalNumbers(context)) {
+    const sig = operationalNumberSignature(token);
+    if (sig.startsWith("pct:")) {
+      const value = Number(sig.slice("pct:".length));
+      if (Number.isFinite(value) && value >= 0) values.push(value);
+    }
+  }
+  return values;
+}
+
+export function supportedOperationalSignatures(params: {
+  question: string;
+  context: string;
+  allowDocumentedDerivations?: boolean;
+}) {
+  const { question, context, allowDocumentedDerivations = true } = params;
+  const signatures = new Set(
+    [...extractOperationalNumbers(question), ...extractOperationalNumbers(context)]
+      .map(operationalNumberSignature)
+  );
+
+  if (!allowDocumentedDerivations) return signatures;
+
+  const masses = questionMassesInGrams(question);
+  const percentages = documentedPercentages(context);
+  const divisors = documentedDivisors(context);
+
+  // Safe arithmetic derivation: a quantity supplied by the learner may be
+  // combined with a proportion explicitly documented in retrieved knowledge.
+  for (const grams of masses) {
+    for (const percentage of percentages) {
+      signatures.add("mass_g:" + roundedSignature((grams * percentage) / 100));
+    }
+    for (const divisor of divisors) {
+      signatures.add("mass_g:" + roundedSignature(grams / divisor));
+    }
+  }
+
+  return signatures;
+}
+
+export function findUnsupportedOperationalNumbers(params: {
+  answer: string;
+  question: string;
+  context: string;
+  allowDocumentedDerivations?: boolean;
+}) {
+  const supported = supportedOperationalSignatures(params);
+  return extractOperationalNumbers(params.answer).filter(
+    (value) => !supported.has(operationalNumberSignature(value))
+  );
+}
+
