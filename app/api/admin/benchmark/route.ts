@@ -8,6 +8,7 @@ import {
 } from "../../../lib/epppnTechnicalBenchmark";
 import {
   extractOperationalNumbers,
+  normalizeOperationalNumber,
   retrieveEpppnKnowledge,
 } from "../../../lib/epppnKnowledge";
 
@@ -180,9 +181,6 @@ function evaluationPrompt(params: {
   ].join("\n");
 }
 
-function normalizeNumberToken(value: string) {
-  return value.toLowerCase().replace(/\s+/g, "").replace(",", ".");
-}
 
 async function runCase(params: {
   test: EpppnBenchmarkCase;
@@ -223,10 +221,10 @@ async function runCase(params: {
     [
       ...extractOperationalNumbers(test.question),
       ...extractOperationalNumbers(knowledge.context),
-    ].map(normalizeNumberToken)
+    ].map(normalizeOperationalNumber)
   );
   const unsupportedNumbers = extractOperationalNumbers(answer)
-    .filter((value) => !supportedTokens.has(normalizeNumberToken(value)));
+    .filter((value) => !supportedTokens.has(normalizeOperationalNumber(value)));
 
   const lowerAnswer = answer.toLowerCase();
   const lowerQuestion = test.question.toLowerCase();
@@ -286,8 +284,29 @@ async function runCase(params: {
     issues: ["JSON d'évaluation invalide."],
   };
 
-  let score = Number(parsed.score || 0);
-  let pass = parsed.pass === true;
+  const dimensions = {
+    retrieval: Number(parsed.retrieval || 0),
+    grounding: Number(parsed.grounding || 0),
+    technical_coherence: Number(parsed.technical_coherence || 0),
+    uncertainty_management: Number(parsed.uncertainty_management || 0),
+    brand_safety: Number(parsed.brand_safety || 0),
+  };
+  const dimensionValues = Object.values(dimensions).map((value) =>
+    Math.max(0, Math.min(5, Number(value) || 0))
+  );
+  let score = Math.round(
+    (dimensionValues.reduce((sum, value) => sum + value, 0) / 25) * 100
+  );
+
+  // PASS is deterministic: good overall quality plus no weak critical dimension.
+  let pass =
+    score >= 70 &&
+    dimensions.grounding >= 3 &&
+    dimensions.technical_coherence >= 3 &&
+    dimensions.uncertainty_management >= 3 &&
+    dimensions.brand_safety >= 4 &&
+    dimensions.retrieval >= 2;
+
   const issues = Array.isArray(parsed.issues) ? parsed.issues.map(String) : [];
 
   if (unsupportedNumbers.length) {
@@ -318,11 +337,11 @@ async function runCase(params: {
     unsupported_numbers: unsupportedNumbers,
     brand_hallucination: brandHallucination,
     evaluation: {
-      retrieval: Number(parsed.retrieval || 0),
-      grounding: Number(parsed.grounding || 0),
-      technical_coherence: Number(parsed.technical_coherence || 0),
-      uncertainty_management: Number(parsed.uncertainty_management || 0),
-      brand_safety: Number(parsed.brand_safety || 0),
+      retrieval: dimensions.retrieval,
+      grounding: dimensions.grounding,
+      technical_coherence: dimensions.technical_coherence,
+      uncertainty_management: dimensions.uncertainty_management,
+      brand_safety: dimensions.brand_safety,
       summary: String(parsed.summary || ""),
       issues: [...new Set(issues)].slice(0, 8),
     },
