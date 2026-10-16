@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
+import AdminManualBenchmark from "./AdminManualBenchmark";
 
 type HealthItem = { ok: boolean; detail?: string; documents?: number; chunks?: number; enabled?: boolean };
 type PilotTrainee = {
@@ -727,6 +728,8 @@ export default function AdminPilotConsole() {
             <div className="benchmarkEmpty">Aucun benchmark exécuté dans cette session admin.</div>
           )}
         </article>
+
+        <AdminManualBenchmark />
 
         <article className="costCard">
           <div className="costHead">
