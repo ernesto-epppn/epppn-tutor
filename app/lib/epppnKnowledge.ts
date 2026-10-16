@@ -453,6 +453,7 @@ export async function secureTechnicalNumericAdvice(params: {
     try {
       const response = await openai.responses.create({
         model: "gpt-4.1-mini",
+        max_output_tokens: 1200,
         input: [
           {
             role: "system",
