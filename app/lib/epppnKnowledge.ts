@@ -169,9 +169,28 @@ export async function retrieveEpppnKnowledge(params: {
 
 export function extractOperationalNumbers(text: string) {
   const result = new Set<string>();
-  const regex = /(?:\b\d+(?:[.,]\d+)?\s?(?:%|°\s?C|°C|g|kg|min|minutes?|h|heures?|jours?|W)\b)|(?:\bW\s?\d{2,4}\b)/gi;
+  const regex = /(?:\b\d+(?:[.,]\d+)?\s?(?:%|°\s?C|°C|kg|kilogrammes?|chilogrammi?|g|grammes?|grammi?|min|minutes?|minuti?|h|heures?|ore?|ora|jours?|giorni?|giorno|s|sec|secondes?|secondi?|W)\b)|(?:\bW\s?\d{2,4}\b)/gi;
   for (const match of String(text || "").matchAll(regex)) {
-    result.add(match[0].toLowerCase().replace(/\s+/g, ""));
+    result.add(match[0]);
   }
   return [...result];
+}
+
+export function normalizeOperationalNumber(value: string) {
+  let token = String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(",", ".")
+    .replace(/\s+/g, "");
+
+  token = token
+    .replace(/(?:heures?|ore?|ora)$/i, "h")
+    .replace(/(?:minutes?|minuti?)$/i, "min")
+    .replace(/(?:jours?|giorni?|giorno)$/i, "d")
+    .replace(/(?:secondes?|secondi?|sec)$/i, "s")
+    .replace(/(?:kilogrammes?|chilogrammi?)$/i, "kg")
+    .replace(/(?:grammes?|grammi?)$/i, "g")
+    .replace(/°c$/i, "°c");
+
+  return token;
 }
