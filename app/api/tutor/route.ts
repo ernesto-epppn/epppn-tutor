@@ -12,6 +12,72 @@ function looksQuantifiable(input: string) {
   );
 }
 
+
+const PRIMARY_KNOWLEDGE_PRIORITY = [
+  { title: "Cookbook Pizza Home made 5 - Marino", boost: 0.16, label: "Marino · Cookbook Pizza Home made 5" },
+  { title: "Ricettario Pizza home made", boost: 0.13, label: "Marino · Ricettario Pizza home made" },
+  { title: "pane - Fulvio MArino", boost: 0.11, label: "Marino · Pane" },
+  { title: "MANUEL 2026 impression", boost: 0.09, label: "Manuel EPPPN 2026" },
+] as const;
+
+function normalizeKnowledgeTitle(value: unknown) {
+  return String(value || "").trim().toLocaleLowerCase("fr");
+}
+
+function knowledgePriorityForTitle(value: unknown) {
+  const normalized = normalizeKnowledgeTitle(value);
+  const hit = PRIMARY_KNOWLEDGE_PRIORITY.find(
+    (entry) => normalizeKnowledgeTitle(entry.title) === normalized
+  );
+  if (hit) return hit;
+  if (
+    normalized.includes("fiches recettes epppn") ||
+    normalized === "levain" ||
+    normalized.includes("tonda biga")
+  ) {
+    return { title: String(value || ""), boost: 0.05, label: "EPPPN · complément officiel" };
+  }
+  if (normalized.includes("plaquette epppn")) {
+    return { title: String(value || ""), boost: 0.02, label: "EPPPN · repère institutionnel" };
+  }
+  return { title: String(value || ""), boost: 0, label: "Référence complémentaire" };
+}
+
+function expandTechnicalRetrievalQuery(message: string) {
+  const additions: string[] = [];
+  if (/(levain|levure|lievito|lievit|ferment)/i.test(message)) {
+    additions.push("levain levure lievito lievitazione fermentation fermentazione");
+  }
+  if (/(hydrat|idrat|eau|acqua)/i.test(message)) {
+    additions.push("hydratation idratazione eau acqua");
+  }
+  if (/(four|forno|cuisson|cottur)/i.test(message)) {
+    additions.push("four forno cuisson cottura température temperatura");
+  }
+  if (/(farine|farina|\bW\s?\d{2,4}\b|protéine|proteina)/i.test(message)) {
+    additions.push("farine farina force W protéines proteine");
+  }
+  if (/(temp[ée]rature|temperatura|froid|freddo|chaud|caldo)/i.test(message)) {
+    additions.push("température temperatura froid freddo chaleur calore");
+  }
+  if (/(biga|poolish|pré[- ]?ferment|preferment)/i.test(message)) {
+    additions.push("biga poolish préferment prefermento");
+  }
+
+  return additions.length
+    ? `${message}\n\nVocabulaire technique équivalent FR/IT pour la recherche : ${[...new Set(additions)].join(" ; ")}`
+    : message;
+}
+
+function shouldVerifyTechnicalAnswer(question: string, answer: string) {
+  const domain =
+    /(levain|levure|lievito|lievit|ferment|hydrat|idrat|farine|farina|four|forno|cuisson|cottur|temp[ée]rature|temperatura|biga|poolish|p[ée]triss|impast|pointage|appr[êe]t|maturation|p[âa]ton|cornicione)/i;
+  const operational =
+    /(\d|%|°|gram|\bg\b|kg|min|minute|heure|\bh\b|jour|dose|dosage|ratio|w\s?\d|protéine|proteina)/i;
+
+  return domain.test(question) || (domain.test(answer) && operational.test(answer));
+}
+
 function buildGraphPrompt(question: string, answer: string) {
   return `
 Question utilisateur :
@@ -720,26 +786,80 @@ export async function POST(req: Request) {
 
     let retrieved: any[] = [];
     if (systemSettings?.rag_enabled !== false) {
+      const retrievalQuery = expandTechnicalRetrievalQuery(message);
       const emb = await openai.embeddings.create({
         model: "text-embedding-3-small",
-        input: message,
+        input: retrievalQuery,
       });
       runtimeEmbeddingTokens += Number((emb as any)?.usage?.total_tokens || (emb as any)?.usage?.prompt_tokens || 0);
       runtimeModelRequests += 1;
       const queryEmbedding = emb.data[0].embedding;
 
+      // Broad semantic candidate pool first; then source-aware reranking.
+      // This prevents a long document from winning only because it contains more chunks.
       const { data: matches, error: matchErr } = await supabase.rpc("match_chunks", {
         query_embedding: queryEmbedding,
-        match_count: 6,
+        match_count: 80,
       });
 
       if (matchErr) {
         console.warn("match_chunks error:", matchErr);
       }
 
-      retrieved = (matches ?? [])
-        .filter((m: any) => (m.similarity ?? 0) >= 0.2)
-        .slice(0, 6);
+      const candidates = (matches ?? []).filter(
+        (m: any) => Number(m.similarity ?? 0) >= 0.2
+      );
+
+      const documentIds = [...new Set(candidates.map((m: any) => m.document_id).filter(Boolean))];
+      const { data: documentRows, error: documentErr } = documentIds.length
+        ? await supabase
+            .from("documents")
+            .select("id,title,source,active,status")
+            .in("id", documentIds)
+        : { data: [], error: null };
+
+      if (documentErr) {
+        console.warn("knowledge document metadata lookup failed:", documentErr.message);
+      }
+
+      const documentsById = new Map(
+        (documentRows ?? []).map((doc: any) => [Number(doc.id), doc])
+      );
+
+      const reranked = candidates
+        .map((m: any) => {
+          const document = documentsById.get(Number(m.document_id));
+          const priority = knowledgePriorityForTitle(document?.title);
+          const similarity = Number(m.similarity ?? 0);
+          return {
+            ...m,
+            document_title: document?.title || m?.metadata?.title || "",
+            document_source: document?.source || m?.metadata?.source || "",
+            source_label: priority.label,
+            source_boost: priority.boost,
+            retrieval_score: similarity + priority.boost,
+          };
+        })
+        .sort((a: any, b: any) => b.retrieval_score - a.retrieval_score);
+
+      // Preserve diversity while allowing the main Marino cookbook to contribute several passages.
+      const perDocumentCount = new Map<number, number>();
+      for (const item of reranked) {
+        const documentId = Number(item.document_id);
+        const already = perDocumentCount.get(documentId) || 0;
+        if (already >= 4) continue;
+        retrieved.push(item);
+        perDocumentCount.set(documentId, already + 1);
+        if (retrieved.length >= 8) break;
+      }
+
+      if (retrieved.length < 8) {
+        for (const item of reranked) {
+          if (retrieved.some((existing: any) => existing.chunk_id === item.chunk_id)) continue;
+          retrieved.push(item);
+          if (retrieved.length >= 8) break;
+        }
+      }
     }
     runtimeRagUsed = retrieved.length;
 
@@ -748,7 +868,11 @@ export async function POST(req: Request) {
         ? retrieved
             .map(
               (m: any, i: number) =>
-                `CONNAISSANCE INTERNE ${i + 1} (pertinence=${(m.similarity ?? 0).toFixed(2)}):\n${m.content}`
+                `CONNAISSANCE INTERNE ${i + 1}\n` +
+                `Priorité: ${m.source_label || "Référence complémentaire"}\n` +
+                `Titre interne: ${m.document_title || "non renseigné"}\n` +
+                `Pertinence sémantique: ${Number(m.similarity ?? 0).toFixed(2)}\n` +
+                `${m.content}`
             )
             .join("\n\n---\n\n")
         : "(Aucune connaissance interne pertinente disponible.)";
@@ -800,11 +924,15 @@ ANALYSE D’IMAGE :
 - Une photo ne suffit jamais à rendre certaine une cause invisible.
 
 CONNAISSANCES INTERNES / RAG :
-- Tu raisonnes d’abord à partir des connaissances internes disponibles, issues notamment des savoirs, protocoles, pratiques et documents transmis à l’EPPPN.
-- Ces connaissances restent internes : ne parle jamais d’« extrait », de « source », de « document », de « passage » ou de « RAG » dans la réponse.
+- Tu raisonnes d’abord à partir des connaissances internes disponibles.
+- Pour les conseils techniques et opératoires, l’ordre de priorité est : 1) Cookbook Pizza Home made 5 - Marino ; 2) Ricettario Pizza home made ; 3) pane - Fulvio Marino ; 4) Manuel EPPPN 2026 ; puis les autres contenus EPPPN validés.
+- La priorité de source ne remplace jamais la pertinence : utilise un passage seulement s’il traite réellement du produit, du procédé ou du problème posé.
+- Les connaissances restent internes : ne parle jamais d’« extrait », de « source », de « document », de « passage » ou de « RAG » dans la réponse.
 - Reformule et synthétise ; ne copie pas de longs passages.
-- Si les connaissances internes sont partielles, complète prudemment avec tes connaissances générales sans créer une séparation artificielle entre les deux.
-- Ne contredis pas gratuitement les connaissances internes ; si une tension existe, explique l’hypothèse et propose un test pratique.
+- Pour levure/levain, hydratation, farine, fermentation, température, temps, four et cuisson, toute valeur précise doit être cohérente avec les connaissances internes récupérées. Si elles ne suffisent pas, évite la fausse précision et explicite l’incertitude.
+- Si plusieurs connaissances internes diffèrent, privilégie la source la mieux classée lorsqu’elle concerne le même produit et le même procédé ; sinon explique les conditions qui rendent les valeurs différentes.
+- Les connaissances générales servent seulement de complément prudent et ne doivent pas écraser un protocole interne pertinent.
+- N’introduis jamais spontanément une marque ou un modèle de matériel qui n’apparaît ni dans la question ni dans les connaissances internes récupérées. En particulier, ne cite pas « Serie S Moretti » par défaut.
 
 TON :
 - Cordial, clair, professionnel, accessible et techniquement exigeant.
@@ -964,6 +1092,72 @@ ${message}
       answerText = response.output_text ?? "";
     }
 
+    let knowledgeVerified = false;
+    if (answerText && shouldVerifyTechnicalAnswer(message, answerText)) {
+      try {
+        const verification = await openai.responses.create({
+          model: "gpt-4.1-mini",
+          input: [
+            {
+              role: "system",
+              content: [
+                {
+                  type: "input_text",
+                  text: `
+Tu es le vérificateur technique interne d’Ernesto. Tu ne réponds pas à la question depuis zéro : tu contrôles et corriges un brouillon avant affichage.
+
+ORDRE DE PRIORITÉ DES CONNAISSANCES :
+1. Cookbook Pizza Home made 5 - Marino
+2. Ricettario Pizza home made
+3. pane - Fulvio Marino
+4. Manuel EPPPN 2026
+5. autres contenus EPPPN validés
+
+RÈGLES DE CONTRÔLE :
+- Vérifie en priorité levure/levain, dosage, hydratation, farine et force W, fermentation, température, temps, pré-ferments, four et cuisson.
+- Une valeur numérique précise doit être soutenue par les connaissances internes fournies ou découler explicitement des données de la question. Sinon supprime la fausse précision, donne une fourchette seulement si elle est soutenue, ou formule prudemment ce qu’il faut mesurer.
+- Vérifie les unités, pourcentages boulangers et cohérences entre quantité, temps et température.
+- Ne transpose pas une valeur d’un produit ou procédé à un autre sans justification.
+- Si deux passages diffèrent, privilégie la source prioritaire seulement s’ils concernent le même contexte ; sinon conserve la distinction contextuelle.
+- N’ajoute aucune nouvelle marque ou référence de matériel. Ne mentionne jamais « Serie S Moretti » sauf si la question ou les connaissances internes fournies la mentionnent explicitement.
+- Ne cite pas les sources internes et ne parle pas de RAG.
+- Conserve la langue, le ton et la structure utile du brouillon.
+- Retourne uniquement la version finale corrigée, sans commentaire de vérification.
+                  `.trim(),
+                },
+              ],
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: `
+QUESTION :
+${message}
+
+CONNAISSANCES INTERNES :
+${retrievedContext}
+
+BROUILLON À VÉRIFIER :
+${answerText}
+                  `.trim(),
+                },
+              ],
+            },
+          ],
+        });
+        addResponseUsage(verification);
+        const verifiedText = String(verification.output_text || "").trim();
+        if (verifiedText) {
+          answerText = verifiedText;
+          knowledgeVerified = true;
+        }
+      } catch (verificationErr) {
+        console.warn("technical knowledge verification skipped:", verificationErr);
+      }
+    }
+
     let graph: any = null;
 
     if (responseMode === "ECOLE" && looksQuantifiable(message)) {
@@ -977,7 +1171,7 @@ ${message}
                 {
                   type: "input_text",
                   text:
-                    "Tu génères uniquement un objet JSON strictement valide pour alimenter une interface Recharts. Pas de markdown. Pas de bloc de code. Si les données manquent, fais une visualisation pédagogique plausible et indique les hypothèses dans les notes. Utilise la langue de la question.",
+                    "Tu génères uniquement un objet JSON strictement valide pour alimenter une interface Recharts. Pas de markdown. Pas de bloc de code. N’invente jamais de valeur technique, de température, de durée, de dosage ou de pourcentage. Utilise uniquement les valeurs présentes dans la question ou dans la réponse vérifiée. Si les données chiffrées manquent, laisse charts vide et utilise seulement une checklist ou un tableau qualitatif. Utilise la langue de la question.",
                 },
               ],
             },
@@ -1010,10 +1204,13 @@ ${message}
       source_mention: shouldMentionEPPPN,
       rag: {
         used: retrieved.length,
+        verified: knowledgeVerified,
         top: retrieved.map((m: any) => ({
           similarity: m.similarity,
+          retrieval_score: m.retrieval_score,
           chunk_index: m.chunk_index,
           document_id: m.document_id,
+          document_title: m.document_title,
         })),
       },
       mode: responseMode,
