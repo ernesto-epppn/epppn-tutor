@@ -5,6 +5,10 @@ import { findUnsupportedOperationalNumbers, retrieveEpppnKnowledge, secureTechni
 
 export const runtime = "nodejs";
 
+const STUDENT_DAILY_QUERY_LIMIT = 40;
+const STUDENT_DAILY_IMAGE_REQUEST_LIMIT = 10;
+const STUDENT_MIN_REQUEST_INTERVAL_SECONDS = 4;
+
 function looksQuantifiable(input: string) {
   const s = input.toLowerCase();
   return (
@@ -602,7 +606,7 @@ export async function POST(req: Request) {
 
     const { data: systemSettings } = await supabase
       .from("ernesto_system_settings")
-      .select("maintenance_mode,suspend_trainees,rag_enabled,images_enabled,maintenance_message")
+      .select("maintenance_mode,suspend_trainees,rag_enabled,images_enabled,maintenance_message,monthly_openai_budget_usd")
       .eq("id", "global")
       .maybeSingle();
 
@@ -656,6 +660,101 @@ export async function POST(req: Request) {
       }
     }
 
+    let quotaMeta: any = null;
+    let monthlyPilotCostUsd = 0;
+
+    if (!isAdmin && !isPaidPro && closedAccess?.ok) {
+      const monthlyBudgetUsd = Math.max(1, Number(systemSettings?.monthly_openai_budget_usd || 50));
+      const { data: monthlyCost, error: monthlyCostError } = await supabase.rpc(
+        "ernesto_current_month_tutor_cost_usd"
+      );
+
+      if (monthlyCostError) {
+        console.error("Monthly budget guard unavailable:", monthlyCostError.message);
+        await writeRuntime(false, 503, "budget_guard_unavailable");
+        return NextResponse.json(
+          {
+            error: "budget_guard_unavailable",
+            message: "Ernesto est momentanément indisponible pendant la vérification du budget de sécurité.",
+          },
+          { status: 503 }
+        );
+      }
+
+      monthlyPilotCostUsd = Number(monthlyCost || 0);
+      if (Number.isFinite(monthlyPilotCostUsd) && monthlyPilotCostUsd >= monthlyBudgetUsd) {
+        await writeRuntime(false, 503, "monthly_budget_reached");
+        return NextResponse.json(
+          {
+            error: "monthly_budget_reached",
+            message: "Le budget mensuel de sécurité d’Ernesto est atteint. L’accès stagiaire est temporairement suspendu.",
+          },
+          { status: 503 }
+        );
+      }
+
+      const { data: quotaRows, error: quotaError } = await supabase.rpc(
+        "check_and_consume_ernesto_quota",
+        {
+          p_user_id: userId,
+          p_image_count: imageDataUrls.length,
+          p_request_limit: STUDENT_DAILY_QUERY_LIMIT,
+          p_image_limit: STUDENT_DAILY_IMAGE_REQUEST_LIMIT,
+          p_min_interval_seconds: STUDENT_MIN_REQUEST_INTERVAL_SECONDS,
+        }
+      );
+
+      if (quotaError) {
+        console.error("Student quota guard failed:", quotaError.message);
+        await writeRuntime(false, 503, "quota_guard_unavailable");
+        return NextResponse.json(
+          {
+            error: "quota_guard_unavailable",
+            message: "Ernesto est momentanément indisponible pendant la vérification de votre quota.",
+          },
+          { status: 503 }
+        );
+      }
+
+      quotaMeta = Array.isArray(quotaRows) ? quotaRows[0] : quotaRows;
+      if (!quotaMeta?.allowed) {
+        const reason = String(quotaMeta?.reason || "rate_limited");
+        const blockedUntil = quotaMeta?.blocked_until || null;
+        const message =
+          reason === "daily_query_limit"
+            ? `Vous avez atteint la limite de ${STUDENT_DAILY_QUERY_LIMIT} questions pour aujourd’hui. Le compteur repart demain.`
+            : reason === "daily_image_limit"
+              ? `Vous avez atteint la limite de ${STUDENT_DAILY_IMAGE_REQUEST_LIMIT} demandes avec image pour aujourd’hui.`
+              : reason === "temporary_block"
+                ? "Trop de requêtes ont été envoyées en rafale. L’accès est temporairement bloqué pour protéger le service."
+                : `Les requêtes sont trop rapprochées. Attendez ${STUDENT_MIN_REQUEST_INTERVAL_SECONDS} secondes avant de réessayer.`;
+
+        await writeRuntime(false, 429, reason);
+        return NextResponse.json(
+          {
+            error: reason,
+            message,
+            quota: {
+              used: Number(quotaMeta?.requests_used || 0),
+              remaining: Number(quotaMeta?.requests_remaining || 0),
+              safety_limit: STUDENT_DAILY_QUERY_LIMIT,
+              image_used: Number(quotaMeta?.image_requests_used || 0),
+              image_remaining: Number(quotaMeta?.image_requests_remaining || 0),
+              image_limit: STUDENT_DAILY_IMAGE_REQUEST_LIMIT,
+              blocked_until: blockedUntil,
+            },
+          },
+          {
+            status: 429,
+            headers:
+              reason === "rate_limited"
+                ? { "Retry-After": String(STUDENT_MIN_REQUEST_INTERVAL_SECONDS) }
+                : undefined,
+          }
+        );
+      }
+    }
+
     const ACCESS_MONTHS_FALLBACK = 6;
 
     let usageMeta:
@@ -672,6 +771,10 @@ export async function POST(req: Request) {
           is_pro: boolean;
           is_admin: boolean;
           plan?: string;
+          daily_image_used?: number;
+          daily_image_remaining?: number;
+          daily_image_limit?: number;
+          monthly_pilot_cost_usd?: number;
         }
       | undefined = undefined;
 
@@ -726,18 +829,22 @@ export async function POST(req: Request) {
       );
 
       usageMeta = {
-        used: 0,
-        remaining: 999999,
+        used: Number(quotaMeta?.requests_used || 0),
+        remaining: Number(quotaMeta?.requests_remaining || 0),
         trial_started_at: closedAccess.activatedAt,
         trial_ends_at: closedAccess.accessEndsAt,
         trial_days_total: totalDays,
         trial_days_remaining: daysRemaining,
         trial_active: true,
-        safety_limit: 999999,
+        safety_limit: STUDENT_DAILY_QUERY_LIMIT,
         usage_cost: 0,
         is_pro: true,
         is_admin: false,
         plan: "stagiaire_epppn",
+        daily_image_used: Number(quotaMeta?.image_requests_used || 0),
+        daily_image_remaining: Number(quotaMeta?.image_requests_remaining || 0),
+        daily_image_limit: STUDENT_DAILY_IMAGE_REQUEST_LIMIT,
+        monthly_pilot_cost_usd: Number(monthlyPilotCostUsd.toFixed(4)),
       };
     } else {
       return NextResponse.json(
