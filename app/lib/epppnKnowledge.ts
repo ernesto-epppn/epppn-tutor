@@ -117,23 +117,13 @@ export async function retrieveEpppnKnowledge(params: {
       const priority = knowledgePriorityForTitle(document?.title);
       const similarity = Number(m.similarity ?? 0);
       const title = String(document?.title || m?.metadata?.title || "");
-      const normalizedTitle = normalizeKnowledgeTitle(title);
-      const breadQuery = /\b(pain|panification|baguette|miche|mie)\b/i.test(message);
-      const domainBoost = breadQuery
-        ? normalizedTitle === normalizeKnowledgeTitle("pane - Fulvio MArino")
-          ? 0.22
-          : normalizedTitle === normalizeKnowledgeTitle("MANUEL 2026 impression")
-            ? 0.08
-            : 0
-        : 0;
       return {
         ...m,
         document_title: title,
         document_source: document?.source || m?.metadata?.source || "",
         source_label: priority.label,
         source_boost: priority.boost,
-        domain_boost: domainBoost,
-        retrieval_score: similarity + priority.boost + domainBoost,
+        retrieval_score: similarity + priority.boost,
       };
     })
     .sort((a: any, b: any) => b.retrieval_score - a.retrieval_score);
