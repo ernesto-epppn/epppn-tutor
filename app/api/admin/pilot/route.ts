@@ -51,6 +51,15 @@ function dateMs(value: unknown) {
   return Number.isFinite(ms) ? ms : 0;
 }
 
+function parisDateKey(value: Date | string | number = new Date()) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
 function statusOf(row: any, authUser: any, now: number) {
   const expired = Boolean(row.access_ends_at) && dateMs(row.access_ends_at) <= now;
   if (row.blocked_at) return "blocked";
@@ -136,6 +145,7 @@ export async function GET(req: Request) {
       docsResult,
       chunksResult,
       jobsResult,
+      quotaResult,
       openaiHealth,
     ] = await Promise.all([
       supabase.from("ernesto_system_settings").select("*").eq("id", "global").maybeSingle(),
@@ -149,10 +159,11 @@ export async function GET(req: Request) {
       supabase.from("documents").select("id,status,active,indexed_at,created_at").order("created_at", { ascending: false }),
       supabase.from("document_chunks").select("id", { count: "exact", head: true }),
       supabase.from("ernesto_knowledge_jobs").select("id,status,error,stage_label,created_at,updated_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(100),
+      supabase.from("ernesto_daily_quotas").select("user_id,quota_date,request_count,image_request_count,violation_count,blocked_until,updated_at").eq("quota_date", parisDateKey()),
       checkOpenAIHealth(),
     ]);
 
-    const hardErrors = [settingsResult, allowResult, accessResult, memoryResult, ragResult, feedbackResult, runtimeResult, docsResult, chunksResult, jobsResult]
+    const hardErrors = [settingsResult, allowResult, accessResult, memoryResult, ragResult, feedbackResult, runtimeResult, docsResult, chunksResult, jobsResult, quotaResult]
       .map((result: any) => result?.error)
       .filter(Boolean);
     if (hardErrors.length) {
@@ -212,6 +223,25 @@ export async function GET(req: Request) {
       ragByEmail.set(key, current);
     }
 
+    const quotaRows = quotaResult.data || [];
+    const quotaByUser = new Map<string, any>();
+    for (const row of quotaRows) {
+      const key = String(row.user_id || "");
+      if (key) quotaByUser.set(key, row);
+    }
+
+    const runtimeTodayByUser = new Map<string, { cost: number; requests: number; imageRequests: number }>();
+    for (const row of runtimeResult.data || []) {
+      if (!row.created_at || parisDateKey(row.created_at) !== parisDateKey()) continue;
+      const key = String(row.user_id || "");
+      if (!key) continue;
+      const current = runtimeTodayByUser.get(key) || { cost: 0, requests: 0, imageRequests: 0 };
+      current.cost += Number(row.estimated_cost_usd || 0);
+      current.requests += 1;
+      if (Number(row.image_count || 0) > 0) current.imageRequests += 1;
+      runtimeTodayByUser.set(key, current);
+    }
+
     const feedbackRows = feedbackResult.data || [];
     const feedbackByUser = new Map<string, { positive: number; negative: number }>();
     for (const row of feedbackRows) {
@@ -232,6 +262,8 @@ export async function GET(req: Request) {
       const dossier = userId ? dossierByUser.get(userId) : undefined;
       const rag = ragByEmail.get(email);
       const feedback = userId ? feedbackByUser.get(userId) : undefined;
+      const quota = userId ? quotaByUser.get(userId) : undefined;
+      const runtimeToday = userId ? runtimeTodayByUser.get(userId) : undefined;
       const lastAccess = access?.last || row.last_login_at || authUser?.last_sign_in_at || null;
       return {
         email,
@@ -247,6 +279,13 @@ export async function GET(req: Request) {
         feedback_positive: feedback?.positive || 0,
         feedback_negative: feedback?.negative || 0,
         low_rag_questions: rag?.low || 0,
+        daily_questions: Number(quota?.request_count || 0),
+        daily_question_limit: 40,
+        daily_images: Number(quota?.image_request_count || 0),
+        daily_image_limit: 10,
+        daily_cost_usd: Number((runtimeToday?.cost || 0).toFixed(4)),
+        rate_violations: Number(quota?.violation_count || 0),
+        quota_blocked_until: quota?.blocked_until || null,
         never_connected: !lastAccess,
         active_7d: Boolean(lastAccess && dateMs(lastAccess) >= now - 7 * day),
       };
@@ -324,6 +363,10 @@ export async function GET(req: Request) {
         active_7d: trainees.filter((item: any) => item.active_7d).length,
         never_connected: trainees.filter((item: any) => item.never_connected).length,
         paused: trainees.filter((item: any) => item.status === "paused").length,
+        quota_blocked: trainees.filter((item: any) => item.quota_blocked_until && dateMs(item.quota_blocked_until) > now).length,
+        daily_query_limit: 40,
+        daily_image_limit: 10,
+        min_interval_seconds: 4,
       },
       quality: {
         period_days: 30,
