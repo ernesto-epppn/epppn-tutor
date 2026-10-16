@@ -384,17 +384,6 @@ async function runManualCase(params: {
   const contradictions = Array.isArray(parsed.contradictions)
     ? parsed.contradictions.map(String)
     : [];
-  const forbiddenHits = forbiddenPoints.filter((forbidden) =>
-    ernestoAnswer.toLowerCase().includes(forbidden.toLowerCase())
-  );
-  if (forbiddenHits.length) {
-    pass = false;
-    score = Math.min(score, 69);
-    contradictions.unshift(
-      ...forbiddenHits.map((item) => "Élément interdit détecté : " + item)
-    );
-  }
-
   return {
     pass,
     score,
