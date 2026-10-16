@@ -174,7 +174,7 @@ function evaluationPrompt(params: {
     answer,
     "",
     "CRITÈRES :",
-    "- retrieval : pertinence et priorité des sources ; pour le pain, la source pane est prioritaire dès qu'elle est disponible et pertinente.",
+    "- retrieval : pertinence des passages retrouvés et respect de la priorité générale des sources, sans règle spéciale par catégorie.",
     "- grounding : chiffres, seuils et réglages soutenus par le contexte.",
     "- technical_coherence : cohérence entre farine, eau, levure/levain, temps, température, fermentation et cuisson.",
     "- uncertainty_management : pas de fausse précision quand des données décisives manquent.",
@@ -187,68 +187,60 @@ function evaluationPrompt(params: {
 async function runCase(params: {
   test: EpppnBenchmarkCase;
   openai: OpenAI;
-  supabase: any;
+  origin: string;
+  authorization: string;
 }) {
-  const { test, openai, supabase } = params;
-  const knowledge = await retrieveEpppnKnowledge({
-    supabase,
-    openai,
-    message: test.question,
-    candidateCount: 80,
-    resultCount: 8,
-    minSimilarity: 0.2,
+  const { test, openai, origin, authorization } = params;
+
+  const tutorResponse = await fetch(new URL("/api/tutor", origin), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authorization,
+      "x-ernesto-benchmark": "1",
+    },
+    body: JSON.stringify({
+      message: test.question,
+      speed: "BANCO",
+      responseIndex: 1,
+    }),
+    cache: "no-store",
   });
 
-  const response = await openai.responses.create({
-    model: "gpt-4.1-mini",
-    input: [
-      {
-        role: "system",
-        content: [
-          {
-            type: "input_text",
-            text: "Tu produis la réponse technique qui sera soumise au benchmark interne EPPPN.",
-          },
-        ],
-      },
-      {
-        role: "user",
-        content: [{ type: "input_text", text: generationPrompt(test, knowledge.context) }],
-      },
-    ],
-  });
-  const rawAnswer = String(response.output_text || "").trim();
-  const secured = await secureTechnicalNumericAdvice({
-    openai,
-    answer: rawAnswer,
-    question: test.question,
-    context: knowledge.context,
-  });
-  const answer = secured.answer;
+  const tutorPayload = await tutorResponse.json().catch(() => ({}));
+  if (!tutorResponse.ok) {
+    throw new Error(
+      String(tutorPayload?.error || tutorPayload?.message || "production_tutor_pipeline_failed")
+    );
+  }
+
+  const answer = String(
+    tutorPayload?.answer_fr ?? tutorPayload?.text_fr ?? tutorPayload?.text ?? ""
+  ).trim();
+  const context = String(tutorPayload?._benchmark?.context || "");
+  const sources = Array.isArray(tutorPayload?._benchmark?.sources)
+    ? tutorPayload._benchmark.sources.map(String).filter(Boolean)
+    : [];
+  const topMatches = Array.isArray(tutorPayload?.rag?.top) ? tutorPayload.rag.top : [];
 
   const unsupportedNumbers = findUnsupportedOperationalNumbers({
     answer,
     question: test.question,
-    context: knowledge.context,
+    context,
     allowDocumentedDerivations: true,
   });
 
   const lowerAnswer = answer.toLowerCase();
   const lowerQuestion = test.question.toLowerCase();
-  const lowerContext = knowledge.context.toLowerCase();
+  const lowerContext = context.toLowerCase();
   const brandHallucination =
     (lowerAnswer.includes("moretti") || lowerAnswer.includes("serie s")) &&
     !(lowerQuestion.includes("moretti") || lowerQuestion.includes("serie s")) &&
     !(lowerContext.includes("moretti") || lowerContext.includes("serie s"));
 
-  const sources = [...new Set(
-    knowledge.retrieved
-      .map((item: any) => String(item.document_title || ""))
-      .filter(Boolean)
-  )];
-
   const evaluationResponse = await openai.responses.create({
     model: "gpt-4.1-mini",
+    max_output_tokens: 800,
     input: [
       {
         role: "system",
@@ -266,7 +258,7 @@ async function runCase(params: {
             type: "input_text",
             text: evaluationPrompt({
               test,
-              context: knowledge.context,
+              context,
               answer,
               unsupportedNumbers,
               sources,
@@ -305,7 +297,6 @@ async function runCase(params: {
     (dimensionValues.reduce((sum, value) => sum + value, 0) / 25) * 100
   );
 
-  // PASS is deterministic: good overall quality plus no weak critical dimension.
   let pass =
     score >= 70 &&
     dimensions.grounding >= 3 &&
@@ -319,7 +310,10 @@ async function runCase(params: {
   if (unsupportedNumbers.length) {
     pass = false;
     score = Math.min(score, 69);
-    issues.unshift("Valeur(s) opératoire(s) non retrouvée(s) dans la question ou le contexte : " + unsupportedNumbers.join(", "));
+    issues.unshift(
+      "Valeur(s) opératoire(s) non retrouvée(s) dans la question ou le contexte : " +
+        unsupportedNumbers.join(", ")
+    );
   }
   if (brandHallucination) {
     pass = false;
@@ -335,11 +329,19 @@ async function runCase(params: {
     pass,
     score,
     answer,
-    raw_answer: rawAnswer,
-    numeric_guard_triggered: secured.initialUnsupported.length > 0,
-    numeric_values_removed: [...new Set([...secured.initialUnsupported, ...secured.removed])],
+    raw_answer: answer,
+    pipeline: "production_tutor",
+    grounding_status: tutorPayload?._benchmark?.grounding_status || null,
+    grounding_source: tutorPayload?._benchmark?.grounding_source || null,
+    numeric_guard_triggered:
+      tutorPayload?.rag?.numeric_safety_rewritten === true ||
+      (Array.isArray(tutorPayload?.rag?.numeric_values_removed) &&
+        tutorPayload.rag.numeric_values_removed.length > 0),
+    numeric_values_removed: Array.isArray(tutorPayload?.rag?.numeric_values_removed)
+      ? tutorPayload.rag.numeric_values_removed
+      : [],
     sources,
-    top_matches: knowledge.retrieved.slice(0, 5).map((item: any) => ({
+    top_matches: topMatches.slice(0, 5).map((item: any) => ({
       document_title: item.document_title,
       similarity: Number(item.similarity || 0),
       retrieval_score: Number(item.retrieval_score || 0),
@@ -431,9 +433,11 @@ export async function POST(req: Request) {
     if (!tests.length) return NextResponse.json({ error: "benchmark_cases_not_found" }, { status: 404 });
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const origin = new URL(req.url).origin;
+    const authorization = req.headers.get("authorization") || "";
     const results = [];
     for (const test of tests) {
-      results.push(await runCase({ test, openai, supabase }));
+      results.push(await runCase({ test, openai, origin, authorization }));
     }
 
     const passed = results.filter((item) => item.pass).length;
