@@ -200,6 +200,7 @@ export default function AdminPilotConsole() {
   const [benchmarkBusy, setBenchmarkBusy] = useState("");
   const [benchmarkRun, setBenchmarkRun] = useState<BenchmarkRun | null>(null);
   const [benchmarkError, setBenchmarkError] = useState("");
+  const [benchmarkProgress, setBenchmarkProgress] = useState({ done: 0, total: 0 });
 
   async function accessToken() {
     if (!supabase) return null;
@@ -268,6 +269,57 @@ export default function AdminPilotConsole() {
     }
   }
 
+  async function runFullBenchmark() {
+    if (!supabase || !benchmark?.cases?.length) return;
+    if (!window.confirm(`Lancer les ${benchmark.cases.length} cas du benchmark technique ? L'opération effectue plusieurs appels OpenAI et peut prendre un certain temps.`)) return;
+
+    setBenchmarkBusy("ALL");
+    setBenchmarkError("");
+    setBenchmarkProgress({ done: 0, total: benchmark.cases.length });
+    const allResults: BenchmarkResult[] = [];
+
+    try {
+      const token = await accessToken();
+      if (!token) throw new Error("Session administrateur introuvable.");
+
+      for (let index = 0; index < benchmark.cases.length; index += 3) {
+        const batch = benchmark.cases.slice(index, index + 3).map((item) => item.id);
+        const response = await fetch("/api/admin/benchmark", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ case_ids: batch }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload?.error || `Échec du lot ${Math.floor(index / 3) + 1}.`);
+        allResults.push(...((payload as BenchmarkRun).results || []));
+        setBenchmarkProgress({
+          done: Math.min(index + batch.length, benchmark.cases.length),
+          total: benchmark.cases.length,
+        });
+      }
+
+      const passed = allResults.filter((item) => item.pass).length;
+      const avgScore = allResults.length
+        ? Math.round(allResults.reduce((sum, item) => sum + item.score, 0) / allResults.length)
+        : 0;
+
+      setBenchmarkRun({
+        run_at: new Date().toISOString(),
+        total: allResults.length,
+        passed,
+        failed: allResults.length - passed,
+        pass_rate: allResults.length ? passed / allResults.length : 0,
+        avg_score: avgScore,
+        results: allResults,
+      });
+      await loadBenchmark();
+    } catch (err) {
+      setBenchmarkError(err instanceof Error ? err.message : "Exécution complète impossible.");
+    } finally {
+      setBenchmarkBusy("");
+    }
+  }
+
   useEffect(() => {
     void load();
     void loadBenchmark();
@@ -311,6 +363,42 @@ export default function AdminPilotConsole() {
     if (benchmarkFilter === "Tous") return cases;
     return cases.filter((item) => item.category === benchmarkFilter);
   }, [benchmark, benchmarkFilter]);
+
+  const benchmarkCategorySummary = useMemo(() => {
+    const results = benchmarkRun?.results || [];
+    const byCategory = new Map<string, BenchmarkResult[]>();
+    for (const result of results) {
+      const rows = byCategory.get(result.category) || [];
+      rows.push(result);
+      byCategory.set(result.category, rows);
+    }
+    return Array.from(byCategory.entries())
+      .map(([category, rows]) => {
+        const passed = rows.filter((row) => row.pass).length;
+        const average = (key: keyof BenchmarkResult["evaluation"]) => {
+          const values = rows
+            .map((row) => Number(row.evaluation[key]))
+            .filter((value) => Number.isFinite(value));
+          return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+        };
+        const dimensions = [
+          { key: "retrieval", label: "retrieval", value: average("retrieval") },
+          { key: "grounding", label: "grounding", value: average("grounding") },
+          { key: "technical_coherence", label: "cohérence", value: average("technical_coherence") },
+          { key: "uncertainty_management", label: "incertitude", value: average("uncertainty_management") },
+          { key: "brand_safety", label: "marques", value: average("brand_safety") },
+        ].sort((a, b) => a.value - b.value);
+        return {
+          category,
+          total: rows.length,
+          passed,
+          passRate: rows.length ? passed / rows.length : 0,
+          avgScore: rows.length ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : 0,
+          weakest: dimensions[0],
+        };
+      })
+      .sort((a, b) => a.passRate - b.passRate || a.avgScore - b.avgScore);
+  }, [benchmarkRun]);
 
   if (!data && loading) {
     return <section className="pilotShell"><style>{pilotCss}</style><div className="pilotLoading">Préparation de la console de pilotage…</div></section>;
@@ -443,10 +531,20 @@ export default function AdminPilotConsole() {
               <span className="benchmarkCount">{benchmark?.total || 0} cas</span>
               <button
                 type="button"
+                className="benchmarkFullButton"
+                disabled={!benchmark?.cases?.length || Boolean(benchmarkBusy)}
+                onClick={() => void runFullBenchmark()}
+              >
+                {benchmarkBusy === "ALL"
+                  ? `Batterie ${benchmarkProgress.done}/${benchmarkProgress.total}`
+                  : "Lancer les 36 cas"}
+              </button>
+              <button
+                type="button"
                 disabled={!visibleBenchmarkCases.length || Boolean(benchmarkBusy)}
                 onClick={() => void runBenchmark(visibleBenchmarkCases.slice(0, 3).map((item) => item.id))}
               >
-                {benchmarkBusy ? "Test en cours…" : "Tester 3 cas visibles"}
+                {benchmarkBusy && benchmarkBusy !== "ALL" ? "Test en cours…" : "Tester 3 cas visibles"}
               </button>
             </div>
           </div>
@@ -503,6 +601,24 @@ export default function AdminPilotConsole() {
                 <div><span>PASS</span><strong>{benchmarkRun.passed}</strong></div>
                 <div><span>FAIL</span><strong className={benchmarkRun.failed ? "bad" : ""}>{benchmarkRun.failed}</strong></div>
               </div>
+
+              {benchmarkCategorySummary.length > 1 ? (
+                <div className="benchmarkDiagnosis">
+                  <div className="benchmarkDiagnosisHead">
+                    <strong>Diagnostic du corpus</strong>
+                    <span>Les catégories les plus faibles apparaissent en premier.</span>
+                  </div>
+                  <div className="benchmarkDiagnosisGrid">
+                    {benchmarkCategorySummary.map((item) => (
+                      <div key={item.category} className={item.passRate < 0.75 ? "weak" : item.passRate < 0.9 ? "watch" : "good"}>
+                        <strong>{item.category}</strong>
+                        <span>{Math.round(item.passRate * 100)} % PASS · {item.avgScore}/100</span>
+                        <small>Point le plus faible : {item.weakest.label} · {item.weakest.value.toFixed(1)}/5</small>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {benchmarkRun.results.map((result) => (
                 <details key={result.id} className={`benchmarkResult ${result.pass ? "pass" : "fail"}`} open={!result.pass}>
                   <summary>
@@ -592,8 +708,8 @@ const pilotCss = `
 .traineeTableWrap{margin-top:10px;border:1px solid #e2e7df;border-radius:17px;overflow:auto;background:#fff}.pilotTable{width:100%;border-collapse:collapse;min-width:980px}.pilotTable th{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#778174;text-align:left;background:#f8faf7;padding:9px 11px;border-bottom:1px solid #e5e9e2}.pilotTable td{font-size:11px;padding:10px 11px;border-bottom:1px solid #edf0eb;vertical-align:middle}.pilotTable tbody tr:last-child td{border-bottom:0}.pilotTable td strong{font-size:11px}.pilotTable td small{display:block;margin-top:2px;color:#839083;font-size:9px}.pilotTable td small.attention{color:#a0632d}.statusPill{display:inline-flex;padding:5px 7px;border-radius:999px;font-size:9px;font-weight:900}.status-active{background:#edf5e8;color:#435331}.status-invited{background:#f1f3f5;color:#66717a}.status-paused{background:#fff5df;color:#8d6619}.status-blocked,.status-expired{background:#fff0eb;color:#9a503b}.fbGood{color:#536c3a;font-weight:900}.fbBad{color:#a34d39;font-weight:900}.fbNeutral{color:#9aa19a}.tableEmpty{text-align:center!important;color:#7f897d;padding:24px!important}
 .qualityEmergencyGrid{display:grid;grid-template-columns:1.15fr .85fr;gap:12px;margin-top:16px}.controlCard,.costCard{background:#fff;border:1px solid #e3e8df;border-radius:18px;padding:18px}.controlCard h3,.costCard h3{margin:5px 0 0;font-size:20px;letter-spacing:-.035em}.cardIntro,.costHead p{margin:6px 0 0;color:#778174;font-size:11px;line-height:1.5}.qualityMetrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:13px}.qualityMetrics .miniMetric{background:#f9fbf8}.qualityBar{height:6px;background:#edf0eb;border-radius:999px;overflow:hidden;margin-top:12px}.qualityBar span{display:block;height:100%;background:#6f7d3c;border-radius:999px}.qualityCaption{font-size:10px;color:#768174;margin-top:6px}.negativeList{margin-top:14px;border-top:1px solid #e8ece5;padding-top:11px}.negativeList>strong{font-size:10px;text-transform:uppercase;letter-spacing:.05em}.negativeList>div{padding:8px 0;border-bottom:1px solid #edf0eb}.negativeList>div:last-child{border-bottom:0}.negativeList span{font-size:9px;color:#899188}.negativeList p{margin:3px 0;font-size:11px;line-height:1.4}.negativeList small{font-size:9px;color:#a06146}.quietState{margin-top:13px;padding:12px;background:#f7f9f6;border-radius:11px;font-size:10px;color:#748072}
 .emergencyCard.activeEmergency{border-color:#e8c3b6;background:#fffaf8}.controlRow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #edf0eb}.controlRow:last-child{border-bottom:0}.controlRow>div{display:grid;gap:2px}.controlRow>div strong{font-size:11px}.controlRow>div span{font-size:9px;color:#7c8779;line-height:1.35;max-width:430px}.controlRow>button{min-width:78px;border:0;border-radius:999px;padding:7px 9px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}.controlRow>button i{width:7px;height:7px;border-radius:50%}.controlRow>button.on{background:#edf5e8;color:#435331}.controlRow>button.on i{background:#6f7d3c}.controlRow>button.off{background:#eef1f3;color:#69747b}.controlRow>button.off i{background:#9ba4aa}.controlRow>button.danger{background:#fff0eb;color:#9a503b}.controlRow>button.danger i{background:#b85e43}
-.benchmarkCard{margin-top:16px;background:#fff;border:1px solid #e3e8df;border-radius:18px;padding:18px}.benchmarkHead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.benchmarkHead h3{margin:5px 0 0;font-size:20px;letter-spacing:-.035em}.benchmarkHead p{margin:6px 0 0;max-width:790px;color:#778174;font-size:11px;line-height:1.5}.benchmarkHeadActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.benchmarkCount{border-radius:999px;background:#eef3e9;color:#53653d;padding:7px 10px;font-size:10px;font-weight:900}.benchmarkHeadActions button,.benchmarkCase>button{border:0;background:#435331;color:#fff;border-radius:9px;padding:8px 10px;font-size:9px;font-weight:900;cursor:pointer}.benchmarkHeadActions button:disabled,.benchmarkCase>button:disabled{opacity:.55;cursor:default}.benchmarkError{margin-top:12px;padding:10px 12px;border-radius:11px;background:#fff0eb;color:#99513d;font-size:10px;font-weight:800}.sourceStatusGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:14px}.sourceStatus{display:flex;gap:8px;align-items:center;border:1px solid #e4e9e1;border-radius:12px;padding:9px;background:#fafbf9;min-width:0}.sourceStatus>span{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#edf1ea;font-size:9px;font-weight:950}.sourceStatus>div{min-width:0}.sourceStatus strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:9px}.sourceStatus small{display:block;margin-top:2px;font-size:8px;color:#7b8579}.sourceStatus.ready{border-color:#d6e4ce;background:#f8fbf6}.sourceStatus.ready>span{background:#e5f0df;color:#486039}.sourceStatus.pending{border-color:#eadfca;background:#fffaf2}.sourceStatus.pending>span{background:#f6ead6;color:#8a6323}.sourceStatus.missing{border-color:#ead8d2;background:#fff8f5}.sourceStatus.missing>span{background:#f5e4df;color:#98523e}.benchmarkFilters{display:flex;gap:5px;overflow:auto;padding:12px 0 5px}.benchmarkFilters button{white-space:nowrap;border:1px solid #dce2d8;background:#fff;color:#657064;border-radius:999px;padding:6px 9px;font-size:9px;font-weight:850;cursor:pointer}.benchmarkFilters button.active{background:#435331;color:#fff;border-color:#435331}.benchmarkCaseList{margin-top:6px;border:1px solid #e5e9e2;border-radius:14px;overflow:auto;max-height:360px}.benchmarkCase{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;padding:10px 11px;border-bottom:1px solid #edf0eb}.benchmarkCase:last-child{border-bottom:0}.benchmarkCaseCode{font-size:9px;font-weight:950;color:#637243;background:#eef3e9;border-radius:7px;padding:5px 6px;text-align:center}.benchmarkCaseBody{min-width:0}.benchmarkCaseBody strong{display:block;font-size:10px;line-height:1.35}.benchmarkCaseBody small{display:block;margin-top:3px;color:#818a81;font-size:8px}.benchmarkResults{margin-top:14px;border-top:1px solid #e8ece5;padding-top:13px}.benchmarkRunSummary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.benchmarkRunSummary>div{background:#f8faf7;border-radius:10px;padding:9px}.benchmarkRunSummary span{display:block;font-size:8px;text-transform:uppercase;font-weight:900;color:#7b8578}.benchmarkRunSummary strong{display:block;margin-top:3px;font-size:17px}.benchmarkRunSummary strong.bad{color:#a6533d}.benchmarkResult{margin-top:8px;border:1px solid #e3e8df;border-radius:12px;overflow:hidden}.benchmarkResult.pass{border-left:4px solid #6f7d3c}.benchmarkResult.fail{border-left:4px solid #b65c43}.benchmarkResult>summary{cursor:pointer;display:grid;grid-template-columns:48px 110px 1fr;gap:8px;align-items:center;padding:9px 10px;background:#fafbf9}.benchmarkResult>summary>span{font-size:8px;font-weight:950}.benchmarkResult.pass>summary>span{color:#526a3b}.benchmarkResult.fail>summary>span{color:#a4513c}.benchmarkResult>summary>strong{font-size:10px}.benchmarkResult>summary>small{font-size:9px;color:#778174}.benchmarkResultBody{padding:11px}.benchmarkResultBody p{margin:0 0 8px;font-size:10px;line-height:1.45}.benchmarkResultBody p b,.benchmarkIssues>b{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:#758174;margin-bottom:2px}.benchmarkAlert{background:#fff5f1;border-radius:8px;padding:8px!important;color:#914d3a}.benchmarkIssues{display:grid;gap:4px;margin-top:7px}.benchmarkIssues span{font-size:9px;background:#f6f8f5;border-radius:7px;padding:6px 7px}.benchmarkScores{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.benchmarkScores span{background:#eef2ed;border-radius:999px;padding:4px 6px;font-size:8px;font-weight:850;color:#5f6c5d}.benchmarkAnswer{margin-top:9px;border-top:1px solid #edf0eb;padding-top:8px}.benchmarkAnswer summary{font-size:9px;font-weight:900;cursor:pointer}.benchmarkAnswer p{white-space:pre-wrap;margin-top:7px!important}.benchmarkEmpty{margin-top:12px;background:#f8faf7;border-radius:10px;padding:11px;color:#788376;font-size:9px}
+.benchmarkCard{margin-top:16px;background:#fff;border:1px solid #e3e8df;border-radius:18px;padding:18px}.benchmarkHead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.benchmarkHead h3{margin:5px 0 0;font-size:20px;letter-spacing:-.035em}.benchmarkHead p{margin:6px 0 0;max-width:790px;color:#778174;font-size:11px;line-height:1.5}.benchmarkHeadActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.benchmarkCount{border-radius:999px;background:#eef3e9;color:#53653d;padding:7px 10px;font-size:10px;font-weight:900}.benchmarkHeadActions button,.benchmarkCase>button{border:0;background:#435331;color:#fff;border-radius:9px;padding:8px 10px;font-size:9px;font-weight:900;cursor:pointer}.benchmarkHeadActions .benchmarkFullButton{background:#172132}.benchmarkDiagnosis{margin-top:10px;border:1px solid #e2e8df;border-radius:12px;padding:10px;background:#fafbf9}.benchmarkDiagnosisHead{display:flex;justify-content:space-between;gap:10px;align-items:center}.benchmarkDiagnosisHead strong{font-size:10px}.benchmarkDiagnosisHead span{font-size:8px;color:#7d877c}.benchmarkDiagnosisGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}.benchmarkDiagnosisGrid>div{border-radius:9px;padding:8px;border:1px solid #e3e7e1;background:#fff}.benchmarkDiagnosisGrid>div.weak{border-color:#eccdc4;background:#fff7f4}.benchmarkDiagnosisGrid>div.watch{border-color:#eadfca;background:#fffbf3}.benchmarkDiagnosisGrid>div.good{border-color:#d8e5d1;background:#f8fbf6}.benchmarkDiagnosisGrid strong{display:block;font-size:9px}.benchmarkDiagnosisGrid span{display:block;margin-top:3px;font-size:9px;font-weight:850}.benchmarkDiagnosisGrid small{display:block;margin-top:3px;font-size:8px;color:#778174}.benchmarkHeadActions button:disabled,.benchmarkCase>button:disabled{opacity:.55;cursor:default}.benchmarkError{margin-top:12px;padding:10px 12px;border-radius:11px;background:#fff0eb;color:#99513d;font-size:10px;font-weight:800}.sourceStatusGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:14px}.sourceStatus{display:flex;gap:8px;align-items:center;border:1px solid #e4e9e1;border-radius:12px;padding:9px;background:#fafbf9;min-width:0}.sourceStatus>span{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#edf1ea;font-size:9px;font-weight:950}.sourceStatus>div{min-width:0}.sourceStatus strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:9px}.sourceStatus small{display:block;margin-top:2px;font-size:8px;color:#7b8579}.sourceStatus.ready{border-color:#d6e4ce;background:#f8fbf6}.sourceStatus.ready>span{background:#e5f0df;color:#486039}.sourceStatus.pending{border-color:#eadfca;background:#fffaf2}.sourceStatus.pending>span{background:#f6ead6;color:#8a6323}.sourceStatus.missing{border-color:#ead8d2;background:#fff8f5}.sourceStatus.missing>span{background:#f5e4df;color:#98523e}.benchmarkFilters{display:flex;gap:5px;overflow:auto;padding:12px 0 5px}.benchmarkFilters button{white-space:nowrap;border:1px solid #dce2d8;background:#fff;color:#657064;border-radius:999px;padding:6px 9px;font-size:9px;font-weight:850;cursor:pointer}.benchmarkFilters button.active{background:#435331;color:#fff;border-color:#435331}.benchmarkCaseList{margin-top:6px;border:1px solid #e5e9e2;border-radius:14px;overflow:auto;max-height:360px}.benchmarkCase{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;padding:10px 11px;border-bottom:1px solid #edf0eb}.benchmarkCase:last-child{border-bottom:0}.benchmarkCaseCode{font-size:9px;font-weight:950;color:#637243;background:#eef3e9;border-radius:7px;padding:5px 6px;text-align:center}.benchmarkCaseBody{min-width:0}.benchmarkCaseBody strong{display:block;font-size:10px;line-height:1.35}.benchmarkCaseBody small{display:block;margin-top:3px;color:#818a81;font-size:8px}.benchmarkResults{margin-top:14px;border-top:1px solid #e8ece5;padding-top:13px}.benchmarkRunSummary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.benchmarkRunSummary>div{background:#f8faf7;border-radius:10px;padding:9px}.benchmarkRunSummary span{display:block;font-size:8px;text-transform:uppercase;font-weight:900;color:#7b8578}.benchmarkRunSummary strong{display:block;margin-top:3px;font-size:17px}.benchmarkRunSummary strong.bad{color:#a6533d}.benchmarkResult{margin-top:8px;border:1px solid #e3e8df;border-radius:12px;overflow:hidden}.benchmarkResult.pass{border-left:4px solid #6f7d3c}.benchmarkResult.fail{border-left:4px solid #b65c43}.benchmarkResult>summary{cursor:pointer;display:grid;grid-template-columns:48px 110px 1fr;gap:8px;align-items:center;padding:9px 10px;background:#fafbf9}.benchmarkResult>summary>span{font-size:8px;font-weight:950}.benchmarkResult.pass>summary>span{color:#526a3b}.benchmarkResult.fail>summary>span{color:#a4513c}.benchmarkResult>summary>strong{font-size:10px}.benchmarkResult>summary>small{font-size:9px;color:#778174}.benchmarkResultBody{padding:11px}.benchmarkResultBody p{margin:0 0 8px;font-size:10px;line-height:1.45}.benchmarkResultBody p b,.benchmarkIssues>b{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:#758174;margin-bottom:2px}.benchmarkAlert{background:#fff5f1;border-radius:8px;padding:8px!important;color:#914d3a}.benchmarkIssues{display:grid;gap:4px;margin-top:7px}.benchmarkIssues span{font-size:9px;background:#f6f8f5;border-radius:7px;padding:6px 7px}.benchmarkScores{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.benchmarkScores span{background:#eef2ed;border-radius:999px;padding:4px 6px;font-size:8px;font-weight:850;color:#5f6c5d}.benchmarkAnswer{margin-top:9px;border-top:1px solid #edf0eb;padding-top:8px}.benchmarkAnswer summary{font-size:9px;font-weight:900;cursor:pointer}.benchmarkAnswer p{white-space:pre-wrap;margin-top:7px!important}.benchmarkEmpty{margin-top:12px;background:#f8faf7;border-radius:10px;padding:11px;color:#788376;font-size:9px}
 .costCard{margin-top:12px}.costHead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.budgetBadge{border-radius:999px;padding:7px 10px;font-size:10px;font-weight:900;white-space:nowrap}.budgetBadge.good{background:#edf5e8;color:#435331}.budgetBadge.watch{background:#f4f5df;color:#6d7128}.budgetBadge.warning{background:#fff4df;color:#8b641e}.budgetBadge.danger{background:#fff0eb;color:#a0503a}.providerGrid{display:grid;grid-template-columns:1.2fr .9fr .9fr;gap:9px;margin-top:14px}.provider{border:1px solid #e3e8df;border-radius:14px;background:#fafbf9;padding:14px;min-width:0}.openaiProvider{background:#f8fafc;border-color:#dce4ea}.providerTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.providerTop strong{font-size:12px}.providerTop span{font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#7f8b82;background:#eef1ed;border-radius:999px;padding:4px 6px}.providerPrice{font-size:28px;font-weight:950;letter-spacing:-.045em;margin-top:8px}.providerPlan{margin-top:12px;font-size:12px}.provider p{font-size:10px;color:#7a8578;line-height:1.45;min-height:29px}.provider>small{font-size:9px;color:#7e8990}.budgetTrack{height:6px;border-radius:999px;background:#e9edf0;overflow:hidden;margin-top:10px}.budgetTrack span{display:block;height:100%}.budgetTrack span.good{background:#6f7d3c}.budgetTrack span.watch{background:#9a9c45}.budgetTrack span.warning{background:#c58a38}.budgetTrack span.danger{background:#b45e45}.budgetEdit{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}.budgetEdit label{font-size:9px;font-weight:800;color:#647168}.budgetEdit input{width:64px;border:1px solid #dbe2dc;border-radius:8px;padding:5px 6px;font-size:10px}.budgetEdit button{border:0;background:#435331;color:#fff;border-radius:8px;padding:6px 8px;font-size:9px;font-weight:850;cursor:pointer}.providerLinks{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.providerLinks a{text-decoration:none;border:1px solid #dce2dc;background:#fff;color:#4e6047;border-radius:9px;padding:6px 8px;font-size:9px;font-weight:850}.costFoot{font-size:9px;color:#818b80;line-height:1.5;margin-top:10px}
-@media(max-width:980px){.healthGrid,.opsStrip,.pilotSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.sourceStatusGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.benchmarkHead{display:grid}.benchmarkHeadActions{justify-content:flex-start}.benchmarkResult>summary{grid-template-columns:45px 95px 1fr}.qualityEmergencyGrid,.providerGrid{grid-template-columns:1fr}.qualityMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.pilotHead,.pilotSectionHead,.costHead{display:grid}.pilotHeadActions{justify-content:flex-start}.opsStrip>div:nth-child(2){border-right:0}.opsStrip>div{border-bottom:1px solid #e8ece5}.opsStrip>div:nth-last-child(-n+2){border-bottom:0}}
-@media(max-width:600px){.pilotShell{padding:16px 12px}.pilotHead h2{font-size:24px}.healthGrid,.pilotSummary{grid-template-columns:1fr 1fr}.opsStrip{grid-template-columns:1fr 1fr}.pilotFilters{overflow:auto;flex-wrap:nowrap;padding-bottom:2px}.pilotFilters button{white-space:nowrap}.qualityMetrics{grid-template-columns:1fr 1fr}.providerGrid{grid-template-columns:1fr}.controlCard,.costCard{padding:14px}.pilotHeadActions{flex-wrap:wrap}}
+@media(max-width:980px){.healthGrid,.opsStrip,.pilotSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.sourceStatusGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.benchmarkDiagnosisGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.benchmarkHead{display:grid}.benchmarkHeadActions{justify-content:flex-start}.benchmarkResult>summary{grid-template-columns:45px 95px 1fr}.qualityEmergencyGrid,.providerGrid{grid-template-columns:1fr}.qualityMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.pilotHead,.pilotSectionHead,.costHead{display:grid}.pilotHeadActions{justify-content:flex-start}.opsStrip>div:nth-child(2){border-right:0}.opsStrip>div{border-bottom:1px solid #e8ece5}.opsStrip>div:nth-last-child(-n+2){border-bottom:0}}
+@media(max-width:600px){.pilotShell{padding:16px 12px}.benchmarkDiagnosisGrid{grid-template-columns:1fr}.benchmarkDiagnosisHead{display:grid}.pilotHead h2{font-size:24px}.healthGrid,.pilotSummary{grid-template-columns:1fr 1fr}.opsStrip{grid-template-columns:1fr 1fr}.pilotFilters{overflow:auto;flex-wrap:nowrap;padding-bottom:2px}.pilotFilters button{white-space:nowrap}.qualityMetrics{grid-template-columns:1fr 1fr}.providerGrid{grid-template-columns:1fr}.controlCard,.costCard{padding:14px}.pilotHeadActions{flex-wrap:wrap}}
 `;
