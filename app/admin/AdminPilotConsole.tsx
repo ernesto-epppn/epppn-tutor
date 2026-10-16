@@ -202,10 +202,75 @@ export default function AdminPilotConsole() {
   const [benchmarkError, setBenchmarkError] = useState("");
   const [benchmarkProgress, setBenchmarkProgress] = useState({ done: 0, total: 0 });
 
-  async function accessToken() {
+  async function accessToken(forceRefresh = false) {
     if (!supabase) return null;
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token || null;
+
+    if (forceRefresh) {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) return null;
+      return data.session?.access_token || null;
+    }
+
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) return null;
+
+    const expiresAtMs = Number(data.session.expires_at || 0) * 1000;
+    if (expiresAtMs && expiresAtMs - Date.now() < 120_000) {
+      const refreshed = await supabase.auth.refreshSession();
+      if (refreshed.error) return null;
+      return refreshed.data.session?.access_token || null;
+    }
+
+    return data.session.access_token;
+  }
+
+  async function benchmarkRequest(caseIds: string[]) {
+    if (!supabase) throw new Error("Client Supabase indisponible.");
+
+    async function send(forceRefresh = false) {
+      const token = await accessToken(forceRefresh);
+      if (!token) {
+        throw new Error("Session administrateur expirée. Reconnectez-vous puis relancez le benchmark.");
+      }
+
+      const response = await fetch("/api/admin/benchmark", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ case_ids: caseIds }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      return { response, payload };
+    }
+
+    let attempt = await send(false);
+    if (
+      attempt.response.status === 401 &&
+      (attempt.payload?.error === "invalid_session" || attempt.payload?.error === "auth_required")
+    ) {
+      attempt = await send(true);
+    }
+
+    if (!attempt.response.ok) {
+      throw new Error(attempt.payload?.error || "Exécution du benchmark impossible.");
+    }
+    return attempt.payload as BenchmarkRun;
+  }
+
+  function buildBenchmarkRun(results: BenchmarkResult[]): BenchmarkRun {
+    const passed = results.filter((item) => item.pass).length;
+    const avgScore = results.length
+      ? Math.round(results.reduce((sum, item) => sum + item.score, 0) / results.length)
+      : 0;
+
+    return {
+      run_at: new Date().toISOString(),
+      total: results.length,
+      passed,
+      failed: results.length - passed,
+      pass_rate: results.length ? passed / results.length : 0,
+      avg_score: avgScore,
+      results: [...results],
+    };
   }
 
   async function load() {
@@ -251,16 +316,8 @@ export default function AdminPilotConsole() {
     setBenchmarkBusy(ids.join(","));
     setBenchmarkError("");
     try {
-      const token = await accessToken();
-      if (!token) throw new Error("Session administrateur introuvable.");
-      const response = await fetch("/api/admin/benchmark", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ case_ids: ids }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error || "Exécution du benchmark impossible.");
-      setBenchmarkRun(payload as BenchmarkRun);
+      const payload = await benchmarkRequest(ids);
+      setBenchmarkRun(payload);
       await loadBenchmark();
     } catch (err) {
       setBenchmarkError(err instanceof Error ? err.message : "Exécution du benchmark impossible.");
@@ -271,7 +328,7 @@ export default function AdminPilotConsole() {
 
   async function runFullBenchmark() {
     if (!supabase || !benchmark?.cases?.length) return;
-    if (!window.confirm(`Lancer les ${benchmark.cases.length} cas du benchmark technique ? L'opération effectue plusieurs appels OpenAI et peut prendre un certain temps.`)) return;
+    if (!window.confirm(`Lancer les ${benchmark.cases.length} cas du benchmark technique ? L'opération effectue plusieurs appels OpenAI.`)) return;
 
     setBenchmarkBusy("ALL");
     setBenchmarkError("");
@@ -279,41 +336,22 @@ export default function AdminPilotConsole() {
     const allResults: BenchmarkResult[] = [];
 
     try {
-      const token = await accessToken();
-      if (!token) throw new Error("Session administrateur introuvable.");
-
       for (let index = 0; index < benchmark.cases.length; index += 3) {
         const batch = benchmark.cases.slice(index, index + 3).map((item) => item.id);
-        const response = await fetch("/api/admin/benchmark", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ case_ids: batch }),
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload?.error || `Échec du lot ${Math.floor(index / 3) + 1}.`);
-        allResults.push(...((payload as BenchmarkRun).results || []));
-        setBenchmarkProgress({
-          done: Math.min(index + batch.length, benchmark.cases.length),
-          total: benchmark.cases.length,
-        });
+        const payload = await benchmarkRequest(batch);
+        allResults.push(...(payload.results || []));
+
+        const done = Math.min(index + batch.length, benchmark.cases.length);
+        setBenchmarkProgress({ done, total: benchmark.cases.length });
+
+        // Preserve completed batches immediately, so a later auth/network error
+        // never hides the diagnostic results already obtained.
+        setBenchmarkRun(buildBenchmarkRun(allResults));
       }
 
-      const passed = allResults.filter((item) => item.pass).length;
-      const avgScore = allResults.length
-        ? Math.round(allResults.reduce((sum, item) => sum + item.score, 0) / allResults.length)
-        : 0;
-
-      setBenchmarkRun({
-        run_at: new Date().toISOString(),
-        total: allResults.length,
-        passed,
-        failed: allResults.length - passed,
-        pass_rate: allResults.length ? passed / allResults.length : 0,
-        avg_score: avgScore,
-        results: allResults,
-      });
       await loadBenchmark();
     } catch (err) {
+      if (allResults.length) setBenchmarkRun(buildBenchmarkRun(allResults));
       setBenchmarkError(err instanceof Error ? err.message : "Exécution complète impossible.");
     } finally {
       setBenchmarkBusy("");
