@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { retrieveEpppnKnowledge, shouldVerifyTechnicalAnswer } from "../../lib/epppnKnowledge";
 
 export const runtime = "nodejs";
 
@@ -12,71 +13,6 @@ function looksQuantifiable(input: string) {
   );
 }
 
-
-const PRIMARY_KNOWLEDGE_PRIORITY = [
-  { title: "Cookbook Pizza Home made 5 - Marino", boost: 0.16, label: "Marino · Cookbook Pizza Home made 5" },
-  { title: "Ricettario Pizza home made", boost: 0.13, label: "Marino · Ricettario Pizza home made" },
-  { title: "pane - Fulvio MArino", boost: 0.11, label: "Marino · Pane" },
-  { title: "MANUEL 2026 impression", boost: 0.09, label: "Manuel EPPPN 2026" },
-] as const;
-
-function normalizeKnowledgeTitle(value: unknown) {
-  return String(value || "").trim().toLocaleLowerCase("fr");
-}
-
-function knowledgePriorityForTitle(value: unknown) {
-  const normalized = normalizeKnowledgeTitle(value);
-  const hit = PRIMARY_KNOWLEDGE_PRIORITY.find(
-    (entry) => normalizeKnowledgeTitle(entry.title) === normalized
-  );
-  if (hit) return hit;
-  if (
-    normalized.includes("fiches recettes epppn") ||
-    normalized === "levain" ||
-    normalized.includes("tonda biga")
-  ) {
-    return { title: String(value || ""), boost: 0.05, label: "EPPPN · complément officiel" };
-  }
-  if (normalized.includes("plaquette epppn")) {
-    return { title: String(value || ""), boost: 0.02, label: "EPPPN · repère institutionnel" };
-  }
-  return { title: String(value || ""), boost: 0, label: "Référence complémentaire" };
-}
-
-function expandTechnicalRetrievalQuery(message: string) {
-  const additions: string[] = [];
-  if (/(levain|levure|lievito|lievit|ferment)/i.test(message)) {
-    additions.push("levain levure lievito lievitazione fermentation fermentazione");
-  }
-  if (/(hydrat|idrat|eau|acqua)/i.test(message)) {
-    additions.push("hydratation idratazione eau acqua");
-  }
-  if (/(four|forno|cuisson|cottur)/i.test(message)) {
-    additions.push("four forno cuisson cottura température temperatura");
-  }
-  if (/(farine|farina|\bW\s?\d{2,4}\b|protéine|proteina)/i.test(message)) {
-    additions.push("farine farina force W protéines proteine");
-  }
-  if (/(temp[ée]rature|temperatura|froid|freddo|chaud|caldo)/i.test(message)) {
-    additions.push("température temperatura froid freddo chaleur calore");
-  }
-  if (/(biga|poolish|pré[- ]?ferment|preferment)/i.test(message)) {
-    additions.push("biga poolish préferment prefermento");
-  }
-
-  return additions.length
-    ? `${message}\n\nVocabulaire technique équivalent FR/IT pour la recherche : ${[...new Set(additions)].join(" ; ")}`
-    : message;
-}
-
-function shouldVerifyTechnicalAnswer(question: string, answer: string) {
-  const domain =
-    /(levain|levure|lievito|lievit|ferment|hydrat|idrat|farine|farina|four|forno|cuisson|cottur|temp[ée]rature|temperatura|biga|poolish|p[ée]triss|impast|pointage|appr[êe]t|maturation|p[âa]ton|cornicione)/i;
-  const operational =
-    /(\d|%|°|gram|\bg\b|kg|min|minute|heure|\bh\b|jour|dose|dosage|ratio|w\s?\d|protéine|proteina)/i;
-
-  return domain.test(question) || (domain.test(answer) && operational.test(answer));
-}
 
 function buildGraphPrompt(question: string, answer: string) {
   return `
@@ -785,97 +721,26 @@ export async function POST(req: Request) {
     }
 
     let retrieved: any[] = [];
+    let retrievedContext = "(Aucune connaissance interne pertinente disponible.)";
     if (systemSettings?.rag_enabled !== false) {
-      const retrievalQuery = expandTechnicalRetrievalQuery(message);
-      const emb = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: retrievalQuery,
-      });
-      runtimeEmbeddingTokens += Number((emb as any)?.usage?.total_tokens || (emb as any)?.usage?.prompt_tokens || 0);
-      runtimeModelRequests += 1;
-      const queryEmbedding = emb.data[0].embedding;
-
-      // Broad semantic candidate pool first; then source-aware reranking.
-      // This prevents a long document from winning only because it contains more chunks.
-      const { data: matches, error: matchErr } = await supabase.rpc("match_chunks", {
-        query_embedding: queryEmbedding,
-        match_count: 80,
-      });
-
-      if (matchErr) {
-        console.warn("match_chunks error:", matchErr);
-      }
-
-      const candidates = (matches ?? []).filter(
-        (m: any) => Number(m.similarity ?? 0) >= 0.2
-      );
-
-      const documentIds = [...new Set(candidates.map((m: any) => m.document_id).filter(Boolean))];
-      const { data: documentRows, error: documentErr } = documentIds.length
-        ? await supabase
-            .from("documents")
-            .select("id,title,source,active,status")
-            .in("id", documentIds)
-        : { data: [], error: null };
-
-      if (documentErr) {
-        console.warn("knowledge document metadata lookup failed:", documentErr.message);
-      }
-
-      const documentsById = new Map(
-        (documentRows ?? []).map((doc: any) => [Number(doc.id), doc])
-      );
-
-      const reranked = candidates
-        .map((m: any) => {
-          const document = documentsById.get(Number(m.document_id));
-          const priority = knowledgePriorityForTitle(document?.title);
-          const similarity = Number(m.similarity ?? 0);
-          return {
-            ...m,
-            document_title: document?.title || m?.metadata?.title || "",
-            document_source: document?.source || m?.metadata?.source || "",
-            source_label: priority.label,
-            source_boost: priority.boost,
-            retrieval_score: similarity + priority.boost,
-          };
-        })
-        .sort((a: any, b: any) => b.retrieval_score - a.retrieval_score);
-
-      // Preserve diversity while allowing the main Marino cookbook to contribute several passages.
-      const perDocumentCount = new Map<number, number>();
-      for (const item of reranked) {
-        const documentId = Number(item.document_id);
-        const already = perDocumentCount.get(documentId) || 0;
-        if (already >= 4) continue;
-        retrieved.push(item);
-        perDocumentCount.set(documentId, already + 1);
-        if (retrieved.length >= 8) break;
-      }
-
-      if (retrieved.length < 8) {
-        for (const item of reranked) {
-          if (retrieved.some((existing: any) => existing.chunk_id === item.chunk_id)) continue;
-          retrieved.push(item);
-          if (retrieved.length >= 8) break;
-        }
+      try {
+        const knowledge = await retrieveEpppnKnowledge({
+          supabase,
+          openai,
+          message,
+          candidateCount: 80,
+          resultCount: 8,
+          minSimilarity: 0.2,
+        });
+        retrieved = knowledge.retrieved;
+        retrievedContext = knowledge.context;
+        runtimeEmbeddingTokens += knowledge.embeddingTokens;
+        runtimeModelRequests += 1;
+      } catch (retrievalErr) {
+        console.warn("EPPPN knowledge retrieval failed:", retrievalErr);
       }
     }
     runtimeRagUsed = retrieved.length;
-
-    const retrievedContext =
-      retrieved.length > 0
-        ? retrieved
-            .map(
-              (m: any, i: number) =>
-                `CONNAISSANCE INTERNE ${i + 1}\n` +
-                `Priorité: ${m.source_label || "Référence complémentaire"}\n` +
-                `Titre interne: ${m.document_title || "non renseigné"}\n` +
-                `Pertinence sémantique: ${Number(m.similarity ?? 0).toFixed(2)}\n` +
-                `${m.content}`
-            )
-            .join("\n\n---\n\n")
-        : "(Aucune connaissance interne pertinente disponible.)";
 
     const systemPrompt = `
 IDENTITÉ :
