@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { retrieveEpppnKnowledge, shouldVerifyTechnicalAnswer } from "../../lib/epppnKnowledge";
+import { findUnsupportedOperationalNumbers, retrieveEpppnKnowledge, shouldVerifyTechnicalAnswer } from "../../lib/epppnKnowledge";
 
 export const runtime = "nodejs";
 
@@ -13,6 +13,55 @@ function looksQuantifiable(input: string) {
   );
 }
 
+
+
+function removeUnsupportedNumericLines(params: {
+  answer: string;
+  question: string;
+  context: string;
+}) {
+  const lines = String(params.answer || "").split("\n");
+  const kept = lines.filter((line) => {
+    if (!line.trim()) return true;
+    return findUnsupportedOperationalNumbers({
+      answer: line,
+      question: params.question,
+      context: params.context,
+      allowDocumentedDerivations: true,
+    }).length === 0;
+  });
+  return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function graphNumericValuesAreGrounded(graph: any, answer: string) {
+  if (!graph || typeof graph !== "object") return true;
+  const allowed = new Set(
+    (String(answer || "").match(/-?\d+(?:[.,]\d+)?/g) || [])
+      .map((value) => Number(value.replace(",", ".")))
+      .filter((value) => Number.isFinite(value))
+      .map((value) => String(Math.round(value * 1000000) / 1000000))
+  );
+
+  const numericValues: number[] = [];
+  const visit = (value: any, key?: string) => {
+    if (key === "confidence") return;
+    if (typeof value === "number" && Number.isFinite(value)) {
+      numericValues.push(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => visit(item));
+      return;
+    }
+    if (value && typeof value === "object") {
+      Object.entries(value).forEach(([childKey, childValue]) => visit(childValue, childKey));
+    }
+  };
+  visit(graph?.charts || []);
+  return numericValues.every((value) =>
+    allowed.has(String(Math.round(value * 1000000) / 1000000))
+  );
+}
 
 function buildGraphPrompt(question: string, answer: string) {
   return `
@@ -763,8 +812,11 @@ MÉTHODE :
 - Sois exhaustif sur les variables qui peuvent réellement changer la décision, pas encyclopédique sur tout le sujet.
 
 FIABILITÉ :
-- N’invente pas de chiffres, normes, seuils ou références précises.
-- Une valeur chiffrée doit être soutenue par les connaissances internes ou être un repère professionnel que tu peux défendre avec prudence.
+- N’invente jamais de chiffres, normes, seuils, coefficients, ratios ou références précises.
+- Toute valeur opératoire ou technique — notamment grammes, pourcentages, hydratation, W, P/L, pH, températures, durées, dosages, rapports et réglages de cuisson — doit être soit explicitement présente dans les connaissances internes récupérées, soit fournie par l’utilisateur.
+- Une valeur calculée est admise uniquement si elle découle arithmétiquement d’une quantité fournie par l’utilisateur et d’une proportion explicitement documentée dans les connaissances internes. Dans ce cas, montre brièvement le calcul.
+- Un chiffre simplement plausible, habituel ou connu par le modèle n’est jamais une base suffisante.
+- Si une valeur ne peut pas être confirmée, reste qualitatif et indique ce qu’il faut mesurer ou préciser au lieu de donner un chiffre.
 - Si tu hésites entre plusieurs causes, classe-les par plausibilité au lieu de les présenter comme équivalentes.
 - Dis ce qui ferait changer ton diagnostic.
 
@@ -794,9 +846,11 @@ CONNAISSANCES INTERNES / RAG :
 - La priorité de source ne remplace jamais la pertinence : utilise un passage seulement s’il traite réellement du produit, du procédé ou du problème posé.
 - Les connaissances restent internes : ne parle jamais d’« extrait », de « source », de « document », de « passage » ou de « RAG » dans la réponse.
 - Reformule et synthétise ; ne copie pas de longs passages.
-- Pour levure/levain, hydratation, farine, fermentation, température, temps, four et cuisson, toute valeur précise doit être cohérente avec les connaissances internes récupérées. Si elles ne suffisent pas, évite la fausse précision et explicite l’incertitude.
+- Pour levure/levain, hydratation, farine, fermentation, température, temps, pré-ferments, four et cuisson, toute valeur précise doit être vérifiable dans les connaissances internes récupérées ou venir directement de la question.
+- Les proportions, coefficients et conversions ne peuvent être calculés que si la relation de départ est elle-même explicitement documentée dans les connaissances internes et que la quantité de base vient de l’utilisateur ou du corpus.
 - Si plusieurs connaissances internes diffèrent, privilégie la source la mieux classée lorsqu’elle concerne le même produit et le même procédé ; sinon explique les conditions qui rendent les valeurs différentes.
-- Les connaissances générales servent seulement de complément prudent et ne doivent pas écraser un protocole interne pertinent.
+- Pour les recommandations techniques ou opératoires, tes connaissances générales ne sont jamais une source de prescription chiffrée. Elles peuvent seulement aider à expliquer qualitativement un mécanisme compatible avec les connaissances internes.
+- Si les connaissances internes sont insuffisantes, dis que la valeur ne peut pas être confirmée avec suffisamment de fiabilité et indique la donnée à contrôler.
 - N’introduis jamais spontanément une marque ou un modèle de matériel qui n’apparaît ni dans la question ni dans les connaissances internes récupérées. En particulier, ne cite pas « Serie S Moretti » par défaut.
 
 TON :
@@ -958,6 +1012,8 @@ ${message}
     }
 
     let knowledgeVerified = false;
+    let numericSafetyRewritten = false;
+    let numericSafetyRemoved: string[] = [];
     if (answerText && shouldVerifyTechnicalAnswer(message, answerText)) {
       try {
         const verification = await openai.responses.create({
@@ -980,8 +1036,10 @@ ORDRE DE PRIORITÉ DES CONNAISSANCES :
 
 RÈGLES DE CONTRÔLE :
 - Vérifie en priorité levure/levain, dosage, hydratation, farine et force W, fermentation, température, temps, pré-ferments, four et cuisson.
-- Une valeur numérique précise doit être soutenue par les connaissances internes fournies ou découler explicitement des données de la question. Sinon supprime la fausse précision, donne une fourchette seulement si elle est soutenue, ou formule prudemment ce qu’il faut mesurer.
-- Vérifie les unités, pourcentages boulangers et cohérences entre quantité, temps et température.
+- Une valeur numérique précise doit être soutenue par les connaissances internes fournies ou être explicitement présente dans la question. Sinon supprime-la.
+- Une valeur calculée est autorisée uniquement si elle résulte d’une quantité fournie par l’utilisateur et d’une proportion, conversion ou coefficient explicitement documenté dans les connaissances internes. Le calcul doit être simple, exact et visible.
+- Ne conserve jamais un chiffre au seul motif qu’il est courant, plausible ou conforme à ta connaissance générale.
+- Vérifie particulièrement grammes, pourcentages boulangers, hydratation, W, P/L, pH, températures, durées, dosages, rapports et cohérences entre quantité, temps et température.
 - Ne transpose pas une valeur d’un produit ou procédé à un autre sans justification.
 - Si deux passages diffèrent, privilégie la source prioritaire seulement s’ils concernent le même contexte ; sinon conserve la distinction contextuelle.
 - N’ajoute aucune nouvelle marque ou référence de matériel. Ne mentionne jamais « Serie S Moretti » sauf si la question ou les connaissances internes fournies la mentionnent explicitement.
@@ -1023,6 +1081,102 @@ ${answerText}
       }
     }
 
+    if (answerText && shouldVerifyTechnicalAnswer(message, answerText)) {
+      let unsupported = findUnsupportedOperationalNumbers({
+        answer: answerText,
+        question: message,
+        context: retrievedContext,
+        allowDocumentedDerivations: true,
+      });
+
+      if (unsupported.length) {
+        try {
+          const safetyRewrite = await openai.responses.create({
+            model: "gpt-4.1-mini",
+            input: [
+              {
+                role: "system",
+                content: [
+                  {
+                    type: "input_text",
+                    text: [
+                      "Tu es le garde-fou numérique final d’Ernesto.",
+                      "Réécris la réponse sans aucune valeur opératoire non fondée.",
+                      "Les valeurs listées comme NON AUTORISÉES doivent disparaître, ainsi que toute recommandation qui en dépend.",
+                      "Tu peux conserver une valeur seulement si elle est directement présente dans la question ou les connaissances internes, ou si elle est le résultat exact d’un calcul entre une quantité utilisateur et une proportion explicitement documentée.",
+                      "N’ajoute aucun nouveau chiffre. Si une valeur manque, formule la recommandation qualitativement et indique ce qu’il faut mesurer.",
+                      "Ne cite pas les sources internes. Retourne uniquement la réponse finale corrigée.",
+                    ].join("\n"),
+                  },
+                ],
+              },
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "input_text",
+                    text: [
+                      "QUESTION :",
+                      message,
+                      "",
+                      "CONNAISSANCES INTERNES :",
+                      retrievedContext,
+                      "",
+                      "VALEURS NON AUTORISÉES DÉTECTÉES :",
+                      unsupported.join(", "),
+                      "",
+                      "RÉPONSE À SÉCURISER :",
+                      answerText,
+                    ].join("\n"),
+                  },
+                ],
+              },
+            ],
+          });
+          addResponseUsage(safetyRewrite);
+          const rewritten = String(safetyRewrite.output_text || "").trim();
+          if (rewritten) {
+            answerText = rewritten;
+            numericSafetyRewritten = true;
+          }
+        } catch (safetyRewriteErr) {
+          console.warn("numeric safety rewrite skipped:", safetyRewriteErr);
+        }
+
+        unsupported = findUnsupportedOperationalNumbers({
+          answer: answerText,
+          question: message,
+          context: retrievedContext,
+          allowDocumentedDerivations: true,
+        });
+
+        if (unsupported.length) {
+          numericSafetyRemoved = [...unsupported];
+          const stripped = removeUnsupportedNumericLines({
+            answer: answerText,
+            question: message,
+            context: retrievedContext,
+          });
+          answerText =
+            stripped ||
+            "Les références internes disponibles ne permettent pas de confirmer un réglage chiffré fiable pour ce cas. Je peux expliquer les variables à contrôler, mais je préfère ne pas proposer de valeur non documentée.";
+        }
+      }
+
+      if (flowchart) {
+        const flowchartUnsupported = findUnsupportedOperationalNumbers({
+          answer: JSON.stringify(flowchart),
+          question: message,
+          context: retrievedContext,
+          allowDocumentedDerivations: true,
+        });
+        if (flowchartUnsupported.length) {
+          numericSafetyRemoved.push(...flowchartUnsupported);
+          flowchart = null;
+        }
+      }
+    }
+
     let graph: any = null;
 
     if (responseMode === "ECOLE" && looksQuantifiable(message)) {
@@ -1059,6 +1213,10 @@ ${answerText}
       }
     }
 
+    if (graph && !graphNumericValuesAreGrounded(graph, answerText)) {
+      graph = null;
+    }
+
     await writeRuntime(true, 200, null);
 
     return NextResponse.json({
@@ -1070,6 +1228,9 @@ ${answerText}
       rag: {
         used: retrieved.length,
         verified: knowledgeVerified,
+        numeric_grounding: "strict",
+        numeric_safety_rewritten: numericSafetyRewritten,
+        numeric_values_removed: [...new Set(numericSafetyRemoved)],
         top: retrieved.map((m: any) => ({
           similarity: m.similarity,
           retrieval_score: m.retrieval_score,
