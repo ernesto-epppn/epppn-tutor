@@ -7,8 +7,7 @@ import {
   type EpppnBenchmarkCase,
 } from "../../../lib/epppnTechnicalBenchmark";
 import {
-  extractOperationalNumbers,
-  normalizeOperationalNumber,
+  findUnsupportedOperationalNumbers,
   retrieveEpppnKnowledge,
 } from "../../../lib/epppnKnowledge";
 
@@ -217,14 +216,12 @@ async function runCase(params: {
   });
   const answer = String(response.output_text || "").trim();
 
-  const supportedTokens = new Set(
-    [
-      ...extractOperationalNumbers(test.question),
-      ...extractOperationalNumbers(knowledge.context),
-    ].map(normalizeOperationalNumber)
-  );
-  const unsupportedNumbers = extractOperationalNumbers(answer)
-    .filter((value) => !supportedTokens.has(normalizeOperationalNumber(value)));
+  const unsupportedNumbers = findUnsupportedOperationalNumbers({
+    answer,
+    question: test.question,
+    context: knowledge.context,
+    allowDocumentedDerivations: true,
+  });
 
   const lowerAnswer = answer.toLowerCase();
   const lowerQuestion = test.question.toLowerCase();
