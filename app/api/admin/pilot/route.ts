@@ -155,7 +155,7 @@ export async function GET(req: Request) {
       supabase.from("ernesto_dossier_memory").select("user_id,project_id,turn_count,updated_at"),
       supabase.from("ernesto_rag_usage_events").select("user_id,user_email,question,rag_used,top_similarity,mode,created_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(5000),
       supabase.from("ernesto_answer_feedback").select("user_id,project_title,question,rating,reason,rag_used,created_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(2000),
-      supabase.from("ernesto_runtime_events").select("user_id,user_email,ok,status_code,latency_ms,model,model_requests,input_tokens,output_tokens,total_tokens,embedding_tokens,rag_used,image_count,estimated_cost_usd,error_code,grounding_status,grounding_source,prompt_guard,numeric_guard_triggered,created_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(10000),
+      supabase.from("ernesto_runtime_events").select("user_id,user_email,route,mode,ok,status_code,latency_ms,model,model_requests,input_tokens,output_tokens,total_tokens,embedding_tokens,rag_used,image_count,estimated_cost_usd,error_code,grounding_status,grounding_source,prompt_guard,numeric_guard_triggered,created_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(10000),
       supabase.from("documents").select("id,status,active,indexed_at,created_at").order("created_at", { ascending: false }),
       supabase.from("document_chunks").select("id", { count: "exact", head: true }),
       supabase.from("ernesto_knowledge_jobs").select("id,status,error,stage_label,created_at,updated_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(100),
