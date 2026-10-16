@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { findUnsupportedOperationalNumbers, retrieveEpppnKnowledge, shouldVerifyTechnicalAnswer } from "../../lib/epppnKnowledge";
+import { findUnsupportedOperationalNumbers, retrieveEpppnKnowledge, secureTechnicalNumericAdvice, shouldVerifyTechnicalAnswer } from "../../lib/epppnKnowledge";
 
 export const runtime = "nodejs";
 
@@ -14,24 +14,6 @@ function looksQuantifiable(input: string) {
 }
 
 
-
-function removeUnsupportedNumericLines(params: {
-  answer: string;
-  question: string;
-  context: string;
-}) {
-  const lines = String(params.answer || "").split("\n");
-  const kept = lines.filter((line) => {
-    if (!line.trim()) return true;
-    return findUnsupportedOperationalNumbers({
-      answer: line,
-      question: params.question,
-      context: params.context,
-      allowDocumentedDerivations: true,
-    }).length === 0;
-  });
-  return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-}
 
 function graphNumericValuesAreGrounded(graph: any, answer: string) {
   if (!graph || typeof graph !== "object") return true;
@@ -1082,86 +1064,16 @@ ${answerText}
     }
 
     if (answerText && shouldVerifyTechnicalAnswer(message, answerText)) {
-      let unsupported = findUnsupportedOperationalNumbers({
+      const secured = await secureTechnicalNumericAdvice({
+        openai,
         answer: answerText,
         question: message,
         context: retrievedContext,
-        allowDocumentedDerivations: true,
+        onResponse: addResponseUsage,
       });
-
-      if (unsupported.length) {
-        try {
-          const safetyRewrite = await openai.responses.create({
-            model: "gpt-4.1-mini",
-            input: [
-              {
-                role: "system",
-                content: [
-                  {
-                    type: "input_text",
-                    text: [
-                      "Tu es le garde-fou numérique final d’Ernesto.",
-                      "Réécris la réponse sans aucune valeur opératoire non fondée.",
-                      "Les valeurs listées comme NON AUTORISÉES doivent disparaître, ainsi que toute recommandation qui en dépend.",
-                      "Tu peux conserver une valeur seulement si elle est directement présente dans la question ou les connaissances internes, ou si elle est le résultat exact d’un calcul entre une quantité utilisateur et une proportion explicitement documentée.",
-                      "N’ajoute aucun nouveau chiffre. Si une valeur manque, formule la recommandation qualitativement et indique ce qu’il faut mesurer.",
-                      "Ne cite pas les sources internes. Retourne uniquement la réponse finale corrigée.",
-                    ].join("\n"),
-                  },
-                ],
-              },
-              {
-                role: "user",
-                content: [
-                  {
-                    type: "input_text",
-                    text: [
-                      "QUESTION :",
-                      message,
-                      "",
-                      "CONNAISSANCES INTERNES :",
-                      retrievedContext,
-                      "",
-                      "VALEURS NON AUTORISÉES DÉTECTÉES :",
-                      unsupported.join(", "),
-                      "",
-                      "RÉPONSE À SÉCURISER :",
-                      answerText,
-                    ].join("\n"),
-                  },
-                ],
-              },
-            ],
-          });
-          addResponseUsage(safetyRewrite);
-          const rewritten = String(safetyRewrite.output_text || "").trim();
-          if (rewritten) {
-            answerText = rewritten;
-            numericSafetyRewritten = true;
-          }
-        } catch (safetyRewriteErr) {
-          console.warn("numeric safety rewrite skipped:", safetyRewriteErr);
-        }
-
-        unsupported = findUnsupportedOperationalNumbers({
-          answer: answerText,
-          question: message,
-          context: retrievedContext,
-          allowDocumentedDerivations: true,
-        });
-
-        if (unsupported.length) {
-          numericSafetyRemoved = [...unsupported];
-          const stripped = removeUnsupportedNumericLines({
-            answer: answerText,
-            question: message,
-            context: retrievedContext,
-          });
-          answerText =
-            stripped ||
-            "Les références internes disponibles ne permettent pas de confirmer un réglage chiffré fiable pour ce cas. Je peux expliquer les variables à contrôler, mais je préfère ne pas proposer de valeur non documentée.";
-        }
-      }
+      answerText = secured.answer;
+      numericSafetyRewritten = secured.rewritten;
+      numericSafetyRemoved = [...new Set([...secured.initialUnsupported, ...secured.removed])];
 
       if (flowchart) {
         const flowchartUnsupported = findUnsupportedOperationalNumbers({
