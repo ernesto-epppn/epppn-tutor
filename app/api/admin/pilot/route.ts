@@ -155,7 +155,7 @@ export async function GET(req: Request) {
       supabase.from("ernesto_dossier_memory").select("user_id,project_id,turn_count,updated_at"),
       supabase.from("ernesto_rag_usage_events").select("user_id,user_email,question,rag_used,top_similarity,mode,created_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(5000),
       supabase.from("ernesto_answer_feedback").select("user_id,project_title,question,rating,reason,rag_used,created_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(2000),
-      supabase.from("ernesto_runtime_events").select("user_id,user_email,ok,status_code,latency_ms,model,model_requests,input_tokens,output_tokens,total_tokens,embedding_tokens,rag_used,image_count,estimated_cost_usd,error_code,created_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(10000),
+      supabase.from("ernesto_runtime_events").select("user_id,user_email,ok,status_code,latency_ms,model,model_requests,input_tokens,output_tokens,total_tokens,embedding_tokens,rag_used,image_count,estimated_cost_usd,error_code,grounding_status,grounding_source,prompt_guard,numeric_guard_triggered,created_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(10000),
       supabase.from("documents").select("id,status,active,indexed_at,created_at").order("created_at", { ascending: false }),
       supabase.from("document_chunks").select("id", { count: "exact", head: true }),
       supabase.from("ernesto_knowledge_jobs").select("id,status,error,stage_label,created_at,updated_at").gte("created_at", since30).order("created_at", { ascending: false }).limit(100),
@@ -313,6 +313,16 @@ export async function GET(req: Request) {
       }));
 
     const runtimeRows = runtimeResult.data || [];
+    const studentTutorRows = runtimeRows.filter(
+      (row: any) => String(row.mode || "") !== "BENCHMARK" && String(row.route || "/api/tutor") !== "/api/admin/benchmark-tutor"
+    );
+    const groundedRows = studentTutorRows.filter((row: any) => Boolean(row.grounding_status));
+    const documentedRows = groundedRows.filter((row: any) => row.grounding_status === "documented");
+    const contextualizeRows = groundedRows.filter((row: any) => row.grounding_status === "contextualize");
+    const insufficientRows = groundedRows.filter((row: any) => row.grounding_status === "insufficient");
+    const promptGuardRows = studentTutorRows.filter((row: any) => Boolean(row.prompt_guard));
+    const numericGuardRows = studentTutorRows.filter((row: any) => row.numeric_guard_triggered === true);
+
     const runtime24 = runtimeRows.filter((row: any) => dateMs(row.created_at) >= now - day);
     const success24 = runtime24.filter((row: any) => row.ok === true);
     const errors24 = runtime24.filter((row: any) => row.ok !== true);
@@ -379,6 +389,17 @@ export async function GET(req: Request) {
         feedback_negative: negative,
         positive_rate: positive + negative ? positive / (positive + negative) : null,
         negative_recent: negativeRecent,
+        grounding: {
+          total: groundedRows.length,
+          documented: documentedRows.length,
+          contextualize: contextualizeRows.length,
+          insufficient: insufficientRows.length,
+          documented_rate: groundedRows.length ? documentedRows.length / groundedRows.length : null,
+        },
+        safety: {
+          prompt_guard_blocks: promptGuardRows.length,
+          numeric_guard_interventions: numericGuardRows.length,
+        },
       },
       costs: {
         period_days: 30,
