@@ -110,6 +110,9 @@
   font-weight: 900;
 }
 
+.appRoot .ernestoContextMeterLabel:first-child { text-align: left; }
+.appRoot .ernestoContextMeterLabel:last-child { text-align: right; }
+
 .appRoot .composerBox[data-context-level="limited"] {
   border-color: rgba(180, 104, 77, 0.18) !important;
 }
@@ -142,8 +145,8 @@
   }
 
   .appRoot .ernestoContextMeterTrack {
-    height: 7px;
-    margin: 0 5px;
+    height: 3px;
+    margin: 0 2px;
   }
 
   .appRoot .ernestoContextMeterLabels {
