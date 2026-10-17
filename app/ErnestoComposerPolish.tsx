@@ -132,7 +132,7 @@ function buildMeter() {
 
   const automatic = document.createElement("span");
   automatic.className = "ernestoContextMeterAuto";
-  automatic.innerHTML = '<span class="ernestoContextMeterAutoDot" aria-hidden="true"></span>Automatique';
+  automatic.innerHTML = '<span class="ernestoContextMeterAutoDot" aria-hidden="true"></span>Plus de contexte, réponse plus adaptée';
 
   top.append(title, automatic);
 
