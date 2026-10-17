@@ -12,22 +12,76 @@ const LEVELS = [
 
 type ContextLevel = (typeof LEVELS)[number];
 
-function contextQuality(text: string, hasWorkContext: boolean): ContextLevel {
-  const value = text.trim();
-  let score = hasWorkContext ? 1 : 0;
+function contextualSignals(text: string) {
+  const value = text.toLowerCase().replace(/\s+/g, " ").trim();
+  const signals = new Set<string>();
+  if (!value) return signals;
 
-  if (value.length >= 35) score += 1;
-  if (value.length >= 90) score += 1;
-  if (/\d/.test(value)) score += 1;
-  if (/(?:°\s*c|\b\d{1,3}\s*c\b|temp[eé]rature)/i.test(value)) score += 1;
-  if (/\b\d+(?:[.,]\d+)?\s*(?:h|heures?|min|minutes?|j|jours?)\b/i.test(value)) score += 1;
-  if (/%|hydrat(?:ation|é|ee)?/i.test(value)) score += 1;
-  if (/\bfarine\b|\bw\s*\d{2,3}\b|\bt\s*\d{2,3}\b/i.test(value)) score += 1;
-  if (/(service|froid|frigo|ouverture|cuisson|appr[eê]t|fermentation|p[eé]trissage|boulage|four)/i.test(value)) score += 1;
-  if (/(collant|collante|d[eé]chir|p[aâ]le|acide|faible|molle|sec|s[eè]che|irr[eé]gulier|alv[eé]ol)/i.test(value)) score += 1;
+  if (/(pizza|pain|p[aâ]te|focaccia|teglia|napolitaine|biga|poolish|levain|p[aâ]ton|cornicione)/i.test(value)) {
+    signals.add("product");
+  }
+  if (/(p[eé]triss|pointage|boulage|appr[eê]t|fermentation|maturation|ouverture|fa[cç]onnage|cuisson|refroid|service|enfourn)/i.test(value)) {
+    signals.add("stage");
+  }
+  if (/(farine|levure|levain|sel|eau|huile|semoule|gluten|w\s*\d{2,3}|p\s*\/\s*l)/i.test(value)) {
+    signals.add("ingredients");
+  }
+  if (/(four|p[eé]trin|frigo|r[eé]frig[eé]rateur|chambre|bac|pierre|sole|vo[uû]te|plaque|spirale|mat[eé]riel)/i.test(value)) {
+    signals.add("equipment");
+  }
+  if (/(je veux|je cherche|je souhaite|objectif|but|viser|obtenir|besoin|production vis[eé]e|pour le service|pour ce soir|pour demain)/i.test(value)) {
+    signals.add("goal");
+  }
+  if (/(collant|collante|molle|rel[aâ]ch|d[eé]chir|p[aâ]le|br[uû]l|acide|faible|sec|s[eè]che|irr[eé]gulier|alv[eé]ol|gonfl|retombe|r[eé]tract|cro[uû]te|mie|coloration|probl[eè]me|r[eé]sultat|j'observe|je constate)/i.test(value)) {
+    signals.add("observation");
+  }
+  if (/(apr[eè]s|avant|pendant|depuis|au bout de|ensuite|d'abord|la veille|le lendemain|aujourd'hui|hier|demain|matin|soir)/i.test(value)) {
+    signals.add("timeline");
+  }
+  if (/(froid|chaud|ambiante|temp[eé]rature|humidit[eé]|frigo|r[eé]frig[eé]r)/i.test(value)) {
+    signals.add("environment");
+  }
+  if (/(quantit[eé]|volume|p[aâ]tons?|pi[eè]ces?|couverts?|service|cadence|d[eé]lai|horaire|planning|production)/i.test(value)) {
+    signals.add("constraints");
+  }
+  if (/(j'ai|nous avons|on a|essay[eé]|test[eé]|chang[eé]|modifi[eé]|augment[eé]|r[eé]duit|diminu[eé]|ajout[eé]|laiss[eé]|utilis[eé]|remplac[eé])/i.test(value)) {
+    signals.add("history");
+  }
+  if (/(parce que|alors que|mais|cependant|quand|lorsque|si |avec |sans |malgr[eé]|contrairement)/i.test(value)) {
+    signals.add("relation");
+  }
+
+  if (/\d/.test(value)) signals.add("measurement");
+  if (/(?:°\s*c|\b\d{1,3}\s*c\b|temp[eé]rature)/i.test(value)) signals.add("temperature");
+  if (/\b\d+(?:[.,]\d+)?\s*(?:h|heures?|min|minutes?|j|jours?)\b/i.test(value)) signals.add("duration");
+  if (/%|hydrat(?:ation|é|ee)?/i.test(value)) signals.add("hydration");
+
+  return signals;
+}
+
+function contextQuality(text: string, persistentContext: string): ContextLevel {
+  const value = text.trim();
+  const currentSignals = contextualSignals(value);
+  const persistentSignals = contextualSignals(persistentContext);
+
+  // Persistent profile/work context enriches the situation, but never makes a
+  // vague question "strong" by itself.
+  let score = Math.min(2, persistentSignals.size * 0.5);
+
+  // Reward distinct contextual dimensions rather than raw length or numbers.
+  score += Math.min(7, currentSignals.size);
+
+  const words = value.split(/\s+/).filter(Boolean).length;
+  if (words >= 8) score += 0.5;
+  if (words >= 18) score += 0.5;
+
+  // A relation between cause/condition/result is genuinely contextual.
+  if (currentSignals.has("relation") && currentSignals.has("observation")) score += 1;
+  if (currentSignals.has("history") && currentSignals.has("observation")) score += 1;
+  if (currentSignals.has("goal") && (currentSignals.has("constraints") || currentSignals.has("stage"))) score += 1;
 
   if (!value || score < 3) return LEVELS[0];
-  if (score >= 6) return LEVELS[2];
+  if (score >= 6 || currentSignals.size >= 5) return LEVELS[2];
   return LEVELS[1];
 }
 
@@ -44,7 +98,11 @@ function buildMeter() {
   title.className = "ernestoContextMeterTitle";
   title.textContent = "Précision du contexte";
 
-  top.append(title);
+  const automatic = document.createElement("span");
+  automatic.className = "ernestoContextMeterAuto";
+  automatic.innerHTML = '<span class="ernestoContextMeterAutoDot" aria-hidden="true"></span>Automatique';
+
+  top.append(title, automatic);
 
   const track = document.createElement("div");
   track.className = "ernestoContextMeterTrack";
@@ -53,17 +111,7 @@ function buildMeter() {
   const fill = document.createElement("div");
   fill.className = "ernestoContextMeterFill";
 
-  const thumb = document.createElement("div");
-  thumb.className = "ernestoContextMeterThumb";
-
-  ["8%", "50%", "92%"].forEach((left) => {
-    const dot = document.createElement("span");
-    dot.className = "ernestoContextMeterStepDot";
-    dot.style.left = left;
-    track.appendChild(dot);
-  });
-
-  track.append(fill, thumb);
+  track.append(fill);
 
   const labels = document.createElement("div");
   labels.className = "ernestoContextMeterLabels";
@@ -102,12 +150,13 @@ export default function ErnestoComposerPolish() {
       }
 
       const contextSummary = document.querySelector<HTMLElement>(".appRoot .contextSummary");
-      const hasWorkContext = Boolean(
+      const persistentContext =
         contextSummary?.textContent?.trim() &&
-          !/Aucun contexte renseign[eé]/i.test(contextSummary.textContent)
-      );
+        !/Aucun contexte renseign[eé]/i.test(contextSummary.textContent)
+          ? contextSummary.textContent
+          : "";
 
-      const quality = contextQuality(textarea.value, hasWorkContext);
+      const quality = contextQuality(textarea.value, persistentContext);
       const meter = ensureMeter(composerBox, textarea);
 
       composerBox.dataset.contextLevel = quality.key;
