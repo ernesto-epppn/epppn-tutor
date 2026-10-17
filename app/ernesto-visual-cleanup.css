@@ -1,0 +1,469 @@
+/* Ernesto visual cleanup — calmer, editorial interface
+   Loaded last on purpose so it can simplify legacy component styling without
+   changing application behaviour. */
+
+.appRoot {
+  --ernesto-bg: #fffaf5;
+  --ernesto-paper: #ffffff;
+  --ernesto-ink: #26384d;
+  --ernesto-muted: #6f7884;
+  --ernesto-line: rgba(38, 56, 77, 0.10);
+  --ernesto-line-soft: rgba(38, 56, 77, 0.065);
+  --ernesto-olive: #6f7d3c;
+  --ernesto-terracotta: #b4684d;
+  --ernesto-ochre: #b88a35;
+  background: var(--ernesto-bg) !important;
+  color: var(--ernesto-ink);
+}
+
+/* Typography: reserve very heavy weights for real hierarchy. */
+.appRoot .heroTitle,
+.appRoot .activeProjectTitleText,
+.appRoot .contextTitle,
+.appRoot .quickSectionHeader,
+.appRoot .answerHeading,
+.appRoot .sectionHeader {
+  color: var(--ernesto-ink) !important;
+}
+
+.appRoot .heroTitle {
+  font-weight: 760 !important;
+}
+
+.appRoot .heroIntro,
+.appRoot .contextIntro,
+.appRoot .contextSummary,
+.appRoot .composerFooter {
+  color: var(--ernesto-muted) !important;
+}
+
+.appRoot .contextTitle,
+.appRoot .quickSectionHeader,
+.appRoot .activeProjectTitleText {
+  font-weight: 700 !important;
+}
+
+.appRoot .answerHeading {
+  font-weight: 720 !important;
+  color: var(--ernesto-ink) !important;
+}
+
+.appRoot .profileLabel,
+.appRoot .activeProjectKicker,
+.appRoot .quickKicker {
+  font-weight: 650 !important;
+}
+
+/* Work context: informative block, not a dashboard card. */
+.appRoot .contextPanel {
+  margin-top: 20px !important;
+  padding: 10px 2px 6px !important;
+  border: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.appRoot .contextTitle::before {
+  content: none !important;
+  display: none !important;
+}
+
+.appRoot .contextSummary {
+  margin-top: 8px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-weight: 520 !important;
+  line-height: 1.55 !important;
+}
+
+.appRoot .contextCompactBtn {
+  min-height: auto !important;
+  padding: 4px 2px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ernesto-olive) !important;
+  -webkit-text-fill-color: var(--ernesto-olive) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-decoration: underline;
+  text-decoration-color: rgba(111, 125, 60, 0.28);
+  text-underline-offset: 3px;
+}
+
+.appRoot .contextCompactBtn:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  text-decoration-color: var(--ernesto-olive);
+}
+
+.appRoot .contextGrid {
+  margin-top: 15px !important;
+}
+
+.appRoot .contextPanel .profileInput,
+.appRoot .contextPanel .profileTextarea,
+.appRoot .profileInput,
+.appRoot .profileTextarea {
+  border-color: var(--ernesto-line) !important;
+  border-radius: 11px !important;
+  background: rgba(255,255,255,.72) !important;
+  box-shadow: none !important;
+  font-weight: 450 !important;
+}
+
+.appRoot .contextPanel .profileInput:focus,
+.appRoot .contextPanel .profileTextarea:focus,
+.appRoot .profileInput:focus,
+.appRoot .profileTextarea:focus {
+  border-color: rgba(111,125,60,.42) !important;
+  box-shadow: 0 0 0 2px rgba(111,125,60,.07) !important;
+}
+
+/* Active dossier: a line of context, not another card. */
+.appRoot .activeProjectStrip,
+.appRoot .activeProjectStrip.v13 {
+  margin-top: 14px !important;
+  padding: 9px 2px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ernesto-line-soft) !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.appRoot .activeProjectDot {
+  width: 7px !important;
+  height: 7px !important;
+  box-shadow: none !important;
+}
+
+.appRoot .activeProjectKicker {
+  color: var(--ernesto-muted) !important;
+  letter-spacing: .04em !important;
+}
+
+.appRoot .activeProjectStrip .miniBtn {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ernesto-muted) !important;
+  -webkit-text-fill-color: var(--ernesto-muted) !important;
+  font-weight: 600 !important;
+}
+
+.appRoot .activeProjectStrip .miniBtn:hover {
+  color: var(--ernesto-olive) !important;
+  -webkit-text-fill-color: var(--ernesto-olive) !important;
+}
+
+/* Conversation: less framed, more readable. */
+.appRoot .bubble {
+  border-color: var(--ernesto-line-soft) !important;
+  box-shadow: none !important;
+}
+
+.appRoot .bubble.user {
+  background: rgba(255,255,255,.68) !important;
+  border-color: var(--ernesto-line) !important;
+}
+
+.appRoot .bubble.ernesto,
+.appRoot .bubble.ernesto.v13color {
+  border: 0 !important;
+  border-left: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+.appRoot .answerPara {
+  color: var(--ernesto-ink) !important;
+}
+
+/* Frequent questions: suggestions rather than pill controls. */
+.appRoot .quickCard.v13chip {
+  min-width: 190px !important;
+  max-width: 300px !important;
+  padding: 8px 10px !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ernesto-ink) !important;
+}
+
+.appRoot .quickCard.v13chip:hover {
+  transform: none !important;
+  background: rgba(255,255,255,.46) !important;
+  box-shadow: none !important;
+}
+
+.appRoot .quickCard.v13chip.selected {
+  background: rgba(38,56,77,.07) !important;
+  color: var(--ernesto-ink) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.appRoot .quickCard.v13chip.selected .quickText {
+  color: var(--ernesto-ink) !important;
+}
+
+.appRoot .quickNavBtn {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ernesto-muted) !important;
+}
+
+/* Composer remains the principal object, but flatter and quieter. */
+.appRoot .composerBox {
+  padding: 13px 14px 11px !important;
+  border: 1px solid rgba(38,56,77,.12) !important;
+  border-radius: 20px !important;
+  background: rgba(255,255,255,.91) !important;
+  box-shadow: 0 10px 30px rgba(38,56,77,.055) !important;
+  transform: none !important;
+}
+
+.appRoot .composerBox:focus-within {
+  border-color: rgba(111,125,60,.40) !important;
+  box-shadow: 0 0 0 2px rgba(111,125,60,.06), 0 12px 34px rgba(38,56,77,.07) !important;
+  transform: none !important;
+}
+
+.appRoot .composerToolbar {
+  border-top-color: var(--ernesto-line-soft) !important;
+}
+
+.appRoot .chatTextarea {
+  color: var(--ernesto-ink) !important;
+}
+
+/* Action / Analyse: editorial tabs, not a segmented control. */
+.appRoot .composerTools .answerDepth {
+  gap: 15px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.appRoot .composerTools .answerDepth button {
+  position: relative;
+  min-height: 30px !important;
+  padding: 4px 0 6px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #8a919a !important;
+  -webkit-text-fill-color: #8a919a !important;
+  font-size: 12px !important;
+  font-weight: 580 !important;
+  transform: none !important;
+}
+
+.appRoot .composerTools .answerDepth button::before {
+  content: none !important;
+  display: none !important;
+}
+
+.appRoot .composerTools .answerDepth button::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.appRoot .composerTools .answerDepth button:first-child,
+.appRoot .composerTools .answerDepth button:nth-child(2) {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #8a919a !important;
+  -webkit-text-fill-color: #8a919a !important;
+}
+
+.appRoot .composerTools .answerDepth button.active,
+.appRoot .composerTools .answerDepth button:first-child.active,
+.appRoot .composerTools .answerDepth button:nth-child(2).active {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ernesto-ink) !important;
+  -webkit-text-fill-color: var(--ernesto-ink) !important;
+  font-weight: 720 !important;
+}
+
+.appRoot .composerTools .answerDepth button.active::after {
+  background: var(--ernesto-olive);
+}
+
+.appRoot .composerTools .answerDepth button:hover {
+  color: var(--ernesto-ink) !important;
+  -webkit-text-fill-color: var(--ernesto-ink) !important;
+  transform: none !important;
+}
+
+/* Utility buttons should not compete with the send action. */
+.appRoot .toolBtn {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ernesto-muted) !important;
+  -webkit-text-fill-color: var(--ernesto-muted) !important;
+}
+
+.appRoot .toolBtn:hover {
+  background: rgba(38,56,77,.045) !important;
+}
+
+.appRoot .sendBtn {
+  min-width: 44px !important;
+  width: auto !important;
+  min-height: 40px !important;
+  height: 40px !important;
+  padding: 8px 14px !important;
+  border-radius: 12px !important;
+  background: var(--ernesto-ink) !important;
+  box-shadow: none !important;
+  font-weight: 720 !important;
+}
+
+.appRoot .sendBtn:hover:not(:disabled) {
+  transform: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  background: #1f3042 !important;
+}
+
+/* Context progress: quieter label weights and one visual signal only. */
+.appRoot .ernestoContextMeterTitle {
+  color: var(--ernesto-muted) !important;
+  font-weight: 650 !important;
+  letter-spacing: .04em !important;
+}
+
+.appRoot .ernestoContextMeterAuto {
+  color: #8c949d !important;
+  font-weight: 520 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+.appRoot .ernestoContextMeterAutoDot {
+  width: 5px !important;
+  height: 5px !important;
+  box-shadow: none !important;
+}
+
+.appRoot .ernestoContextMeterLabel {
+  font-weight: 500 !important;
+}
+
+.appRoot .ernestoContextMeterLabel.isCurrent {
+  font-weight: 650 !important;
+}
+
+.appRoot .composerBox[data-context-level="limited"],
+.appRoot .composerBox[data-context-level="useful"],
+.appRoot .composerBox[data-context-level="strong"] {
+  border-color: rgba(38,56,77,.12) !important;
+}
+
+/* Follow-up actions: text-like secondary controls. */
+.appRoot .answerActions .v144-smart-action,
+.appRoot .answerActions .v144-feedback-btn {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-weight: 620 !important;
+}
+
+.appRoot .answerActions .v144-smart-action {
+  color: var(--ernesto-olive) !important;
+  -webkit-text-fill-color: var(--ernesto-olive) !important;
+}
+
+.appRoot .v144-memory-badge {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 3px 0 !important;
+  color: var(--ernesto-muted) !important;
+  font-weight: 560 !important;
+}
+
+/* Conversation-focus strip: keep sticky behaviour, remove card chrome. */
+.appRoot.conversationFocus .activeProjectStrip.v13 {
+  padding: 7px 2px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ernesto-line-soft) !important;
+  border-radius: 0 !important;
+  background: rgba(255,250,245,.90) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.appRoot.conversationFocus .activeProjectStrip.v13::before {
+  font-weight: 700 !important;
+}
+
+@media (max-width: 860px) {
+  .appRoot .contextPanel {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .appRoot .composerBox {
+    border-radius: 17px !important;
+  }
+
+  .appRoot .composerTools .answerDepth {
+    gap: 12px !important;
+  }
+
+  .appRoot .composerTools .answerDepth button {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .appRoot .quickCard.v13chip {
+    min-width: 170px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .appRoot .heroTitle {
+    font-weight: 740 !important;
+  }
+
+  .appRoot .ernestoContextMeterAuto {
+    max-width: 54%;
+    text-align: right;
+    line-height: 1.2;
+  }
+
+  .appRoot .activeProjectStrip,
+  .appRoot .activeProjectStrip.v13 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
