@@ -59,6 +59,38 @@ function contextualSignals(text: string) {
   return signals;
 }
 
+function recentUserDossierContext() {
+  try {
+    const raw = window.localStorage.getItem("ernesto_projects_v1");
+    const projects = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(projects) || !projects.length) return "";
+
+    const activeTitle = String(
+      document.querySelector<HTMLElement>(".activeProjectTitleText")?.textContent || ""
+    ).replace(/\s+/g, " ").trim();
+
+    const candidates = projects
+      .filter((project: any) => project && Array.isArray(project.chat))
+      .sort((a: any, b: any) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+
+    const active =
+      candidates.find(
+        (project: any) =>
+          String(project.title || "").replace(/\s+/g, " ").trim() === activeTitle
+      ) || candidates[0];
+
+    if (!active) return "";
+
+    return active.chat
+      .filter((item: any) => item?.role === "user" && String(item?.text || "").trim())
+      .slice(-6)
+      .map((item: any) => String(item.text || "").trim())
+      .join("\n");
+  } catch {
+    return "";
+  }
+}
+
 function contextQuality(text: string, persistentContext: string): ContextLevel {
   const value = text.trim();
   const currentSignals = contextualSignals(value);
@@ -150,11 +182,13 @@ export default function ErnestoComposerPolish() {
       }
 
       const contextSummary = document.querySelector<HTMLElement>(".appRoot .contextSummary");
-      const persistentContext =
+      const workContext =
         contextSummary?.textContent?.trim() &&
         !/Aucun contexte renseign[eé]/i.test(contextSummary.textContent)
           ? contextSummary.textContent
           : "";
+      const dossierContext = recentUserDossierContext();
+      const persistentContext = [workContext, dossierContext].filter(Boolean).join("\n");
 
       const quality = contextQuality(textarea.value, persistentContext);
       const meter = ensureMeter(composerBox, textarea);
