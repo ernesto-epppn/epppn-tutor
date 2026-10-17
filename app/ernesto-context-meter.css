@@ -9,22 +9,23 @@
 .appRoot .ernestoContextMeter {
   --meter-color: #b4684d;
   --meter-soft: rgba(180, 104, 77, 0.12);
-  --meter-pos: 8%;
+  --meter-pos: 22%;
   margin: 1px 3px 9px;
   padding: 2px 2px 0;
   user-select: none;
+  pointer-events: none;
 }
 
 .appRoot .ernestoContextMeter[data-context-level="useful"] {
   --meter-color: #b88a35;
   --meter-soft: rgba(184, 138, 53, 0.13);
-  --meter-pos: 50%;
+  --meter-pos: 60%;
 }
 
 .appRoot .ernestoContextMeter[data-context-level="strong"] {
   --meter-color: #6f7d3c;
   --meter-soft: rgba(111, 125, 60, 0.14);
-  --meter-pos: 92%;
+  --meter-pos: 100%;
 }
 
 .appRoot .ernestoContextMeterTop {
@@ -61,58 +62,31 @@
   background: var(--meter-color);
   box-shadow: 0 0 0 4px var(--meter-soft);
   transition: background 220ms ease, box-shadow 220ms ease;
-  animation: ernestoContextPulse 2.4s ease-in-out infinite;
 }
 
 .appRoot .ernestoContextMeterTrack {
   position: relative;
-  height: 8px;
-  margin: 0 6px;
-  overflow: visible;
-  border: 1px solid rgba(100, 116, 139, 0.11);
+  height: 3px;
+  margin: 0 2px;
+  overflow: hidden;
+  border: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(226, 232, 240, 0.82), rgba(241, 245, 249, 0.96));
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: rgba(148, 163, 184, 0.18);
 }
 
 .appRoot .ernestoContextMeterFill {
   position: absolute;
-  top: -1px;
-  bottom: -1px;
-  left: -1px;
+  inset: 0 auto 0 0;
   width: var(--meter-pos);
   border-radius: 999px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--meter-color) 70%, white), var(--meter-color));
-  box-shadow: 0 2px 7px var(--meter-soft);
-  transition: width 300ms cubic-bezier(.22,.8,.28,1), background 220ms ease, box-shadow 220ms ease;
-}
-
-.appRoot .ernestoContextMeterThumb {
-  position: absolute;
-  z-index: 3;
-  top: 50%;
-  left: var(--meter-pos);
-  width: 17px;
-  height: 17px;
-  border: 3px solid #ffffff;
-  border-radius: 999px;
   background: var(--meter-color);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18), 0 0 0 4px var(--meter-soft);
-  transform: translate(-50%, -50%);
-  transition: left 300ms cubic-bezier(.22,.8,.28,1), background 220ms ease, box-shadow 220ms ease;
+  opacity: 0.78;
+  transition: width 320ms cubic-bezier(.22,.8,.28,1), background 220ms ease, opacity 220ms ease;
 }
 
-.appRoot .ernestoContextMeterStepDot {
-  position: absolute;
-  z-index: 2;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border: 1px solid rgba(100, 116, 139, 0.24);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.94);
-  transform: translate(-50%, -50%);
-}
+
+
+
 
 .appRoot .ernestoContextMeterLabels {
   display: grid;
@@ -128,13 +102,12 @@
   font-weight: 760;
   line-height: 1.2;
   text-align: center;
-  transition: color 220ms ease, font-weight 220ms ease, transform 220ms ease;
+  transition: color 220ms ease, font-weight 220ms ease;
 }
 
 .appRoot .ernestoContextMeterLabel.isCurrent {
   color: var(--meter-color);
-  font-weight: 950;
-  transform: translateY(-1px);
+  font-weight: 900;
 }
 
 .appRoot .composerBox[data-context-level="limited"] {
@@ -149,14 +122,7 @@
   border-color: rgba(111, 125, 60, 0.34) !important;
 }
 
-.appRoot .composerBox:focus-within .ernestoContextMeterTrack {
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 3px var(--meter-soft);
-}
 
-@keyframes ernestoContextPulse {
-  0%, 100% { opacity: .72; transform: scale(.92); }
-  50% { opacity: 1; transform: scale(1.08); }
-}
 
 @media (max-width: 860px) {
   .appRoot .ernestoContextMeter {
@@ -178,11 +144,6 @@
   .appRoot .ernestoContextMeterTrack {
     height: 7px;
     margin: 0 5px;
-  }
-
-  .appRoot .ernestoContextMeterThumb {
-    width: 15px;
-    height: 15px;
   }
 
   .appRoot .ernestoContextMeterLabels {
