@@ -479,6 +479,8 @@ export default function AdminLargePdfPanelV5() {
   const [versionLabel, setVersionLabel] = useState("");
   const [referenceUrl, setReferenceUrl] = useState("");
   const [ocrLanguage, setOcrLanguage] = useState("eng");
+  const [ocrQualityMode, setOcrQualityMode] = useState("high");
+  const [reviewPages, setReviewPages] = useState([]);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("Prêt");
   const [pagesDone, setPagesDone] = useState(0);
@@ -514,17 +516,31 @@ export default function AdminLargePdfPanelV5() {
     return result;
   }
 
-  async function aiOcr(imageDataUrls, pageNumber) {
+  async function aiOcr(imageDataUrls, pageNumber, draftText = "") {
     const token = await accessToken();
     if (!token) throw new Error("Session administrateur introuvable.");
     const response = await fetch("/api/admin/ocr-page", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ image_data_urls: imageDataUrls, page_number: pageNumber, language: ocrLanguage, engine_version: OCR_ENGINE }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({
+        image_data_urls: imageDataUrls,
+        page_number: pageNumber,
+        language: ocrLanguage,
+        engine_version: OCR_ENGINE,
+        draft_text: String(draftText || "").slice(0, 18000),
+        quality_mode: ocrQualityMode,
+      }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result?.error || "ocr_ai_failed");
-    return result?.usable ? cleanText(result.text) : "";
+    return {
+      text: result?.usable ? cleanText(result.text) : "",
+      quality: Number(result?.quality?.score || 0),
+      model: String(result?.model || ""),
+    };
   }
 
   async function loadJobs() {
@@ -554,7 +570,7 @@ export default function AdminLargePdfPanelV5() {
     if (!file || busy) return;
     setBusy(true);
     setError(""); setPreview(""); setStage("Préparation");
-    setPagesDone(0); setPagesTotal(0); setChunksDone(0); setLocalOcrPages(0); setAiOcrPages(0); setDirectScanPages(0); setTextPages(0);
+    setPagesDone(0); setPagesTotal(0); setChunksDone(0); setLocalOcrPages(0); setAiOcrPages(0); setDirectScanPages(0); setTextPages(0); setReviewPages([]);
     abortRef.current = false;
 
     let pdfDocument = null;
