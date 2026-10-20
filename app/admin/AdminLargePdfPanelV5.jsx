@@ -7,7 +7,7 @@ const BATCH_SIZE = 16;
 const CHUNK_SIZE = 1800;
 const CHUNK_OVERLAP = 160;
 const MAX_CHUNKS = 7500;
-const OCR_ENGINE = "v5-direct-scan";
+const OCR_ENGINE = "v6-quality-guard";
 const OCR_SCRIPT_ID = "ernesto-tesseract-runtime-v5";
 const OCR_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
 
@@ -25,6 +25,9 @@ function fileTitle(name) {
 function cleanText(value) {
   return String(value || "")
     .replace(/\u0000/g, "")
+    .replace(/\u00ad/g, "")
+    .replace(/ﬁ/g, "fi")
+    .replace(/ﬂ/g, "fl")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -32,25 +35,92 @@ function cleanText(value) {
 }
 
 function textStats(text) {
-  const compact = String(text || "").replace(/\s/g, "");
-  const words = String(text || "").match(/[A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9'’-]*/g) || [];
-  const alnum = String(text || "").match(/[A-Za-zÀ-ÖØ-öø-ÿ0-9]/g) || [];
-  return { compact: compact.length, words: words.length, alnum: alnum.length };
+  const value = String(text || "");
+  const compact = [...value].filter((char) => !/\s/.test(char));
+  const words = value.match(/[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’\-]{1,}/g) || [];
+  const alnum = compact.filter((char) => /[A-Za-zÀ-ÖØ-öø-ÿ0-9]/.test(char));
+  const alpha = compact.filter((char) => /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(char));
+  const noise = compact.filter(
+    (char) => !/[A-Za-zÀ-ÖØ-öø-ÿ0-9.,;:!?'"’“”()/%°+\-–—\[\]{}]/.test(char)
+  );
+  const singletons = value.match(/(?:^|\s)[A-Za-z](?=\s|$)/g) || [];
+  const weirdRuns = value.match(/[|_~=<>\\^]{2,}|[^\w\s]{4,}/g) || [];
+  const replacement = (value.match(/[�]/g) || []).length;
+  const mojibake = (value.match(/(?:Ã.|Â.|â€|â€™|â€œ|â€)/g) || []).length;
+  return {
+    compact: compact.length,
+    words: words.length,
+    alnum: alnum.length,
+    alpha: alpha.length,
+    noise: noise.length,
+    singletons: singletons.length,
+    weirdRuns: weirdRuns.length,
+    replacement,
+    mojibake,
+  };
 }
 
-function usefulText(text, minCompact = 30) {
+function textQuality(text, confidence = 0) {
   const s = textStats(text);
-  return s.compact >= minCompact && s.words >= 3 && s.alnum >= Math.max(20, Math.floor(s.compact * 0.22));
+  if (!s.compact) return { score: 0, suspicious: true, ...s };
+
+  const alphaRatio = s.alpha / Math.max(1, s.compact);
+  const noiseRatio =
+    (s.noise + s.replacement * 3 + s.mojibake * 2) / Math.max(1, s.compact);
+  const singletonRatio = s.singletons / Math.max(1, s.words);
+
+  let score = 100;
+  if (s.words < 5) score -= 35;
+  else if (s.words < 15) score -= 16;
+  if (alphaRatio < 0.55) score -= Math.round((0.55 - alphaRatio) * 80);
+  if (noiseRatio > 0.015) score -= Math.min(35, Math.round(noiseRatio * 260));
+  if (singletonRatio > 0.10) score -= Math.min(22, Math.round(singletonRatio * 80));
+  score -= Math.min(18, s.weirdRuns * 4);
+  if (s.replacement) score -= Math.min(20, s.replacement * 4);
+  if (s.mojibake) score -= Math.min(20, s.mojibake * 3);
+  if (s.words >= 35 && alphaRatio >= 0.68 && noiseRatio < 0.01) score += 5;
+
+  const conf = Math.max(0, Math.min(100, Number(confidence || 0)));
+  if (conf > 0) score = score * 0.80 + conf * 0.20;
+
+  score = Math.round(Math.max(0, Math.min(100, score)));
+  return {
+    score,
+    suspicious: score < 72,
+    ...s,
+    alphaRatio,
+    noiseRatio,
+    confidence: conf,
+  };
+}
+
+function usefulText(text, minCompact = 30, minQuality = 35) {
+  const s = textStats(text);
+  const q = textQuality(text);
+  return (
+    s.compact >= minCompact &&
+    s.words >= 3 &&
+    s.alnum >= Math.max(20, Math.floor(s.compact * 0.22)) &&
+    q.score >= minQuality
+  );
 }
 
 function scoreText(text, confidence = 0) {
-  const s = textStats(text);
-  return s.alnum + s.words * 6 + Math.max(0, Number(confidence || 0));
+  const q = textQuality(text, confidence);
+  // Quality dominates volume so a long garbled OCR cannot beat a shorter clean
+  // transcription merely by containing more characters.
+  return q.score * 10_000 + Math.min(q.compact, 9_999);
 }
 
 function nativeNeedsOcr(text) {
   const s = textStats(text);
-  return s.compact < 160 || s.words < 14;
+  const q = textQuality(text);
+  return s.compact < 160 || s.words < 14 || q.score < 86;
+}
+
+function needsSecondLocalPass(text, confidence = 0) {
+  const q = textQuality(text, confidence);
+  return q.score < 78 || Number(confidence || 0) < 72;
 }
 
 function splitText(text, pageStart, pageEnd, startIndex) {
