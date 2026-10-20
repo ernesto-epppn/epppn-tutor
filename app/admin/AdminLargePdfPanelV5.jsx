@@ -397,17 +397,42 @@ function cropToJpeg(source, sx, sy, sw, sh) {
   return data;
 }
 
+function visionOverviewDataUrl(source) {
+  const maxSide = 1500;
+  const scale = Math.min(1, maxSide / Math.max(source.width, source.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(source.width * scale));
+  canvas.height = Math.max(1, Math.round(source.height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  let data = canvas.toDataURL("image/jpeg", 0.82);
+  if (data.length > 1_250_000) data = canvas.toDataURL("image/jpeg", 0.68);
+  canvas.width = 1;
+  canvas.height = 1;
+  return data;
+}
+
 function makeVisionTiles(source) {
   const w = source.width;
   const h = source.height;
   if (!w || !h) return [];
+
+  const overview = visionOverviewDataUrl(source);
   const cropW = Math.round(w * 0.58);
   const cropH = Math.round(h * 0.42);
   const xs = [0, Math.max(0, w - cropW)];
   const ys = [0, Math.max(0, Math.round((h - cropH) / 2)), Math.max(0, h - cropH)];
   const tiles = [];
-  for (const y of ys) for (const x of xs) tiles.push(cropToJpeg(source, x, y, cropW, cropH));
-  return tiles;
+  if (overview) tiles.push(overview);
+  for (const y of ys) {
+    for (const x of xs) tiles.push(cropToJpeg(source, x, y, cropW, cropH));
+  }
+  return tiles.slice(0, 7);
 }
 
 function previewDataUrl(source) {
