@@ -606,42 +606,182 @@ export default function AdminLargePdfPanelV5() {
         await loadTesseract();
         if (!window.Tesseract?.createWorker) throw new Error("ocr_runtime_unavailable");
         worker = await window.Tesseract.createWorker(ocrLanguage, 1, { logger: () => {} });
-        if (worker.setParameters) await worker.setParameters({ tessedit_pageseg_mode: "11", preserve_interword_spaces: "1", user_defined_dpi: "300" });
+        if (worker.setParameters) {
+          await worker.setParameters({
+            tessedit_pageseg_mode: "3",
+            preserve_interword_spaces: "1",
+            user_defined_dpi: "300",
+          });
+        }
         return worker;
       };
 
+      const pageCache = new Map();
+
+      const addReviewPage = (pageNumber) => {
+        setReviewPages((current) =>
+          current.includes(pageNumber) ? current : [...current, pageNumber].slice(0, 250)
+        );
+      };
+
       const readPage = async (pageNumber, allowAi = true, diagnostic = false) => {
+        if (!diagnostic && pageCache.has(pageNumber)) return pageCache.get(pageNumber);
+
         const page = await pdfDocument.getPage(pageNumber);
         let sourceCanvas = null;
         let enhanced = null;
         try {
           const textContent = await page.getTextContent();
-          const nativeText = cleanText((textContent.items || []).map((item) => `${String(item?.str || "")}${item?.hasEOL ? "\n" : " "}`).join(""));
-          if (!nativeNeedsOcr(nativeText) && usefulText(nativeText, 34)) return { text: nativeText, method: "native" };
+          const nativeText = cleanText(
+            (textContent.items || [])
+              .map((item) => String(item?.str || "") + (item?.hasEOL ? "\n" : " "))
+              .join("")
+          );
+          const nativeQuality = textQuality(nativeText);
 
-          const pageCanvas = await bestPageCanvas(page, pdfjs, diagnostic ? 14_000_000 : 11_000_000);
+          if (!nativeNeedsOcr(nativeText) && usefulText(nativeText, 34, 70)) {
+            const result = { text: nativeText, method: "native", quality: nativeQuality.score };
+            if (diagnostic) pageCache.set(pageNumber, result);
+            return result;
+          }
+
+          const pageCanvas = await bestPageCanvas(
+            page,
+            pdfjs,
+            diagnostic ? 14_000_000 : 11_000_000
+          );
           sourceCanvas = pageCanvas.canvas;
           if (pageCanvas.direct) setDirectScanPages((n) => n + 1);
           if (diagnostic) setPreview(previewDataUrl(sourceCanvas));
 
           enhanced = enhancedCopy(sourceCanvas);
           const w = await ensureWorker();
-          const localResult = await w.recognize(enhanced);
-          const localText = cleanText(localResult?.data?.text || "");
-          setLocalOcrPages((n) => n + 1);
-          let bestText = scoreText(localText, Number(localResult?.data?.confidence || 0)) > scoreText(nativeText, 0) ? localText : nativeText;
-          if (usefulText(bestText, 38) || !allowAi) return { text: bestText, method: pageCanvas.direct ? "scan-direct" : "local" };
 
-          const tiles = makeVisionTiles(sourceCanvas);
-          if (!tiles.length) return { text: bestText, method: pageCanvas.direct ? "scan-direct" : "local" };
-          setStage(`Secours IA · page ${pageNumber}/${totalPages}`);
-          const visionText = await aiOcr(tiles, pageNumber).catch(() => "");
-          setAiOcrPages((n) => n + 1);
-          if (scoreText(visionText, 90) > scoreText(bestText, 0)) bestText = visionText;
-          return { text: bestText, method: pageCanvas.direct ? "scan-direct+ia" : "ia" };
+          if (w.setParameters) {
+            await w.setParameters({
+              tessedit_pageseg_mode: "3",
+              preserve_interword_spaces: "1",
+              user_defined_dpi: "300",
+            });
+          }
+
+          setStage("OCR local · page " + pageNumber + "/" + totalPages);
+          const firstLocal = await w.recognize(enhanced);
+          let localText = cleanText(firstLocal?.data?.text || "");
+          let localConfidence = Number(firstLocal?.data?.confidence || 0);
+          setLocalOcrPages((n) => n + 1);
+
+          if (needsSecondLocalPass(localText, localConfidence)) {
+            try {
+              if (w.setParameters) {
+                await w.setParameters({
+                  tessedit_pageseg_mode: "6",
+                  preserve_interword_spaces: "1",
+                  user_defined_dpi: "300",
+                });
+              }
+              setStage("Double lecture OCR · page " + pageNumber + "/" + totalPages);
+              const secondLocal = await w.recognize(enhanced);
+              const secondText = cleanText(secondLocal?.data?.text || "");
+              const secondConfidence = Number(secondLocal?.data?.confidence || 0);
+              if (
+                scoreText(secondText, secondConfidence) >
+                scoreText(localText, localConfidence)
+              ) {
+                localText = secondText;
+                localConfidence = secondConfidence;
+              }
+            } catch (secondPassError) {
+              console.warn("Second OCR pass unavailable on page", pageNumber, secondPassError);
+            } finally {
+              if (w.setParameters) {
+                await w.setParameters({
+                  tessedit_pageseg_mode: "3",
+                  preserve_interword_spaces: "1",
+                  user_defined_dpi: "300",
+                }).catch(() => {});
+              }
+            }
+          }
+
+          let bestText = nativeText;
+          let bestConfidence = 0;
+          let method = "native-fallback";
+
+          if (scoreText(localText, localConfidence) > scoreText(bestText, 0)) {
+            bestText = localText;
+            bestConfidence = localConfidence;
+            method = pageCanvas.direct ? "scan-direct" : "local";
+          }
+
+          let bestQuality = textQuality(bestText, bestConfidence);
+          const shouldUseAi =
+            allowAi &&
+            (
+              ocrQualityMode === "high" ||
+              bestQuality.score < 82 ||
+              bestConfidence < 78 ||
+              !usefulText(bestText, 38, 55)
+            );
+
+          if (shouldUseAi) {
+            const tiles = makeVisionTiles(sourceCanvas);
+            if (tiles.length) {
+              setStage("Vérification IA · page " + pageNumber + "/" + totalPages);
+              try {
+                const vision = await aiOcr(tiles, pageNumber, bestText);
+                setAiOcrPages((n) => n + 1);
+                const visionText = cleanText(vision?.text || "");
+                const visionQuality = Number(
+                  vision?.quality || textQuality(visionText, 92).score
+                );
+
+                const preferVision =
+                  usefulText(visionText, 30, 50) &&
+                  (
+                    visionQuality > bestQuality.score ||
+                    (
+                      ocrQualityMode === "high" &&
+                      visionQuality >= Math.max(62, bestQuality.score - 5)
+                    )
+                  );
+
+                if (preferVision) {
+                  bestText = visionText;
+                  bestConfidence = 92;
+                  method = pageCanvas.direct ? "scan-direct+ia" : "ia";
+                  bestQuality = textQuality(bestText, bestConfidence);
+                }
+              } catch (visionError) {
+                console.warn("AI OCR verification failed on page", pageNumber, visionError);
+              }
+            }
+          }
+
+          const finalQuality = textQuality(bestText, bestConfidence);
+          if (
+            (usefulText(bestText, 26, 35) && finalQuality.score < 68) ||
+            (!usefulText(bestText, 26, 35) && pageCanvas.ink > 0.025 && textStats(bestText).words > 0)
+          ) {
+            addReviewPage(pageNumber);
+          }
+
+          const result = {
+            text: bestText,
+            method,
+            quality: finalQuality.score,
+          };
+          if (diagnostic) pageCache.set(pageNumber, result);
+          return result;
         } finally {
-          if (enhanced) { enhanced.width = 1; enhanced.height = 1; }
-          if (sourceCanvas) { sourceCanvas.width = 1; sourceCanvas.height = 1; }
+          if (enhanced) {
+            enhanced.width = 1;
+            enhanced.height = 1;
+          }
+          if (sourceCanvas) {
+            sourceCanvas.width = 1;
+            sourceCanvas.height = 1;
+          }
           page.cleanup?.();
         }
       };
@@ -651,10 +791,10 @@ export default function AdminLargePdfPanelV5() {
         if (abortRef.current) throw new Error("indexation_cancelled");
         setStage(`Diagnostic scan · page ${pageNumber}/${totalPages}`);
         const result = await readPage(pageNumber, true, true);
-        if (usefulText(result.text, 30)) { diagnosticOk = true; break; }
+        if (usefulText(result.text, 30, 50)) { diagnosticOk = true; break; }
       }
       if (!diagnosticOk) {
-        throw new Error("Le moteur OCR V5 ne récupère toujours aucun texte sur plusieurs pages réparties dans le livre. L’aperçu ci-dessous montre exactement l’image reçue par l’OCR : s’il est blanc ou incorrect, le PDF encode ses scans d’une manière particulière.");
+        throw new Error("Le moteur OCR haute précision ne récupère aucun texte fiable sur plusieurs pages réparties dans le livre. L’aperçu ci-dessous montre l’image réellement reçue par l’OCR : contrôlez le scan avant de poursuivre l’indexation.");
       }
 
       let pending = [];
@@ -681,7 +821,7 @@ export default function AdminLargePdfPanelV5() {
         setStage(`Lecture · page ${pageNumber}/${totalPages}`);
         const result = await readPage(pageNumber, true, false);
         const cleaned = cleanText(result.text);
-        if (usefulText(cleaned, 26)) {
+        if (usefulText(cleaned, 26, 45)) {
           if (!textBuffer) bufferPageStart = pageNumber;
           textBuffer += `${textBuffer ? "\n\n" : ""}[Page ${pageNumber}]\n${cleaned}`;
           totalUsefulChars += cleaned.length;
@@ -699,7 +839,7 @@ export default function AdminLargePdfPanelV5() {
 
         setPagesDone(pageNumber);
         if (pageNumber % 4 === 0 || pageNumber === totalPages) {
-          await postKnowledge({ action: "progress", job_id: jobId, pages_total: totalPages, pages_done: pageNumber, stage_label: `OCR V5 · ${pagesWithText} pages texte · ${nextChunkIndex} fragments` });
+          await postKnowledge({ action: "progress", job_id: jobId, pages_total: totalPages, pages_done: pageNumber, stage_label: `OCR qualité · ${pagesWithText} pages texte · ${nextChunkIndex} fragments · ${ocrQualityMode === "high" ? "haute précision" : "équilibré"}` });
         }
       }
 
