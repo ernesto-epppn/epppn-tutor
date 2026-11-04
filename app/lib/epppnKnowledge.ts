@@ -1,10 +1,11 @@
 import OpenAI from "openai";
 
 export const PRIMARY_KNOWLEDGE_PRIORITY = [
-  { title: "Cookbook Pizza Home made 5 - Marino", boost: 0.16, label: "Marino · Cookbook Pizza Home made 5" },
-  { title: "Ricettario Pizza home made", boost: 0.13, label: "Marino · Ricettario Pizza home made" },
-  { title: "pane - Fulvio MArino", boost: 0.11, label: "Marino · Pane" },
-  { title: "MANUEL 2026 impression", boost: 0.09, label: "Manuel EPPPN 2026" },
+  // Niveau 1 : le Manuel Pizza EPPPN et Modernist Pizza, à priorité égale.
+  { title: "MANUEL 2026 impression", boost: 0.10, label: "Manuel Pizza · EPPPN" },
+  { title: "Modernist pizza Volume 2 OCR TOP", boost: 0.10, label: "Modernist Pizza · Techniques et ingrédients" },
+  { title: "Modernist Pizza Recipes OCR", boost: 0.10, label: "Modernist Pizza · Recettes" },
+  { title: "Modernist pizza. Volume 2 Techniques and ingredients Nathan Myhrvold Francisco Migoya Enzo Coccia ( WeLib.org )", boost: 0.10, label: "Modernist Pizza · Techniques et ingrédients" },
 ] as const;
 
 export function normalizeKnowledgeTitle(value: unknown) {
@@ -17,15 +18,10 @@ export function knowledgePriorityForTitle(value: unknown) {
     (entry) => normalizeKnowledgeTitle(entry.title) === normalized
   );
   if (hit) return hit;
-  if (
-    normalized.includes("fiches recettes epppn") ||
-    normalized === "levain" ||
-    normalized.includes("tonda biga")
-  ) {
-    return { title: String(value || ""), boost: 0.05, label: "EPPPN · complément officiel" };
-  }
-  if (normalized.includes("plaquette epppn")) {
-    return { title: String(value || ""), boost: 0.02, label: "EPPPN · repère institutionnel" };
+  // Niveau 2 : toutes les autres ressources validées, sans privilège Marino.
+  if (normalized.includes("fiches recettes epppn") || normalized === "levain" ||
+      normalized.includes("tonda biga") || normalized.includes("plaquette epppn")) {
+    return { title: String(value || ""), boost: 0.03, label: "EPPPN · complément validé" };
   }
   return { title: String(value || ""), boost: 0, label: "Référence complémentaire" };
 }
@@ -87,8 +83,20 @@ export async function retrieveEpppnKnowledge(params: {
   });
   const queryEmbedding = emb.data[0].embedding;
 
-  const { data: matches, error: matchErr } = await supabase.rpc("match_chunks", {
+  // Recherche sémantique + termes exacts. La fonction SQL retire les doublons
+  // et privilégie le Manuel EPPPN et Modernist Pizza avant le tri final.
+  const ignored = new Set([
+    "comment", "pourquoi", "quel", "quelle", "avec", "sans", "dans",
+    "pour", "vous", "nous", "cette", "cela", "sont", "mais", "pizza",
+    "quoi", "commento", "quale", "perche", "perché", "the", "from",
+  ]);
+  const queryTerms = [...new Set(
+    (message.toLocaleLowerCase("fr").match(/[a-zà-ÿ0-9]+/g) || [])
+      .filter((term) => term.length >= 4 && !ignored.has(term))
+  )].slice(0, 12);
+  const { data: matches, error: matchErr } = await supabase.rpc("match_chunks_contextual", {
     query_embedding: queryEmbedding,
+    query_terms: queryTerms,
     match_count: candidateCount,
   });
   if (matchErr) throw matchErr;
@@ -123,26 +131,43 @@ export async function retrieveEpppnKnowledge(params: {
         document_source: document?.source || m?.metadata?.source || "",
         source_label: priority.label,
         source_boost: priority.boost,
-        retrieval_score: similarity + priority.boost,
+        // Ne pas doubler le bonus déjà appliqué dans match_chunks_contextual.
+        retrieval_score: Number.isFinite(Number(m.retrieval_score))
+          ? Number(m.retrieval_score)
+          : similarity + priority.boost,
       };
     })
     .sort((a: any, b: any) => b.retrieval_score - a.retrieval_score);
 
   const retrieved: any[] = [];
   const perDocumentCount = new Map<number, number>();
-  for (const item of reranked) {
+  const seenModernistVolume2 = new Set<number>();
+  const selectedChunkIds = new Set<number>();
+  // Deux OCR presque identiques du volume 2 existent : une même page ne doit
+  // jamais occuper deux places dans les huit passages envoyés au modèle.
+  function addCandidate(item: any, enforceDiversity: boolean) {
     const documentId = Number(item.document_id);
-    const already = perDocumentCount.get(documentId) || 0;
-    if (already >= 4) continue;
+    const chunkId = Number(item.chunk_id);
+    if (selectedChunkIds.has(chunkId)) return false;
+    if (enforceDiversity && (perDocumentCount.get(documentId) || 0) >= 3) return false;
+    const title = normalizeKnowledgeTitle(item.document_title);
+    const isVolume2 = title.startsWith("modernist pizza") &&
+      (title.includes("volume 2") || title.includes("volume 2 techniques"));
+    const index = Number(item.chunk_index);
+    if (isVolume2 && seenModernistVolume2.has(index)) return false;
     retrieved.push(item);
-    perDocumentCount.set(documentId, already + 1);
+    selectedChunkIds.add(chunkId);
+    if (isVolume2) seenModernistVolume2.add(index);
+    perDocumentCount.set(documentId, (perDocumentCount.get(documentId) || 0) + 1);
+    return true;
+  }
+  for (const item of reranked) {
+    addCandidate(item, true);
     if (retrieved.length >= resultCount) break;
   }
-
   if (retrieved.length < resultCount) {
     for (const item of reranked) {
-      if (retrieved.some((existing: any) => existing.chunk_id === item.chunk_id)) continue;
-      retrieved.push(item);
+      addCandidate(item, false);
       if (retrieved.length >= resultCount) break;
     }
   }
