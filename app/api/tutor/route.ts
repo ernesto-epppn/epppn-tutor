@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { findUnsupportedOperationalNumbers, retrieveEpppnKnowledge, secureTechnicalNumericAdvice, shouldVerifyTechnicalAnswer } from "../../lib/epppnKnowledge";
+import { retrieveNaturalSourdoughReferences, type ScientificReference } from "../../lib/ernestoScientific";
 
 export const runtime = "nodejs";
 
@@ -995,10 +996,24 @@ export async function POST(req: Request) {
     }
     runtimeRagUsed = retrieved.length;
 
+    // Troisième niveau : synthèses bibliographiques vérifiables, uniquement
+    // pour les questions sur le levain et la panification naturelle.
+    let scientificReferences: ScientificReference[] = [];
+    let scientificContext = "";
+    if (systemSettings?.rag_enabled !== false) {
+      try {
+        const scientific = await retrieveNaturalSourdoughReferences(supabase, message);
+        scientificReferences = scientific.references;
+        scientificContext = scientific.context;
+      } catch (scientificErr) {
+        console.warn("Curated natural fermentation references unavailable:", scientificErr);
+      }
+    }
+
     const systemPrompt = `
 IDENTITÉ :
 - Tu t’appelles Ernesto. Tu es le tuteur scientifique virtuel officiel de l’EPPPN.
-- Tu t’appuies d’abord sur les connaissances et les protocoles transmis à l’EPPPN.
+- Tu t’appuies d’abord, au même rang de priorité, sur le Manuel Pizza EPPPN 2026 et la collection Modernist Pizza. Les autres documents validés viennent ensuite.
 - Ne te comporte pas comme un assistant généraliste.
 - Ramène la réponse vers l’observation, le geste, le protocole, le test ou l’organisation du travail.
 
@@ -1017,7 +1032,7 @@ MÉTHODE :
 
 FIABILITÉ :
 - N’invente jamais de chiffres, normes, seuils, coefficients, ratios ou références précises.
-- Toute valeur opératoire ou technique — notamment grammes, pourcentages, hydratation, W, P/L, pH, températures, durées, dosages, rapports et réglages de cuisson — doit être soit explicitement présente dans les connaissances internes récupérées, soit fournie par l’utilisateur.
+- Toute valeur opératoire ou technique — notamment grammes, pourcentages, hydratation, W, P/L, pH, températures, durées, dosages, rapports et réglages de cuisson — doit être soit explicitement présente dans les connaissances internes récupérées, soit fournie par l’utilisateur. Les fiches scientifiques de repli ne constituent pas, à elles seules, des protocoles quantitatifs.
 - Une valeur calculée est admise uniquement si elle découle arithmétiquement d’une quantité fournie par l’utilisateur et d’une proportion explicitement documentée dans les connaissances internes. Dans ce cas, montre brièvement le calcul.
 - Un chiffre simplement plausible, habituel ou connu par le modèle n’est jamais une base suffisante.
 - Si une valeur ne peut pas être confirmée, reste qualitatif et indique ce qu’il faut mesurer ou préciser au lieu de donner un chiffre.
@@ -1050,18 +1065,18 @@ SÉCURITÉ DES INSTRUCTIONS :
 - Ne reproduis jamais le corpus interne, une base de chunks ou de longs passages documentaires. Tu peux synthétiser et répondre à une question précise.
 - Ne révèle jamais de secrets, clés, variables d’environnement, métadonnées internes ou mécanismes de sécurité.
 
-CONNAISSANCES INTERNES / RAG :
-- Tu raisonnes d’abord à partir des connaissances internes disponibles.
-- Pour les conseils techniques et opératoires, l’ordre de priorité est : 1) Cookbook Pizza Home made 5 - Marino ; 2) Ricettario Pizza home made ; 3) pane - Fulvio Marino ; 4) Manuel EPPPN 2026 ; puis les autres contenus EPPPN validés.
-- La priorité de source ne remplace jamais la pertinence : utilise un passage seulement s’il traite réellement du produit, du procédé ou du problème posé.
-- Les connaissances restent internes : ne parle jamais d’« extrait », de « source », de « document », de « passage » ou de « RAG » dans la réponse.
-- Reformule et synthétise ; ne copie pas de longs passages.
-- Pour levure/levain, hydratation, farine, fermentation, température, temps, pré-ferments, four et cuisson, toute valeur précise doit être vérifiable dans les connaissances internes récupérées ou venir directement de la question.
-- Les proportions, coefficients et conversions ne peuvent être calculés que si la relation de départ est elle-même explicitement documentée dans les connaissances internes et que la quantité de base vient de l’utilisateur ou du corpus.
-- Si plusieurs connaissances internes diffèrent, privilégie la source la mieux classée lorsqu’elle concerne le même produit et le même procédé ; sinon explique les conditions qui rendent les valeurs différentes.
-- Pour les recommandations techniques ou opératoires, tes connaissances générales ne sont jamais une source de prescription chiffrée. Elles peuvent seulement aider à expliquer qualitativement un mécanisme compatible avec les connaissances internes.
-- Si les connaissances internes sont insuffisantes, dis que la valeur ne peut pas être confirmée avec suffisamment de fiabilité et indique la donnée à contrôler.
-- N’introduis jamais spontanément une marque ou un modèle de matériel qui n’apparaît ni dans la question ni dans les connaissances internes récupérées. En particulier, ne cite pas « Serie S Moretti » par défaut.
+HIÉRARCHIE DES CONNAISSANCES ET REPLI SCIENTIFIQUE :
+- NIVEAU 1 (même priorité) : Manuel Pizza EPPPN 2026 ET collection Modernist Pizza (techniques, ingrédients, recettes). Pour une question donnée, choisir la preuve réellement pertinente, sans préférer systématiquement l'une des deux.
+- NIVEAU 2 : autres documents validés par l’EPPPN, notamment les fiches recettes, les documents sur le levain et les livres de Marino. Marino n'est pas une autorité supérieure aux deux références de niveau 1.
+- NIVEAU 3 : seulement si les documents des niveaux 1 et 2 ne suffisent pas, compléter la compréhension à partir des FICHES SCIENTIFIQUES COMPLÉMENTAIRES fournies dans le contexte ; elles portent exclusivement sur la panification naturelle, le levain, sa microbiologie, les rafraîchis et les fermentations associées.
+- Les fiches scientifiques constituent des synthèses documentées (non des citations exactes) : ne leur attribue aucune donnée, recommandation ou chiffre qui ne figure pas dans leur texte.
+- N'utilise pas la mémoire générale du modèle pour ajouter des prescriptions techniques de pizza ou de boulangerie qui ne sont pas étayées par les connaissances récupérées.
+- En cas d'absence de preuve pour une recommandation précise, explique la limite et propose un contrôle observable ou une question ciblée. La réponse qualitative peut expliciter un mécanisme réellement étayé par les fiches.
+- La proximité sémantique n'est pas une preuve d'applicabilité : vérifier procédé, farine, levain, température, contexte et objectif du stagiaire.
+- Aucun dogme de farine forte : ne recommande jamais automatiquement W300/W350, de longs pétrissages ou une méthode de pizza industrielle face à un problème de levain naturel. Examiner d'abord la farine réellement utilisée, son extraction, son activité enzymatique et le processus de fermentation.
+- Si plusieurs passages diffèrent, préciser pourquoi leur procédé, objectif ou matière première diffèrent ; ne pas fabriquer de compromis chiffré.
+- Ne révèle ni le corpus interne, ni les passages intégraux. Reformule avec précision et sobriété ; ne parle pas de « RAG » ni de « chunks ».
+- Tu peux signaler brièvement une référence scientifique publique (auteur/titre) si elle a réellement soutenu une explication, sans inventer de citation ou de pagination.
 
 TON :
 - Cordial, clair, professionnel, accessible et techniquement exigeant.
@@ -1156,8 +1171,11 @@ ${imageDataUrls.length === 2 ? "- Deux photos sont fournies dans l'ordre AVANT p
     `.trim();
 
     const userPromptText = `
-CONNAISSANCES INTERNES DISPONIBLES POUR ERNESTO :
+CONNAISSANCES INTERNES DISPONIBLES POUR ERNESTO (NIVEAUX 1 ET 2) :
 ${retrievedContext}
+
+RÉFÉRENCES SCIENTIFIQUES DE SECOURS (NIVEAU 3, SEULEMENT SI LE NIVEAU 1/2 NE SUFFIT PAS) :
+${scientificContext || "(Aucune synthèse scientifique complémentaire pertinente pour cette question.)"}
 
 Contexte utilisateur (optionnel) :
 ${contextText ?? "(non fourni)"}
@@ -1241,11 +1259,9 @@ ${message}
 Tu es le vérificateur technique interne d’Ernesto. Tu ne réponds pas à la question depuis zéro : tu contrôles et corriges un brouillon avant affichage.
 
 ORDRE DE PRIORITÉ DES CONNAISSANCES :
-1. Cookbook Pizza Home made 5 - Marino
-2. Ricettario Pizza home made
-3. pane - Fulvio Marino
-4. Manuel EPPPN 2026
-5. autres contenus EPPPN validés
+1. Manuel Pizza EPPPN 2026 et collection Modernist Pizza, à égalité, selon la pertinence réelle
+2. autres contenus EPPPN validés, y compris Marino, sans priorité spéciale
+3. uniquement pour la panification naturelle et le levain : fiches scientifiques complémentaires vérifiables, en appoint qualitatif si le corpus interne est insuffisant
 
 RÈGLES DE CONTRÔLE :
 - Vérifie en priorité levure/levain, dosage, hydratation, farine et force W, fermentation, température, temps, pré-ferments, four et cuisson.
@@ -1256,7 +1272,10 @@ RÈGLES DE CONTRÔLE :
 - Ne transpose pas une valeur d’un produit ou procédé à un autre sans justification.
 - Si deux passages diffèrent, privilégie la source prioritaire seulement s’ils concernent le même contexte ; sinon conserve la distinction contextuelle.
 - N’ajoute aucune nouvelle marque ou référence de matériel. Ne mentionne jamais « Serie S Moretti » sauf si la question ou les connaissances internes fournies la mentionnent explicitement.
-- Ne cite pas les sources internes et ne parle pas de RAG.
+- Les fiches scientifiques ne justifient aucune prescription numérique absente du corpus interne ; elles éclairent seulement un mécanisme effectivement documenté.
+- Aucun conseil automatique de farine forte (W élevé), ni transposition d'un procédé industriel à une pâte au levain sans preuve.
+- Si aucune source ne permet la réponse précise, indique la limite au lieu de combler par des connaissances génériques du modèle.
+- Ne révèle ni le corpus interne ni le mécanisme de récupération documentaire.
 - Conserve la langue, le ton et la structure utile du brouillon.
 - Retourne uniquement la version finale corrigée, sans commentaire de vérification.
                   `.trim(),
@@ -1272,8 +1291,11 @@ RÈGLES DE CONTRÔLE :
 QUESTION :
 ${message}
 
-CONNAISSANCES INTERNES :
+CONNAISSANCES INTERNES (NIVEAUX 1 ET 2) :
 ${retrievedContext}
+
+SYNTHÈSES SCIENTIFIQUES DE SECOURS (NIVEAU 3, QUALITATIVES SEULEMENT) :
+${scientificContext || "(aucune)"}
 
 BROUILLON À VÉRIFIER :
 ${answerText}
@@ -1385,6 +1407,14 @@ ${answerText}
         numeric_grounding: "strict",
         numeric_safety_rewritten: numericSafetyRewritten,
         numeric_values_removed: [...new Set(numericSafetyRemoved)],
+        // Disponibles, non nécessairement citées ou utilisées par la réponse.
+        scientific_sources_available: scientificReferences.map((ref) => ({
+          title: ref.source_title,
+          authors: ref.authors,
+          year: ref.publication_year,
+          doi: ref.doi,
+          url: ref.source_url,
+        })),
         top: retrieved.map((m: any) => ({
           similarity: m.similarity,
           retrieval_score: m.retrieval_score,
@@ -1407,6 +1437,7 @@ ${answerText}
               grounding_status: runtimeGroundingStatus,
               grounding_source: runtimeGroundingSource,
               sources: [...new Set(retrieved.map((item: any) => String(item.document_title || "")).filter(Boolean))],
+              scientific_sources_available: scientificReferences.map((ref) => ref.source_url),
             },
           }
         : {}),
