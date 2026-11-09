@@ -15,8 +15,8 @@ type Ledger = {
 type CostSettings = {
   recipeId:string; prices:Record<string,number>;
   sellingPriceTtc:number; vatRate:VatChoice;
-  packagingPerUnit:number; energyPerUnit:number; laborPerUnit:number;
-  otherPerUnit:number;
+  packagingPerUnit:number; toppingsPerUnit:number; energyPerUnit:number; laborPerUnit:number;
+  otherPerUnit:number; monthlyFixed:number;
 };
 type Props = { open:boolean; onClose:()=>void; supabase:SupabaseClient; userId?:string; accessToken?:string };
 const EUR=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:2});
@@ -88,7 +88,7 @@ export default function ErnestoCommercialStudio({open,onClose,supabase,userId,ac
  const [recipeId,setRecipeId]=useState("classique-j1");
  const [cost,setCost]=useState<CostSettings>({
    recipeId:"classique-j1",prices:{},sellingPriceTtc:0,vatRate:"",
-   packagingPerUnit:0,energyPerUnit:0,laborPerUnit:0,otherPerUnit:0
+   packagingPerUnit:0,toppingsPerUnit:0,energyPerUnit:0,laborPerUnit:0,otherPerUnit:0,monthlyFixed:0
  });
  const [month,setMonth]=useState(MONTH);
  const [ledger,setLedger]=useState<Ledger>(blankLedger());
@@ -108,13 +108,13 @@ export default function ErnestoCommercialStudio({open,onClose,supabase,userId,ac
    for(const [k,v] of Object.entries(saved.prices as Record<string,unknown>))prices[k]=safeNumber(v,100000);
   }
   return {recipeId,prices,sellingPriceTtc:safeNumber(saved.sellingPriceTtc),vatRate:parsedVat(saved.vatRate),
-   packagingPerUnit:safeNumber(saved.packagingPerUnit),energyPerUnit:safeNumber(saved.energyPerUnit),
-   laborPerUnit:safeNumber(saved.laborPerUnit),otherPerUnit:safeNumber(saved.otherPerUnit)} as CostSettings;
+   packagingPerUnit:safeNumber(saved.packagingPerUnit),toppingsPerUnit:safeNumber(saved.toppingsPerUnit),energyPerUnit:safeNumber(saved.energyPerUnit),
+   laborPerUnit:safeNumber(saved.laborPerUnit),otherPerUnit:safeNumber(saved.otherPerUnit),monthlyFixed:safeNumber(saved.monthlyFixed)} as CostSettings;
  },[costs,recipeId]);
  useEffect(()=>{
   if(recorded)setCost(recorded);
   else setCost({recipeId,prices:{},sellingPriceTtc:0,vatRate:"",
-   packagingPerUnit:0,energyPerUnit:0,laborPerUnit:0,otherPerUnit:0});
+   packagingPerUnit:0,toppingsPerUnit:0,energyPerUnit:0,laborPerUnit:0,otherPerUnit:0,monthlyFixed:0});
  },[recorded,recipeId]);
 
  useEffect(()=>{
@@ -170,12 +170,13 @@ export default function ErnestoCommercialStudio({open,onClose,supabase,userId,ac
  const isTray=recipe?.mode==="plaques";
  const units=calc?(isTray?calc.trays:calc.pieces):1;
  const ingredientPerUnit=units>0?subtotal/units:0;
- const extra=cost.packagingPerUnit+cost.energyPerUnit+cost.laborPerUnit+cost.otherPerUnit;
+ const extra=cost.toppingsPerUnit+cost.packagingPerUnit+cost.energyPerUnit+cost.laborPerUnit+cost.otherPerUnit;
  const totalPerUnit=ingredientPerUnit+extra;
  const selling=taxable(cost.sellingPriceTtc,cost.vatRate);
  const margin=selling?selling.ht-totalPerUnit:null;
  const marginRate=margin!==null&&selling&&selling.ht>0?margin/selling.ht*100:null;
  const costRate=selling&&selling.ht>0?totalPerUnit/selling.ht*100:null;
+ const breakEven=margin!==null&&margin>0&&cost.monthlyFixed>0?Math.ceil(cost.monthlyFixed/margin):null;
 
  if(!open)return null;
 
@@ -274,7 +275,7 @@ export default function ErnestoCommercialStudio({open,onClose,supabase,userId,ac
         </>}
         <p className="ecf-hint">Prix en € HT/kg, eau et produits compris. Une valeur à 0 € signifie « non chiffré » : le résultat sous-estime alors le coût réel.</p>
         <div className="ecf-inputColumns">
-         {([["packagingPerUnit","Emballage"],["energyPerUnit","Énergie"],["laborPerUnit","Main-d’œuvre directe"],["otherPerUnit","Autres coûts variables"]] as [keyof CostSettings,string][]).map(([k,label])=>
+         {([["toppingsPerUnit","Garniture"],["packagingPerUnit","Emballage"],["energyPerUnit","Énergie"],["laborPerUnit","Main-d’œuvre directe"],["otherPerUnit","Autres coûts variables"]] as [keyof CostSettings,string][]).map(([k,label])=>
           <label className="ecf-field" key={k}><span>{label} · €/unité</span>
            <CostNumber value={Number(cost[k])||0} onChange={v=>patchCost({[k]:v})}/></label>
          )}
@@ -290,10 +291,17 @@ export default function ErnestoCommercialStudio({open,onClose,supabase,userId,ac
          <div><small>Coût variable estimé / unité</small><strong>{EUR.format(totalPerUnit)}</strong></div>
          <div><small>Marge sur coûts variables / unité</small>
           <strong className={margin!==null&&margin<0?"negative":""}>{margin===null?"TVA à préciser":EUR.format(margin)}</strong></div>
-         <div><small>Taux de marge sur prix HT</small><strong>{marginRate===null?"—":P.format(marginRate)+" %"}</strong></div>
+         <div><small>Taux de marque (marge / prix HT)</small><strong>{marginRate===null?"—":P.format(marginRate)+" %"}</strong></div>
         </div>
         <div className="ecf-marginBar" aria-hidden="true"><span style={{width:(costRate===null?0:Math.min(100,Math.max(0,costRate)))+"%"}}/></div>
         <p className="ecf-hint">Marge = prix de vente HT − coût variable estimé. Ce n'est <strong>pas</strong> le bénéfice net : loyer, cotisations, charges fixes, amortissements et fiscalité restent à traiter séparément.</p>
+        <div className="ecf-breakEven">
+          <label className="ecf-field"><span>Charges fixes mensuelles estimées (optionnel)</span>
+            <CostNumber value={cost.monthlyFixed} onChange={v=>patchCost({monthlyFixed:v})}/></label>
+          {cost.monthlyFixed>0?<div><span>Ventes pour couvrir ces charges *</span>
+            <strong>{breakEven===null?"Marge positive et TVA nécessaires":N.format(breakEven)+" unités / mois"}</strong></div>:null}
+          <small>* Estimation théorique si tous les articles vendus ont la même marge. Ne tient pas compte des variations de ventes, charges sociales ni de l'impôt.</small>
+        </div>
         <button type="button" className="ecf-primary" disabled={working||!recipe} onClick={()=>void storeCost()}>Enregistrer ce calcul</button>
        </section>
       </div>
