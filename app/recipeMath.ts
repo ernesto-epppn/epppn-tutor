@@ -58,9 +58,9 @@ export function normalizeRecipeSettings(recipe: Recipe, input?: Partial<RecipeSe
   const d = recipeDefaults(recipe);
   const s = input || {};
   return {
-    pieces: positive(s.pieces, d.pieces, 10000),
+    pieces: Math.round(positive(s.pieces, d.pieces, 10000)),
     pieceWeight: positive(s.pieceWeight, d.pieceWeight, 10000),
-    trays: positive(s.trays, d.trays, 10000),
+    trays: Math.round(positive(s.trays, d.trays, 10000)),
     trayWidth: positive(s.trayWidth, d.trayWidth, 500),
     trayHeight: positive(s.trayHeight, d.trayHeight, 500),
     variantId: recipe.variants?.some(v => v.id === s.variantId) ? String(s.variantId) : d.variantId,
@@ -161,7 +161,7 @@ export function recipeContextForTutor(recipe: Recipe, settings: RecipeSettings):
     "Formule : "+(same?"taux documentaires inchangés":"VARIANTE PERSONNELLE des taux de la fiche originale")+".",
     "Cible : "+(recipe.mode==="plaques"
       ? s.trays+" plaque(s) de "+s.trayWidth+" x "+s.trayHeight+" cm"
-      : s.pieces+" pâtons de "+s.pieceWeight+" g")+".",
+      : s.pieces+(recipe.kind==="focaccia"?" focaccias":" pâtons")+" de "+s.pieceWeight+" g")+".",
     "Farine : "+recipe.flour+". Masse farine ajoutée "+calculation.flour.toFixed(1)+" g.",
     "Eau de coulage "+s.water+" %, bassinage indicatif "+s.bassinage+" %, sel "+s.salt+" %, levure fraîche "+s.yeast+" %, levain "+s.levain+" %, huile "+s.oil+" %, pommes de terre "+s.potato+" %.",
     "Doses calculées : "+amounts+". Masse totale "+calculation.dough.toFixed(1)+" g.",
