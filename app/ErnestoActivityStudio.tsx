@@ -106,11 +106,30 @@ function TextField({label,value,onChange,placeholder,type="text"}:{
 }) {
  return <label className="eas-field"><span>{label}</span><input type={type} value={value} placeholder={placeholder} onChange={e=>onChange(e.target.value)} /></label>;
 }
-function NumberField({label,value,onChange,min=0,step="any",suffix}:{
+function NumberField({label,value,onChange,min=0,suffix}:{
  label:string;value:number;onChange:(v:number)=>void;min?:number;step?:string;suffix?:string;
 }) {
- return <label className="eas-field"><span>{label}</span><div className="eas-number"><input type="number" min={min} step={step} value={String(value)}
- onChange={e=>{const x=Number(e.target.value);if(e.target.value!==""&&Number.isFinite(x)&&x>=0)onChange(x);}} />{suffix?<small>{suffix}</small>:null}</div></label>;
+ const display=(x:number)=>String(x).replace(".",",");
+ const [draft,setDraft]=useState(display(value));
+ useEffect(()=>setDraft(display(value)),[value]);
+ function parse(raw:string){
+  const text=raw.trim().replace(",",".");
+  if(!/^\\d+(?:\\.\\d+)?$/.test(text))return null;
+  const x=Number(text);
+  return Number.isFinite(x)&&x>=min&&x<=1000000?x:null;
+ }
+ return <label className="eas-field"><span>{label}</span><div className="eas-number">
+  <input type="text" inputMode="decimal" value={draft} onChange={e=>{
+    const raw=e.currentTarget.value;
+    if(!/^\\d*(?:[.,]\\d*)?$/.test(raw))return;
+    setDraft(raw);
+    const next=parse(raw);
+    if(next!==null && next!==value)onChange(next);
+  }} onBlur={()=>{
+    const next=parse(draft);
+    if(next===null)setDraft(display(value));
+    else {setDraft(display(next));if(next!==value)onChange(next);}
+  }} />{suffix?<small>{suffix}</small>:null}</div></label>;
 }
 
 export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:Props){
