@@ -48,7 +48,7 @@ function dateDiff(date:string) {
 }
 function stockWarnings(s:Stock) {
  const days=s.dateType!=="Aucune"&&s.expiry?dateDiff(s.expiry):null;
- const low=s.quantity<=s.minimum;
+ const low=s.minimum>0 && s.quantity<=s.minimum;
  const expiry=days!==null&&days<0;
  const approaching=days!==null&&days>=0&&days<=7;
  return {low,expiry,approaching,days};
@@ -154,7 +154,7 @@ export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:
   setLoading(true);setError("");setSuccess("");setRecords([]);
   void supabase.from("ernesto_activity_records")
    .select("id,user_id,kind,payload,created_at,updated_at")
-   .eq("user_id",accountId).order("updated_at",{ascending:false}).limit(400)
+   .eq("user_id",accountId).in("kind",["supplier","stock","profile"]).order("updated_at",{ascending:false}).limit(400)
    .then(({data,error})=>{
      if(cancelled)return;
      if(error){setError("Impossible de charger vos données. "+error.message);return;}
