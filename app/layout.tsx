@@ -21,6 +21,7 @@ import "./ernesto-context-meter.css";
 import "./ernesto-mode-override.css";
 import "./ernesto-epppn-grounding.css";
 import "./ernesto-followup-cleanup.css";
+import "./ernesto-recipe-studio.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
