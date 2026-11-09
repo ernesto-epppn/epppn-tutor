@@ -2237,6 +2237,14 @@ export default function Page() {
             <span>Votre espace de travail</span>
           </div>
           <nav className="ernestoToolsMenu" aria-label="Espaces professionnels">
+            <button type="button" className={`ernestoToolLink ernestoToolsMobileHome ${workspaceView === "home" && !recipeStudioOpen && !activityStudioOpen && !commercialStudioOpen ? "is-current" : ""}`}
+              onClick={() => { setWorkspaceView("home"); setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}
+              aria-label="Accueil Ernesto" aria-current={workspaceView === "home" ? "page" : undefined}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z"/>
+              </svg>
+              <span>Accueil</span>
+            </button>
             <button type="button"
               className={`ernestoToolLink ${workspaceView === "tutor" && !recipeStudioOpen && !activityStudioOpen && !commercialStudioOpen ? "is-current" : ""}`}
               aria-current={workspaceView === "tutor" && !recipeStudioOpen && !activityStudioOpen && !commercialStudioOpen ? "page" : undefined}
@@ -2244,14 +2252,14 @@ export default function Page() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="M4 6h16v12H4zM8 10h8M8 14h5"/>
               </svg>
-              <span>Tuteur Ernesto</span>
+              <span className="ernestoToolsFullName">Tuteur Ernesto</span><span className="ernestoToolsShortName">Tuteur</span>
             </button>
             <button type="button" className={`ernestoToolLink ${recipeStudioOpen ? "is-current" : ""}`}
               onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(true); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="M3 5c3-1 6-1 9 1v13c-3-2-6-2-9-1zM12 6c3-2 6-2 9-1v13c-3-1-6-1-9 1z"/>
               </svg>
-              <span>Le carnet des recettes</span>
+              <span className="ernestoToolsFullName">Le carnet des recettes</span><span className="ernestoToolsShortName">Recettes</span>
             </button>
             <button type="button" className={`ernestoToolLink ${activityStudioOpen ? "is-current" : ""}`}
               onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(true); setCommercialStudioOpen(false); }}>
