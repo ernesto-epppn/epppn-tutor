@@ -79,10 +79,13 @@ export function normalizeRecipeSettings(recipe: Recipe, input?: Partial<RecipeSe
 
 export function recipeIsModified(recipe: Recipe, values: RecipeSettings) {
   const d = recipeDefaults(recipe);
+  const variant = recipe.variants?.find(v => v.id === values.variantId);
+  // Both focaccia and pizza à la coupe are original variations documented on p.7.
+  const originalOil = variant?.oil ?? d.oil;
   const keys: (keyof RecipeSettings)[] = [
-    "water","bassinage","salt","yeast","levain","oil","potato","levainHydration","variantId"
+    "water","bassinage","salt","yeast","levain","potato","levainHydration"
   ];
-  return keys.some(key => values[key] !== d[key]);
+  return values.oil !== originalOil || keys.some(key => values[key] !== d[key]);
 }
 
 export function calculateRecipe(recipe: Recipe, userSettings: RecipeSettings) {
