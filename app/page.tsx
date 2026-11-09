@@ -2367,7 +2367,7 @@ export default function Page() {
         <div className={`workspace ${session ? "" : "noComposer"} ${chat.length ? "hasChat" : ""}`}>
 
         {session ? (
-          <nav className="ers-entry" aria-label="Espaces Ernesto">
+          <nav className={`ers-entry ${activeRecipeName ? "hasRecipe" : ""}`} aria-label="Espaces Ernesto">
             <button type="button" className="ers-entryBtn" onClick={() => setRecipeStudioOpen(true)}>
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 5.5c3.1-1.3 5.9-1.3 8 0v13c-2.1-1.3-4.9-1.3-8 0z"/>
