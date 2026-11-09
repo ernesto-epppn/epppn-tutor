@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ErnestoRecipeStudio from "./ErnestoRecipeStudio";
 import ErnestoActivityStudio from "./ErnestoActivityStudio";
+import ErnestoCommercialStudio from "./ErnestoCommercialStudio";
 import {
   ActionFlowchart,
   type ActionFlowchartData,
@@ -463,6 +464,8 @@ export default function Page() {
   const [message, setMessage] = useState("");
   const [recipeStudioOpen, setRecipeStudioOpen] = useState(false);
   const [activityStudioOpen, setActivityStudioOpen] = useState(false);
+  const [commercialStudioOpen, setCommercialStudioOpen] = useState(false);
+  const closeCommercialStudio = React.useCallback(() => setCommercialStudioOpen(false), []);
   const closeActivityStudio = React.useCallback(() => setActivityStudioOpen(false), []);
   const closeRecipeStudio = React.useCallback(() => setRecipeStudioOpen(false), []);
   const [recipeContext, setRecipeContext] = useState("");
@@ -2199,25 +2202,65 @@ export default function Page() {
         @keyframes ernestoIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
       `}</style>
 
-      <div className="mobileProjectBar">
-        <button className="mobileProjectBtn" type="button" onClick={() => setProjectsOpen(true)}>
-          <span>Dossiers</span>
-          <span style={{ opacity: 0.68, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {activeProject?.title ?? "Dossier général"}
-          </span>
-        </button>
-        <button
-          className="v145-mobile-bilan-btn"
-          type="button"
-          onClick={() => void refreshDossierSummary()}
-          aria-label="Ouvrir le bilan du dossier"
-        >
-          Bilan
-        </button>
-      </div>
-
       <div className="appFrame">
-        <aside className={`sidebarShell ${projectsOpen ? "open" : ""}`}>
+        <aside className="ernestoToolsRail" aria-label="Outils Ernesto">
+          <div className="ernestoToolsHeader">
+            <strong>ERNESTO</strong>
+            <span>Votre espace de travail</span>
+          </div>
+          <nav className="ernestoToolsMenu" aria-label="Espaces professionnels">
+            <button type="button" className="ernestoToolLink is-current" aria-current="page"
+              onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path d="M4 6h16v12H4zM8 10h8M8 14h5"/>
+              </svg>
+              <span>Tuteur Ernesto</span>
+            </button>
+            <button type="button" className="ernestoToolLink"
+              onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(true); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path d="M3 5c3-1 6-1 9 1v13c-3-2-6-2-9-1zM12 6c3-2 6-2 9-1v13c-3-1-6-1-9 1z"/>
+              </svg>
+              <span>Le carnet des recettes</span>
+            </button>
+            <button type="button" className="ernestoToolLink"
+              onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(true); setCommercialStudioOpen(false); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path d="M4 7h16v13H4zM4 11h16M9 7V4h6v3"/>
+              </svg>
+              <span>Stocks</span>
+            </button>
+            <button type="button" className="ernestoToolLink"
+              onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(true); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path d="M4 19V5m0 14h17M8 15l4-5 3 2 5-7"/>
+              </svg>
+              <span>Commercial</span>
+            </button>
+          </nav>
+                    <div className="sidebarBrand" aria-label="Identité EPPPN et Ernesto">
+            <img className="sidebarLogoEpppn" src="/LOGOEPPPN21.png" alt="Logo EPPPN" />
+            <div
+              role="img"
+              aria-label="Logo Ernesto"
+              style={{
+                width: 166,
+                height: 166,
+                maxWidth: "88%",
+                backgroundImage: 'url("/logo-ernesto-approved.png?v=20260828-5")',
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                backgroundSize: "contain",
+              }}
+            />
+          </div>
+
+        </aside>
+        {projectsOpen ? <button type="button" className="ernestoDossierBackdrop"
+          onClick={() => setProjectsOpen(false)} aria-label="Fermer les dossiers" /> : null}
+        <div className={`ernestoDossierDrawer ${projectsOpen ? "open" : ""}`}
+          role="dialog" aria-label="Dossiers Ernesto" aria-modal={projectsOpen}
+          aria-hidden={!projectsOpen}>
           <div className="projectRail">
             <div className="projectRailHeader">
             <div>
@@ -2337,58 +2380,38 @@ export default function Page() {
             ))}
           </div>
           </div>
-          <div className="sidebarBrand" aria-label="Identité EPPPN et Ernesto">
-            <img className="sidebarLogoEpppn" src="/LOGOEPPPN21.png" alt="Logo EPPPN" />
-            <div
-              role="img"
-              aria-label="Logo Ernesto"
-              style={{
-                width: 166,
-                height: 166,
-                maxWidth: "88%",
-                backgroundImage: 'url("/logo-ernesto-approved.png?v=20260828-5")',
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "center",
-                backgroundSize: "contain",
-              }}
-            />
-          </div>
-        </aside>
+
+        </div>
 
         <div className={`workspace ${session ? "" : "noComposer"} ${chat.length ? "hasChat" : ""}`}>
 
         {session ? (
-          <nav className={`ers-entry ${activeRecipeName ? "hasRecipe" : ""}`} aria-label="Espaces Ernesto">
-            <button type="button" className="ers-entryBtn" onClick={() => setRecipeStudioOpen(true)}>
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 5.5c3.1-1.3 5.9-1.3 8 0v13c-2.1-1.3-4.9-1.3-8 0z"/>
-                <path d="M12 5.5c2.1-1.3 4.9-1.3 8 0v13c-3.1-1.3-5.9-1.3-8 0z"/>
-                <path d="M12 5.5v13"/>
-              </svg>
-              Le carnet des recettes <span className="ers-entryCount">19</span>
+          <div className="ernestoDossierTop">
+            <button type="button" className="ernestoDossierOpen" onClick={() => setProjectsOpen(true)}
+              aria-label="Ouvrir la liste des dossiers">
+              <span className="ernestoDossierTopKicker">DOSSIERS</span>
+              <span className="ernestoDossierTopName">
+                <span className="ernestoDossierTopDot" style={{ background: activeProject ? projectColor(activeProject) : "#6f7d3c" }} />
+                {activeProject?.title ?? "Dossier général"}
+              </span>
+              <span className="ernestoDossierChevron" aria-hidden="true">⌄</span>
             </button>
-            <button type="button" className="eas-entryBtn" onClick={() => setActivityStudioOpen(true)}>
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
-                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="7" width="18" height="14" rx="2"/>
-                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/>
-              </svg>
-              Mon activité
-            </button>
-            {activeRecipeName ? (
-              <div className="ers-contextChip">
-                <button type="button" onClick={() => setRecipeStudioOpen(true)} title="Reprendre le carnet des recettes">
-                  ↗ {activeRecipeName}
-                </button>
-                <button type="button" className="ers-contextRemove"
-                  onClick={() => { setActiveRecipeName(null); setRecipeContext(""); }}
-                  aria-label="Retirer la recette du contexte du tuteur"
-                  title="Retirer la recette du contexte">×</button>
-              </div>
-            ) : null}
-          </nav>
+            <button type="button" className="ernestoDossierAdd"
+              onClick={() => { setCreateDossierOpen(true); setProjectsOpen(true); }}
+              aria-label="Créer un dossier" title="Créer un dossier">＋</button>
+            <button type="button" className="ernestoDossierBilan"
+              onClick={() => void refreshDossierSummary()}>Bilan</button>
+          </div>
         ) : null}
-
+        {session && activeRecipeName ? (
+          <div className="ernestoRecipeContextLink">
+            <button type="button" onClick={() => setRecipeStudioOpen(true)}>
+              ↗ Recette active : {activeRecipeName}
+            </button>
+            <button type="button" onClick={() => {setActiveRecipeName(null); setRecipeContext("");}}
+              aria-label="Retirer la recette du contexte">×</button>
+          </div>
+        ) : null}
 
       {/* --- AUTH / USAGE BANNER --- */}
       <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
@@ -2956,6 +2979,14 @@ export default function Page() {
         open={Boolean(session) && activityStudioOpen}
         onClose={closeActivityStudio}
         accountId={session?.user?.id}
+        supabase={supabase}
+      />
+      <ErnestoCommercialStudio
+        key={"commercial-"+(session?.user?.id || "guest")}
+        open={Boolean(session) && commercialStudioOpen}
+        onClose={closeCommercialStudio}
+        userId={session?.user?.id}
+        accessToken={session?.access_token}
         supabase={supabase}
       />
     </main>
