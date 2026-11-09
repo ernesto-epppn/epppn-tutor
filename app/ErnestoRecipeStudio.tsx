@@ -15,6 +15,7 @@ import {
 type Props = {
   open: boolean;
   onClose: () => void;
+  onHome: () => void;
   onAsk: (question: string, context: string, name: string) => void;
   accountId?: string;
   accessToken?: string;
@@ -72,7 +73,7 @@ function Chip({ active, children, onClick }:{
   return <button type="button" className={"ers-chip"+(active?" is-active":"")} onClick={onClick}>{children}</button>;
 }
 
-export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,accessToken}:Props) {
+export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId,accessToken}:Props) {
   const [recipes,setRecipes]=useState<Recipe[]>([]);
   const [catalogLoading,setCatalogLoading]=useState(false);
   const [catalogError,setCatalogError]=useState("");
@@ -164,7 +165,8 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
       <section className="ers-shell ers-shellLoading" role="dialog" aria-modal="true" aria-label="Carnet des recettes EPPPN">
         <header className="ers-topbar"><div className="ers-brand"><span className="ers-brandMark">E</span>
           <div><span className="ers-eyebrow">ERNESTO / EPPPN</span><h2>Le carnet des recettes</h2></div>
-        </div><button className="ers-close" type="button" onClick={onClose}>Retour <span>×</span></button></header>
+        </div><div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
+          <button className="ers-close" type="button" onClick={onClose} aria-label="Fermer le carnet">×</button></div></header>
         <div className="ers-loading">
           <strong>{catalogLoading?"Chargement des 19 recettes…":catalogError||"Catalogue EPPPN"}</strong>
           <p>Les fiches officielles sont réservées aux comptes Ernesto autorisés.</p>
@@ -250,9 +252,11 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
           <div><span className="ers-eyebrow">ERNESTO / EPPPN</span><h2 id="ers-title">Le carnet des recettes</h2></div>
           <span className="ers-year">Édition 2025</span>
         </div>
-        <button ref={closeRef} className="ers-close" type="button" onClick={onClose} aria-label="Fermer le carnet des recettes">
-          Retour à Ernesto <span aria-hidden="true">×</span>
-        </button>
+        <div className="ernestoOverlayNav">
+          <button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
+          <button ref={closeRef} className="ers-close" type="button" onClick={onClose}
+            aria-label="Fermer le carnet des recettes">×</button>
+        </div>
       </header>
 
       <div className="ers-layout">
