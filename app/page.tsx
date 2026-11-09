@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import ErnestoRecipeStudio from "./ErnestoRecipeStudio";
 import ErnestoActivityStudio from "./ErnestoActivityStudio";
 import ErnestoCommercialStudio from "./ErnestoCommercialStudio";
+import ErnestoHome from "./ErnestoHome";
 import {
   ActionFlowchart,
   type ActionFlowchartData,
@@ -461,6 +462,10 @@ async function compressImageToJpeg(
 
 export default function Page() {
   const [speed, setSpeed] = useState<Speed>("BANCO");
+  const [workspaceView, setWorkspaceView] = useState<"home" | "tutor">("home");
+  const [visibleChatCount, setVisibleChatCount] = useState(8);
+  const [expandedChatIds, setExpandedChatIds] = useState<string[]>([]);
+
   const [message, setMessage] = useState("");
   const [recipeStudioOpen, setRecipeStudioOpen] = useState(false);
   const [activityStudioOpen, setActivityStudioOpen] = useState(false);
@@ -828,8 +833,14 @@ export default function Page() {
   }, [activeProjectId]);
 
   useEffect(() => {
+    if (workspaceView !== "tutor") return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat, loading]);
+  }, [chat, loading, workspaceView]);
+
+  useEffect(() => {
+    setVisibleChatCount(8);
+    setExpandedChatIds([]);
+  }, [activeProjectId]);
 
   useEffect(() => {
     if (!loading) {
@@ -875,6 +886,7 @@ export default function Page() {
       return;
     }
 
+    setWorkspaceView("tutor");
     setPaywall(null); // close paywall on new ask attempt
     const responseIndex = chat.filter((m) => m.role === "ernesto").length + 1;
     setPizzaDone(false);
@@ -1027,6 +1039,7 @@ export default function Page() {
 
   function askFromRecipe(question: string, context: string, name: string) {
     if (loading || !session) return;
+    setWorkspaceView("tutor");
     setActiveRecipeName(name);
     setRecipeContext(context);
     setRecipeStudioOpen(false);
@@ -1037,6 +1050,7 @@ export default function Page() {
   }
 
   function createDossierFromDraft() {
+    setWorkspaceView("tutor");
     const cleanTitle = newDossierTitle.replace(/\s+/g, " ").trim() || "Dossier général";
     const p = makeProject(cleanTitle.slice(0, 80), newDossierColor, "");
     setProjects((prev) => [p, ...prev].slice(0, 30));
@@ -1063,6 +1077,7 @@ export default function Page() {
   function selectProject(id: string) {
     const p = projects.find((item) => item.id === id);
     if (!p) return;
+    setWorkspaceView("tutor");
     setActiveProjectId(id);
     setRecipeContext("");
     setActiveRecipeName(null);
@@ -1296,6 +1311,8 @@ export default function Page() {
 
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
   const activeProjectColor = projectColor(activeProject);
+  const latestAnswerId = [...chat].reverse().find((item) => item.role === "ernesto")?.id;
+  const visibleChat = chat.slice(-visibleChatCount);
   const workContextSummary = [
     workContext.activity,
     workContext.situation,
