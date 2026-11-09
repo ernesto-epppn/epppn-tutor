@@ -34,35 +34,21 @@ export default function ErnestoHome({
   dossiers, onTutor, onRecipes, onStocks, onCommercial, onSelectDossier, onAllDossiers,
 }: Props) {
   const actions = [
-    {
-      key: "chat" as const, eyebrow: "01 / APPRENDRE",
-      title: "Tuteur Ernesto", detail: "Poser une question, retrouver un conseil.",
-      action: onTutor,
-    },
-    {
-      key: "recipes" as const, eyebrow: "02 / PRODUIRE",
-      title: "Le carnet des recettes", detail: "Choisir une formule et calculer les doses.",
-      action: onRecipes,
-    },
-    {
-      key: "stocks" as const, eyebrow: "03 / ORGANISER",
-      title: "Stocks", detail: "Matières, fournisseurs et seuils de réserve.",
-      action: onStocks,
-    },
-    {
-      key: "commercial" as const, eyebrow: "04 / PILOTER",
-      title: "Commercial", detail: "Coûts, marges, recettes et dépenses.",
-      action: onCommercial,
-    },
+    { key: "chat" as const, title: "Tuteur Ernesto", action: onTutor },
+    { key: "recipes" as const, title: "Le carnet des recettes", action: onRecipes },
+    { key: "stocks" as const, title: "Stocks", action: onStocks },
+    { key: "commercial" as const, title: "Commercial", action: onCommercial },
   ];
 
-  const recent = [...dossiers].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 3);
+  const recent = [...dossiers]
+    .filter((dossier) => dossier.count > 0)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 3);
 
   return <section className="ernestoHomeDashboard" aria-labelledby="ernesto-home-title">
     <header className="ernestoHomeIntro">
-      <div className="ernestoHomeEyebrow"><span /> VOTRE ESPACE EPPPN</div>
-      <h1 id="ernesto-home-title">Que souhaitez-vous faire aujourd’hui&nbsp;?</h1>
-      <p>Vos recettes, vos outils professionnels et votre tuteur — réunis au même endroit.</p>
+      <span className="ernestoHomeLead">ERNESTO · EPPPN</span>
+      <h1 id="ernesto-home-title">Votre boîte à outils</h1>
     </header>
 
     <div className="ernestoHomeCards" aria-label="Choisir un outil">
@@ -71,9 +57,7 @@ export default function ErnestoHome({
         onClick={action.action}>
         <span className="ernestoHomeCardIcon"><MiniIcon name={action.key}/></span>
         <span className="ernestoHomeCardBody">
-          <small>{action.eyebrow}</small>
           <strong>{action.title}</strong>
-          <span>{action.detail}</span>
         </span>
         <span className="ernestoHomeCardArrow" aria-hidden="true">↗</span>
       </button>)}
@@ -81,7 +65,7 @@ export default function ErnestoHome({
 
     {recent.length ? <section className="ernestoHomeRecent" aria-label="Reprendre un dossier">
       <div className="ernestoHomeRecentHeading">
-        <div><span>CONTINUER</span><h2>Mes derniers dossiers</h2></div>
+        <div><h2>Reprendre un dossier</h2></div>
         <button type="button" onClick={onAllDossiers}>Tous les dossiers <span aria-hidden="true">↗</span></button>
       </div>
       <div className="ernestoHomeDossierList">
@@ -94,10 +78,9 @@ export default function ErnestoHome({
         </button>)}
       </div>
     </section> : <div className="ernestoHomeEmpty">
-      <span>POUR COMMENCER</span>
-      <p>Ouvrez le tuteur pour votre première question, ou choisissez une recette EPPPN.</p>
+      <p>Vos derniers dossiers apparaîtront ici lorsque vous aurez commencé à utiliser le tuteur.</p>
     </div>}
 
-    <footer className="ernestoHomeFoot">Ernesto — The Pizza Explained. <span>·</span> Outils EPPPN</footer>
+    <footer className="ernestoHomeFoot">Ernesto · EPPPN</footer>
   </section>;
 }
