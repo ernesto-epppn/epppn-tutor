@@ -23,6 +23,8 @@ import "./ernesto-epppn-grounding.css";
 import "./ernesto-followup-cleanup.css";
 import "./ernesto-recipe-studio.css";
 import "./ernesto-activity-studio.css";
+import "./ernesto-commercial-studio.css";
+import "./ernesto-workspace-navigation.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
