@@ -2202,6 +2202,18 @@ export default function Page() {
             {activeProject?.title ?? "Dossier général"}
           </span>
         </button>
+        {session ? (
+          <button className="ers-mobileQuick" type="button"
+            onClick={() => setRecipeStudioOpen(true)} aria-label="Ouvrir le Ricettario EPPPN">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7"
+              strokeLinecap="round" strokeLinejoin="round" width="17" height="17">
+              <path d="M4 5.5c3.1-1.3 5.9-1.3 8 0v13c-2.1-1.3-4.9-1.3-8 0z"/>
+              <path d="M12 5.5c2.1-1.3 4.9-1.3 8 0v13c-3.1-1.3-5.9-1.3-8 0z"/>
+              <path d="M12 5.5v13"/>
+            </svg>
+            Recettes
+          </button>
+        ) : null}
         <button
           className="v145-mobile-bilan-btn"
           type="button"
