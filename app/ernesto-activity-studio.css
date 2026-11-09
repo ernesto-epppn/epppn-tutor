@@ -172,3 +172,11 @@
  .appRoot .ers-entryCount{font-size:10px;height:20px;min-width:20px}
  .appRoot .ers-contextChip{grid-column:1/-1;max-width:100%}
 }
+
+/* Fast stock entry: minimum fields first; traceability available on demand. */
+.eas-advanced{border:1px solid #e1e8d9;border-radius:11px;margin-top:14px;background:#fff}
+.eas-advanced>summary{display:flex;align-items:center;justify-content:space-between;gap:9px;list-style:none;
+ padding:11px 12px;color:#60794e;font-size:12px;font-weight:750;cursor:pointer}
+.eas-advanced>summary::-webkit-details-marker{display:none}
+.eas-advanced>summary span{font-size:10px;font-weight:560;color:#929d8b}
+.eas-advanced[open] .eas-formGrid{padding:8px 12px 13px;border-top:1px solid #ecf0e7}
