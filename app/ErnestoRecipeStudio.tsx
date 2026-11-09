@@ -57,42 +57,47 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props
   const [question,setQuestion]=useState("");
   const [showAdjust,setShowAdjust]=useState(false);
   const [notice,setNotice]=useState("");
-  const [ready,setReady]=useState(false);
+  const [hydratedKey,setHydratedKey]=useState<string | null>(null);
   const closeRef=useRef<HTMLButtonElement>(null);
+  const tutorRef=useRef<HTMLDivElement>(null);
 
   const storageKey = accountId ? KEY+accountId : "";
   useEffect(()=>{
-    if(!storageKey){setSettings({});setFavorites([]);setReady(true);return;}
-    setReady(false);
+    setHydratedKey(null);
+    if(!storageKey){setSettings({});setFavorites([]);setSelectedId(EPPPN_RECIPES[0].id);return;}
     try{
       const item=JSON.parse(localStorage.getItem(storageKey)||"{}");
       setSettings(item?.settings && typeof item.settings==="object" ? item.settings : {});
       setFavorites(Array.isArray(item?.favorites)?item.favorites.filter((v:unknown)=>typeof v==="string"):[]);
-      if(typeof item?.selectedId==="string" && EPPPN_RECIPES.some(r=>r.id===item.selectedId)) setSelectedId(item.selectedId);
-    }catch{setSettings({});setFavorites([]);}
-    setReady(true);
+      setSelectedId(typeof item?.selectedId==="string" && EPPPN_RECIPES.some(r=>r.id===item.selectedId)
+        ? item.selectedId : EPPPN_RECIPES[0].id);
+    }catch{setSettings({});setFavorites([]);setSelectedId(EPPPN_RECIPES[0].id);}
+    setHydratedKey(storageKey);
   },[storageKey]);
 
   useEffect(()=>{
-    if(!storageKey||!ready) return;
+    // Never write another user's draft into the new user's browser storage.
+    if(!storageKey||hydratedKey!==storageKey) return;
     try{localStorage.setItem(storageKey,JSON.stringify({settings,favorites,selectedId}));}
     catch{ /* le calcul reste disponible sans stockage local */ }
-  },[settings,favorites,selectedId,storageKey,ready]);
+  },[settings,favorites,selectedId,storageKey,hydratedKey]);
 
   useEffect(()=>{
     if(!open)return;
+    const previouslyFocused=document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const old=document.body.style.overflow;
     document.body.style.overflow="hidden";
     const closeOnEsc=(event:KeyboardEvent)=>{if(event.key==="Escape")onClose();};
     document.addEventListener("keydown",closeOnEsc);
     const timeout=window.setTimeout(()=>closeRef.current?.focus(),60);
-    return ()=>{document.body.style.overflow=old;document.removeEventListener("keydown",closeOnEsc);window.clearTimeout(timeout);};
+    return ()=>{document.body.style.overflow=old;document.removeEventListener("keydown",closeOnEsc);window.clearTimeout(timeout);previouslyFocused?.focus();};
   },[open,onClose]);
 
   const recipe=EPPPN_RECIPES.find(r=>r.id===selectedId)||EPPPN_RECIPES[0];
   const values=useMemo(()=>normalizeRecipeSettings(recipe,settings[recipe.id]),[recipe,settings]);
   const amount=useMemo(()=>calculateRecipe(recipe,values),[recipe,values]);
   const modified=recipeIsModified(recipe,values);
+  const isRoundFocaccia = recipe.kind === "focaccia" && recipe.mode === "pâtons";
   const filtered=useMemo(()=>EPPPN_RECIPES.filter(r=>{
     if(filter==="favorites"&&!favorites.includes(r.id))return false;
     if(filter==="focaccia"&&r.kind!=="focaccia")return false;
@@ -225,11 +230,16 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props
               <div className="ers-super">02 / FICHE N° {String(recipe.page).padStart(2,"0")} <span>·</span> {GROUP_LABELS[recipe.group]}</div>
               <h3>{recipe.name}</h3>
               <p>{recipe.subtitle}</p>
+              <button type="button" className="ers-jumpTutor"
+                onClick={()=>tutorRef.current?.scrollIntoView({behavior:"smooth",block:"center"})}>
+                ✳ Une question ? Parler à Ernesto ↗
+              </button>
             </div>
             <div className="ers-formulaState"><span className={modified?"ers-personal":"ers-original"}>{modified?"Ma variante":"Formule EPPPN"}</span><span>Page {recipe.page} / 21</span></div>
           </div>
 
           <div className="ers-infoLine"><span>FARINE</span><strong>{recipe.flour}</strong></div>
+          {recipe.sourceHydration ? <div className="ers-sourceHydration">Repère d’hydratation dans la fiche : <strong>{recipe.sourceHydration}</strong> <span>· les doses précises figurent ci-dessous</span></div> : null}
           <div className="ers-work">
             <div className="ers-calculator">
               <div className="ers-blockTitle"><span>03 / CALCULATEUR</span><strong>Vos quantités</strong></div>
@@ -242,8 +252,8 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props
 
               <div className="ers-countGrid">
                 {recipe.mode==="pâtons" ? <>
-                  <Field label="Nombre de pâtons" min={1} max={5000} value={values.pieces} onChange={v=>patch({pieces:v})}/>
-                  <Field label="Poids par pâton" value={values.pieceWeight} min={50} max={2000} step={5} suffix="g" onChange={v=>patch({pieceWeight:v})}/>
+                  <Field label={isRoundFocaccia ? "Nombre de focaccias" : "Nombre de pâtons"} min={1} max={5000} value={values.pieces} onChange={v=>patch({pieces:v})}/>
+                  <Field label={isRoundFocaccia ? "Poids par focaccia" : "Poids par pâton"} value={values.pieceWeight} min={50} max={2000} step={5} suffix="g" onChange={v=>patch({pieceWeight:v})}/>
                 </> : <>
                   <Field label="Nombre de plaques" min={1} max={300} value={values.trays} onChange={v=>patch({trays:v})}/>
                   <Field label="Largeur" min={10} max={200} value={values.trayWidth} suffix="cm" onChange={v=>patch({trayWidth:v})}/>
@@ -318,7 +328,7 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props
               {recipe.sourceNotes?.length?<div className="ers-note"><strong>Repères EPPPN</strong>{recipe.sourceNotes.map((n,i)=><p key={i}>{n}</p>)}</div>:null}
               {recipe.caution?<div className="ers-caution"><strong>Point à vérifier</strong><p>{recipe.caution}</p></div>:null}
 
-              <div className="ers-tutor">
+              <div className="ers-tutor" ref={tutorRef}>
                 <div className="ers-tutorTop"><span aria-hidden="true">✳</span><div><strong>Un doute ? Ernesto est là.</strong><small>La recette et vos doses suivent la question.</small></div></div>
                 <div className="ers-promptOptions">
                   {shortPrompts.map(q=><button key={q} type="button" onClick={()=>setQuestion(q)}>{q}</button>)}
