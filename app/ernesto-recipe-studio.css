@@ -241,3 +241,10 @@ body:has(.ers-layer){overflow:hidden}
  .appRoot .ers-mobileQuick{padding:7px 8px}
  .appRoot .ers-mobileQuick svg{width:16px;height:16px}
 }
+
+@media(max-width:860px){
+  /* The mobile dossier bar already contains the Recipes shortcut. */
+  .appRoot .ers-entryBtn{display:none}
+  .appRoot .ers-entry:not(.hasRecipe){display:none}
+  .appRoot .ers-entry.hasRecipe{margin:1px 0 9px}
+}
