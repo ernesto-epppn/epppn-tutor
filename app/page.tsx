@@ -1313,6 +1313,13 @@ export default function Page() {
   const activeProjectColor = projectColor(activeProject);
   const latestAnswerId = [...chat].reverse().find((item) => item.role === "ernesto")?.id;
   const visibleChat = chat.slice(-visibleChatCount);
+  const olderMessageCount = Math.max(0, chat.length - visibleChatCount);
+  const isChatAnswerCollapsed = (item: ChatMsg) =>
+    item.role === "ernesto" &&
+    item.id !== latestAnswerId &&
+    item.text.length > 1300 &&
+    editingAnswerId !== item.id &&
+    !expandedChatIds.includes(item.id);
   const workContextSummary = [
     workContext.activity,
     workContext.situation,
@@ -2789,10 +2796,23 @@ export default function Page() {
       </section>
 
       <section style={{ marginTop: 16 }}>
+        {olderMessageCount > 0 ? (
+          <div className="ernestoHistoryControls">
+            <button type="button"
+              onClick={() => setVisibleChatCount((n) => Math.min(chat.length, n + 10))}>
+              ↑ Voir les messages précédents ({olderMessageCount})
+            </button>
+          </div>
+        ) : null}
+        {chat.length > 8 ? (
+          <div className="ernestoHistorySummary">
+            {visibleChat.length} messages affichés sur {chat.length} · historique complet conservé
+          </div>
+        ) : null}
         {chat.length === 0 ? (
           <div style={{ opacity: 0.72, fontSize: 14, padding: "8px 2px" }}>Commencez par une situation concrète : une pâte qui colle, un levain trop acide, une cuisson irrégulière, une photo de cornicione ou une question d’organisation au banc.</div>
         ) : (
-          chat.map((m) => (
+          visibleChat.map((m) => (
             <div
               key={m.id}
               className={`bubbleWrap ${m.role}`}
@@ -2825,10 +2845,23 @@ export default function Page() {
                       <>
                         {m.text?.trim() ? (
                           <div className="answerTextPlain">
-                            <AnswerText text={m.text} />
+                            <AnswerText text={isChatAnswerCollapsed(m) ? m.text.slice(0, 720).trimEnd() + "…" : m.text} />
+                            {isChatAnswerCollapsed(m) ? (
+                              <button type="button" className="ernestoExpandAnswer"
+                                aria-expanded={false}
+                                onClick={() => setExpandedChatIds((previous) => [...previous, m.id])}>
+                                Lire la réponse complète ↓
+                              </button>
+                            ) : m.id !== latestAnswerId && expandedChatIds.includes(m.id) && m.text.length > 1300 ? (
+                              <button type="button" className="ernestoExpandAnswer"
+                                aria-expanded={true}
+                                onClick={() => setExpandedChatIds((previous) => previous.filter((id) => id !== m.id))}>
+                                Réduire cette réponse ↑
+                              </button>
+                            ) : null}
                           </div>
                         ) : null}
-                        {m.flowchart ? (
+                        {m.flowchart && !isChatAnswerCollapsed(m) ? (
                           <ActionFlowchart
                             data={m.flowchart}
                             progressKey={`${activeProjectId || "general"}:${m.id}`}
@@ -2841,7 +2874,7 @@ export default function Page() {
                             onProgress={(progress) => void persistActionPlanProgress(m, progress)}
                           />
                         ) : null}
-                        {m.graph ? <ErnestoPanels graph={m.graph} /> : null}
+                        {m.graph && !isChatAnswerCollapsed(m) ? <ErnestoPanels graph={m.graph} /> : null}
                       </>
                     )}
                   </div>
@@ -2850,6 +2883,13 @@ export default function Page() {
             </div>
           ))
         )}
+        {chat.length > 8 && visibleChatCount > 8 ? (
+          <div className="ernestoHistoryEnd">
+            <button type="button" onClick={() => { setVisibleChatCount(8); setExpandedChatIds([]); }}>
+              Réduire l’historique aux derniers échanges ↑
+            </button>
+          </div>
+        ) : null}
         <div ref={bottomRef} />
       </section>
 
