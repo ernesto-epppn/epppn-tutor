@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ErnestoRecipeStudio from "./ErnestoRecipeStudio";
+import ErnestoActivityStudio from "./ErnestoActivityStudio";
 import {
   ActionFlowchart,
   type ActionFlowchartData,
@@ -461,6 +462,8 @@ export default function Page() {
   const [speed, setSpeed] = useState<Speed>("BANCO");
   const [message, setMessage] = useState("");
   const [recipeStudioOpen, setRecipeStudioOpen] = useState(false);
+  const [activityStudioOpen, setActivityStudioOpen] = useState(false);
+  const closeActivityStudio = React.useCallback(() => setActivityStudioOpen(false), []);
   const closeRecipeStudio = React.useCallback(() => setRecipeStudioOpen(false), []);
   const [recipeContext, setRecipeContext] = useState("");
   const [activeRecipeName, setActiveRecipeName] = useState<string | null>(null);
@@ -2203,18 +2206,6 @@ export default function Page() {
             {activeProject?.title ?? "Dossier général"}
           </span>
         </button>
-        {session ? (
-          <button className="ers-mobileQuick" type="button"
-            onClick={() => setRecipeStudioOpen(true)} aria-label="Ouvrir le Le carnet des recettes">
-            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7"
-              strokeLinecap="round" strokeLinejoin="round" width="17" height="17">
-              <path d="M4 5.5c3.1-1.3 5.9-1.3 8 0v13c-2.1-1.3-4.9-1.3-8 0z"/>
-              <path d="M12 5.5c2.1-1.3 4.9-1.3 8 0v13c-3.1-1.3-5.9-1.3-8 0z"/>
-              <path d="M12 5.5v13"/>
-            </svg>
-            Le carnet des recettes
-          </button>
-        ) : null}
         <button
           className="v145-mobile-bilan-btn"
           type="button"
@@ -2375,6 +2366,14 @@ export default function Page() {
                 <path d="M12 5.5v13"/>
               </svg>
               Le carnet des recettes <span className="ers-entryCount">19</span>
+            </button>
+            <button type="button" className="eas-entryBtn" onClick={() => setActivityStudioOpen(true)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="7" width="18" height="14" rx="2"/>
+                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/>
+              </svg>
+              Mon activité
             </button>
             {activeRecipeName ? (
               <div className="ers-contextChip">
@@ -2951,6 +2950,13 @@ export default function Page() {
         onAsk={askFromRecipe}
         accountId={session?.user?.id}
         accessToken={session?.access_token}
+      />
+      <ErnestoActivityStudio
+        key={"activity-"+(session?.user?.id || "guest")}
+        open={Boolean(session) && activityStudioOpen}
+        onClose={closeActivityStudio}
+        accountId={session?.user?.id}
+        supabase={supabase}
       />
     </main>
   );
