@@ -134,3 +134,41 @@
  .appRoot .eas-entryBtn{font-size:11px;min-height:38px}
 }
 @media(prefers-reduced-motion:reduce){.eas-layer *{animation:none!important;transition:none!important}}
+
+/* Two explicit spaces on mobile: no abbreviations or hidden controls. */
+@media(max-width:860px){
+ .appRoot .ers-entry,.appRoot .ers-entry:not(.hasRecipe){
+   display:flex!important;
+   flex-wrap:wrap!important;
+   gap:8px!important;
+   margin:5px 0 13px!important;
+   align-items:center!important;
+ }
+ .appRoot .ers-entryBtn{
+   display:inline-flex!important;
+   font-size:11px!important;
+   min-height:39px!important;
+   padding:8px 11px!important;
+   max-width:100%;
+ }
+ .appRoot .eas-entryBtn{display:inline-flex!important;max-width:100%}
+ .appRoot .ers-contextChip{flex-basis:100%;width:max-content!important}
+}
+@media(max-width:520px){
+ .appRoot .ers-entry,.appRoot .ers-entry:not(.hasRecipe){
+   display:grid!important;
+   grid-template-columns:minmax(0,1.4fr) minmax(0,.85fr);
+   gap:7px!important;
+ }
+ .appRoot .ers-entryBtn,.appRoot .eas-entryBtn{
+   justify-content:center!important;
+   width:100%;
+   padding:7px 8px!important;
+   font-size:10px!important;
+   white-space:normal!important;
+   line-height:1.2!important;
+ }
+ .appRoot .ers-entryBtn svg,.appRoot .eas-entryBtn svg{width:16px;min-width:16px}
+ .appRoot .ers-entryCount{font-size:10px;height:20px;min-width:20px}
+ .appRoot .ers-contextChip{grid-column:1/-1;max-width:100%}
+}
