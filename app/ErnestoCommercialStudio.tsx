@@ -18,7 +18,7 @@ type CostSettings = {
   packagingPerUnit:number; toppingsPerUnit:number; energyPerUnit:number; laborPerUnit:number;
   otherPerUnit:number; monthlyFixed:number;
 };
-type Props = { open:boolean; onClose:()=>void; supabase:SupabaseClient; userId?:string; accessToken?:string };
+type Props = { open:boolean; onClose:()=>void; onHome:()=>void; supabase:SupabaseClient; userId?:string; accessToken?:string };
 const EUR=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:2});
 const N=new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2});
 const P=new Intl.NumberFormat("fr-FR",{maximumFractionDigits:1});
@@ -75,7 +75,7 @@ function VatSelect({value,onChange}:{value:VatChoice;onChange:(value:VatChoice)=
   <option value="5.5">5,5 %</option><option value="10">10 %</option><option value="20">20 %</option>
  </select>;
 }
-export default function ErnestoCommercialStudio({open,onClose,supabase,userId,accessToken}:Props){
+export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,userId,accessToken}:Props){
  const [tab,setTab]=useState<"cost"|"journal">("cost");
  const [rows,setRows]=useState<RecordRow[]>([]);
  const [recipes,setRecipes]=useState<Recipe[]>([]);
@@ -245,7 +245,8 @@ export default function ErnestoCommercialStudio({open,onClose,supabase,userId,ac
   <section className="ecf-shell" role="dialog" aria-modal="true" aria-labelledby="ecf-title">
    <header className="ecf-head"><div className="ecf-monogram" aria-hidden="true">E</div><div>
     <small>ERNESTO / OUTILS PROFESSIONNELS</small><h2 id="ecf-title">Commercial</h2>
-    </div><button type="button" className="ecf-close" ref={closeRef} onClick={onClose}>Retour à Ernesto <span aria-hidden="true">×</span></button>
+    </div><div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
+      <button type="button" className="ecf-close" ref={closeRef} onClick={onClose} aria-label="Fermer Commercial">×</button></div>
    </header>
    <div className="ecf-tabs" role="tablist" aria-label="Commercial">
     <button type="button" role="tab" aria-selected={tab==="cost"} className={tab==="cost"?"active":""}
