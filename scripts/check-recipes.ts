@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { formatGrams, formatKilograms, formatDualQuantity } from "../app/recipeUnits";
 import { EPPPN_RECIPES } from "../app/recipeData";
 import {
   calculateRecipe,
@@ -74,4 +75,9 @@ close(sample.dough,1730);
 close(sample.effectiveHydration!, (630/1100)*100, 0.005);
 assert.equal(recipeIsModified(starterExample,recipeDefaults(starterExample)),false);
 
+// Unit display stays legible for bulk flour and tiny yeast quantities.
+assert.ok(formatKilograms(1250).includes("1,25"), "1 250 g = 1,25 kg");
+assert.ok(formatKilograms(0.5).includes("0,0005"), "0,5 g = 0,0005 kg");
+assert.ok(formatGrams(0.125).includes("0,125"), "Small quantities retain milligram resolution");
+assert.ok(formatDualQuantity(2500).includes("kg") && formatDualQuantity(2500).includes("g"));
 console.log("EPPPN: 19 source formulas, baker's percentages, mass conservation, starter hydration and trays OK");
