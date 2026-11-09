@@ -473,6 +473,14 @@ export default function Page() {
   const closeCommercialStudio = React.useCallback(() => setCommercialStudioOpen(false), []);
   const closeActivityStudio = React.useCallback(() => setActivityStudioOpen(false), []);
   const closeRecipeStudio = React.useCallback(() => setRecipeStudioOpen(false), []);
+  const goHome = React.useCallback(() => {
+    setWorkspaceView("home");
+    setProjectsOpen(false);
+    setRecipeStudioOpen(false);
+    setActivityStudioOpen(false);
+    setCommercialStudioOpen(false);
+  }, []);
+
   const [recipeContext, setRecipeContext] = useState("");
   const [activeRecipeName, setActiveRecipeName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -2229,16 +2237,15 @@ export default function Page() {
       <div className="appFrame">
         <aside className="ernestoToolsRail" aria-label="Outils Ernesto">
           <div className="ernestoToolsHeader">
-            <strong>ERNESTO</strong>
-            <button type="button" className="ernestoToolsHome"
-              onClick={() => { setWorkspaceView("home"); setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
-              ← Accueil
+            <button type="button" className="ernestoBrandHome" onClick={goHome}
+              aria-label="Ernesto — retourner à l'accueil" title="Accueil">
+              <span className="ernestoBrandHomeMark" aria-hidden="true">E</span>
+              <span><strong>ERNESTO</strong><small>Accueil</small></span>
             </button>
-            <span>Votre espace de travail</span>
           </div>
           <nav className="ernestoToolsMenu" aria-label="Espaces professionnels">
             <button type="button" className={`ernestoToolLink ernestoToolsMobileHome ${workspaceView === "home" && !recipeStudioOpen && !activityStudioOpen && !commercialStudioOpen ? "is-current" : ""}`}
-              onClick={() => { setWorkspaceView("home"); setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}
+              onClick={goHome}
               aria-label="Accueil Ernesto" aria-current={workspaceView === "home" ? "page" : undefined}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z"/>
@@ -2422,6 +2429,21 @@ export default function Page() {
         </div>
 
         <div className={`workspace ${session ? "" : "noComposer"} ${chat.length ? "hasChat" : ""} ${session && workspaceView === "home" ? "ernestoHomeActive" : ""}`}>
+          {session ? (
+            <div className="ernestoGlobalTopbar" role="navigation" aria-label="Navigation principale">
+              <button type="button" className="ernestoGlobalHome" onClick={goHome}
+                aria-label="Retour à l'accueil Ernesto" aria-current={workspaceView === "home" ? "page" : undefined}>
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+                  strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z"/>
+                </svg>
+                Accueil
+              </button>
+              {workspaceView === "tutor" ? (
+                <span className="ernestoGlobalLocation">/ Tuteur Ernesto</span>
+              ) : null}
+            </div>
+          ) : null}
           {session && workspaceView === "home" ? (
             <ErnestoHome
               dossiers={projects.map((p) => ({
@@ -2436,11 +2458,6 @@ export default function Page() {
               onAllDossiers={() => setProjectsOpen(true)}
             />
           ) : null}
-          {session && workspaceView === "tutor" ? (
-            <button className="ernestoTutorBackHome" type="button"
-              onClick={() => setWorkspaceView("home")}>← Accueil</button>
-          ) : null}
-
         {session ? (
           <div className="activeProjectStrip v13 ernestoDossierTop"
             style={{ "--project-color": activeProjectColor } as React.CSSProperties}>
@@ -3043,6 +3060,7 @@ export default function Page() {
         key={session?.user?.id || "guest"}
         open={Boolean(session) && recipeStudioOpen}
         onClose={closeRecipeStudio}
+        onHome={goHome}
         onAsk={askFromRecipe}
         accountId={session?.user?.id}
         accessToken={session?.access_token}
@@ -3051,6 +3069,7 @@ export default function Page() {
         key={"activity-"+(session?.user?.id || "guest")}
         open={Boolean(session) && activityStudioOpen}
         onClose={closeActivityStudio}
+        onHome={goHome}
         accountId={session?.user?.id}
         supabase={supabase}
       />
@@ -3058,6 +3077,7 @@ export default function Page() {
         key={"commercial-"+(session?.user?.id || "guest")}
         open={Boolean(session) && commercialStudioOpen}
         onClose={closeCommercialStudio}
+        onHome={goHome}
         userId={session?.user?.id}
         accessToken={session?.access_token}
         supabase={supabase}
