@@ -13,7 +13,7 @@ type Stock = {
   expiry:string; dateType:"DLC"|"DDM"|"Aucune"; lot:string; storage:string;
   supplierId:string; price:number; notes:string;
 };
-type Props = { open:boolean; onClose:()=>void; accountId?:string; supabase:SupabaseClient };
+type Props = { open:boolean; onClose:()=>void; onHome:()=>void; accountId?:string; supabase:SupabaseClient };
 
 const ACTIVITY_LABELS:Record<ActivityKind,string> = {
   pizzeria:"Pizzeria", ambulant:"Camion / ambulant", boulangerie:"Panification",
@@ -132,7 +132,7 @@ function NumberField({label,value,onChange,min=0,suffix}:{
   }} />{suffix?<small>{suffix}</small>:null}</div></label>;
 }
 
-export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:Props){
+export default function ErnestoActivityStudio({open,onClose,onHome,accountId,supabase}:Props){
  const [section,setSection]=useState<Section>("stock");
  const [records,setRecords]=useState<Row[]>([]);
  const [loading,setLoading]=useState(false);
@@ -258,7 +258,8 @@ export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:
     <div className="eas-logo" aria-hidden="true">E</div>
     <div className="eas-heading"><span>ERNESTO / VOTRE ATELIER</span><h2 id="eas-title">Stocks</h2></div>
     <span className="eas-subheading">Matières et fournisseurs</span>
-    <button ref={closeRef} className="eas-close" type="button" onClick={onClose}>Retour à Ernesto <span aria-hidden="true">×</span></button>
+    <div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
+      <button ref={closeRef} className="eas-close" type="button" onClick={onClose} aria-label="Fermer Stocks">×</button></div>
    </header>
 
    <div className="eas-tabs" role="tablist" aria-label="Gestion des stocks">
