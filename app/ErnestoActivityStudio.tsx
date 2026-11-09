@@ -286,7 +286,6 @@ export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:
        <TextField label="E-mail" type="email" value={supplier.email} onChange={v=>setSupplier(p=>({...p,email:v}))}/>
        <TextField label="Notes / conditions" value={supplier.notes} onChange={v=>setSupplier(p=>({...p,notes:v}))} placeholder="Délais, minimum de commande…"/>
        </div>
-      </details>
       <div className="eas-formActions"><button type="submit" className="eas-primary" disabled={saving}>Enregistrer</button><button type="button" onClick={()=>setShowForm(false)}>Annuler</button></div>
      </form>:null}
      <div className="eas-cardList">{suppliers.map(row=>{const p=supplierOf(row);return <article className="eas-card" key={row.id}>
@@ -325,7 +324,8 @@ export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:
        <label className="eas-field"><span>Zone de stockage</span><select value={stock.storage} onChange={e=>setStock(p=>({...p,storage:e.target.value}))}>
         {["Sec","Réfrigéré","Congelé","Autre"].map(v=><option key={v}>{v}</option>)}</select></label>
        <TextField label="Notes" value={stock.notes} onChange={v=>setStock(p=>({...p,notes:v}))}/>
-      </div>
+       </div>
+      </details>
       <div className="eas-formActions"><button type="submit" className="eas-primary" disabled={saving}>Enregistrer</button><button type="button" onClick={()=>setShowForm(false)}>Annuler</button></div>
       <p className="eas-privateNote">La date est celle que vous saisissez : Ernesto n'infère jamais une DLC ni une durée de conservation.</p>
      </form>:null}
