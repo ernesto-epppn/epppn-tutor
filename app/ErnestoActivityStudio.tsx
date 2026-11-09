@@ -114,14 +114,14 @@ function NumberField({label,value,onChange,min=0,suffix}:{
  useEffect(()=>setDraft(display(value)),[value]);
  function parse(raw:string){
   const text=raw.trim().replace(",",".");
-  if(!/^\\d+(?:\\.\\d+)?$/.test(text))return null;
+  if(!/^\d+(?:\.\d+)?$/.test(text))return null;
   const x=Number(text);
   return Number.isFinite(x)&&x>=min&&x<=1000000?x:null;
  }
  return <label className="eas-field"><span>{label}</span><div className="eas-number">
   <input type="text" inputMode="decimal" value={draft} onChange={e=>{
     const raw=e.currentTarget.value;
-    if(!/^\\d*(?:[.,]\\d*)?$/.test(raw))return;
+    if(!/^\d*(?:[.,]\d*)?$/.test(raw))return;
     setDraft(raw);
     const next=parse(raw);
     if(next!==null && next!==value)onChange(next);
