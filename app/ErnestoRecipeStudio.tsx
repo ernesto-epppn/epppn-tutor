@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { EPPPN_RECIPES, EPPPN_RECIPE_COUNT, GROUP_LABELS, type Recipe, type RecipeGroup } from "./recipeData";
+import type { Recipe, RecipeGroup } from "./recipeData";
 import {
   calculateRecipe,
   normalizeRecipeSettings,
@@ -16,12 +16,16 @@ type Props = {
   onClose: () => void;
   onAsk: (question: string, context: string, name: string) => void;
   accountId?: string;
+  accessToken?: string;
 };
 type Filter = "all" | RecipeGroup | "focaccia" | "favorites";
 
 const fmt = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1, minimumFractionDigits: 0 });
 const gram = (v: number) => fmt.format(Math.round(v * 10) / 10) + " g";
 const KEY = "ernesto-epppn-recipe-studio-v1:";
+const GROUP_LABELS: Record<RecipeGroup, string> = {
+  froid: "Levure · J+1", direct: "Levure · directe", levain: "Levain naturel",
+};
 
 function Field({
   label, value, onChange, min = 0, max = 10000, step = 1, suffix = "", note,
@@ -66,8 +70,12 @@ function Chip({ active, children, onClick }:{
   return <button type="button" className={"ers-chip"+(active?" is-active":"")} onClick={onClick}>{children}</button>;
 }
 
-export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props) {
-  const [selectedId,setSelectedId]=useState(EPPPN_RECIPES[0].id);
+export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,accessToken}:Props) {
+  const [recipes,setRecipes]=useState<Recipe[]>([]);
+  const [catalogLoading,setCatalogLoading]=useState(false);
+  const [catalogError,setCatalogError]=useState("");
+  const [reloadCatalog,setReloadCatalog]=useState(0);
+  const [selectedId,setSelectedId]=useState("classique-j1");
   const [filter,setFilter]=useState<Filter>("all");
   const [search,setSearch]=useState("");
   const [settings,setSettings]=useState<Record<string,Partial<RecipeSettings>>>({});
@@ -80,14 +88,38 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props
   const tutorRef=useRef<HTMLDivElement>(null);
 
   const storageKey = accountId ? KEY+accountId : "";
+
+  useEffect(()=>{
+    if(!open || !accessToken){return;}
+    let cancelled=false;
+    setCatalogLoading(true);
+    setCatalogError("");
+    setRecipes([]);
+    fetch("/api/recettes",{
+      method:"GET",
+      headers:{Authorization:"Bearer "+accessToken},
+      cache:"no-store",
+    })
+      .then(async r=>{
+        const data=await r.json().catch(()=>({}));
+        if(!r.ok) throw new Error(data.error==="invalid_session" ? "Session expirée. Reconnectez-vous." : "Catalogue EPPPN indisponible.");
+        if(!Array.isArray(data.recipes) || data.recipes.length!==19) throw new Error("Catalogue incomplet : contrôle EPPPN requis.");
+        return data.recipes as Recipe[];
+      })
+      .then(data=>{if(!cancelled)setRecipes(data);})
+      .catch(err=>{if(!cancelled)setCatalogError(err instanceof Error?err.message:"Erreur de chargement.");})
+      .finally(()=>{if(!cancelled)setCatalogLoading(false);});
+    return ()=>{cancelled=true;};
+  },[open,accessToken,reloadCatalog]);
+
   useEffect(()=>{
     setHydratedKey(null);
-    if(!storageKey){setSettings({});setFavorites([]);setSelectedId(EPPPN_RECIPES[0].id);return;}
+    if(!storageKey){setSettings({});setFavorites([]);setSelectedId("classique-j1");return;}
     try{
       const item=JSON.parse(localStorage.getItem(storageKey)||"{}");
       setSettings(item?.settings && typeof item.settings==="object" ? item.settings : {});
       setFavorites(Array.isArray(item?.favorites)?item.favorites.filter((v:unknown)=>typeof v==="string"):[]);
-      setSelectedId(typeof item?.selectedId==="string" && EPPPN_RECIPES.some(r=>r.id===item.selectedId)
+      setSelectedId(typeof item?.selectedId==="string" && typeof item.selectedId==="string"
         ? item.selectedId : EPPPN_RECIPES[0].id);
     }catch{setSettings({});setFavorites([]);setSelectedId(EPPPN_RECIPES[0].id);}
     setHydratedKey(storageKey);
@@ -111,23 +143,37 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props
     return ()=>{document.body.style.overflow=old;document.removeEventListener("keydown",closeOnEsc);window.clearTimeout(timeout);previouslyFocused?.focus();};
   },[open,onClose]);
 
-  const recipe=EPPPN_RECIPES.find(r=>r.id===selectedId)||EPPPN_RECIPES[0];
-  const values=useMemo(()=>normalizeRecipeSettings(recipe,settings[recipe.id]),[recipe,settings]);
-  const amount=useMemo(()=>calculateRecipe(recipe,values),[recipe,values]);
-  const modified=recipeIsModified(recipe,values);
-  const isRoundFocaccia = recipe.kind === "focaccia" && recipe.mode === "pâtons";
-  const filtered=useMemo(()=>EPPPN_RECIPES.filter(r=>{
+  const recipe=recipes.find(r=>r.id===selectedId)||recipes[0];
+  const values=useMemo(()=>recipe ? normalizeRecipeSettings(recipe,settings[recipe.id]) : null,[recipe,settings]);
+  const amount=useMemo(()=>recipe && values ? calculateRecipe(recipe,values) : null,[recipe,values]);
+  const modified=recipe && values ? recipeIsModified(recipe,values) : false;
+  const isRoundFocaccia = recipe?.kind === "focaccia" && recipe?.mode === "pâtons";
+  const filtered=useMemo(()=>recipes.filter(r=>{
     if(filter==="favorites"&&!favorites.includes(r.id))return false;
     if(filter==="focaccia"&&r.kind!=="focaccia")return false;
     if(filter!=="all"&&filter!=="favorites"&&filter!=="focaccia"&&r.group!==filter)return false;
     const term=search.trim().toLocaleLowerCase("fr");
     return !term || [r.name,r.subtitle,r.flour,GROUP_LABELS[r.group]].join(" ").toLocaleLowerCase("fr").includes(term);
-  }),[filter,search,favorites]);
+  }),[filter,search,favorites,recipes]);
 
   if(!open)return null;
+  if(!recipe || !values || !amount){
+    return <div className="ers-layer" role="presentation">
+      <section className="ers-shell ers-shellLoading" role="dialog" aria-modal="true" aria-label="Ricettario EPPPN">
+        <header className="ers-topbar"><div className="ers-brand"><span className="ers-brandMark">E</span>
+          <div><span className="ers-eyebrow">ERNESTO / EPPPN</span><h2>Le Ricettario</h2></div>
+        </div><button className="ers-close" type="button" onClick={onClose}>Retour <span>×</span></button></header>
+        <div className="ers-loading">
+          <strong>{catalogLoading?"Chargement des 19 recettes…":catalogError||"Catalogue EPPPN"}</strong>
+          <p>Les fiches officielles sont réservées aux comptes Ernesto autorisés.</p>
+          {!catalogLoading&&<button type="button" onClick={()=>setReloadCatalog(n=>n+1)}>Réessayer</button>}
+        </div>
+      </section>
+    </div>;
+  }
 
   function choose(id:string){
-    if(!EPPPN_RECIPES.some(r=>r.id===id))return;
+    if(!recipes.some(r=>r.id===id))return;
     setSelectedId(id);
     setQuestion("");setShowAdjust(false);setNotice("");
   }
@@ -205,7 +251,7 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props
 
       <div className="ers-layout">
         <aside className="ers-library" aria-label="Bibliothèque de recettes">
-          <div className="ers-libraryIntro"><span>01 / BIBLIOTHÈQUE</span><strong>{EPPPN_RECIPE_COUNT} recettes officielles</strong></div>
+          <div className="ers-libraryIntro"><span>01 / BIBLIOTHÈQUE</span><strong>{recipes.length} recettes officielles</strong></div>
           <label className="ers-search"><span aria-hidden="true">⌕</span><input
             type="search" placeholder="Chercher une recette…" value={search} onChange={e=>setSearch(e.target.value)}
           /></label>
@@ -238,7 +284,7 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props
           <div className="ers-mobileChoose">
             <label>Choisir une recette
               <select value={selectedId} onChange={e=>choose(e.target.value)}>
-                {EPPPN_RECIPES.map(r=><option key={r.id} value={r.id}>{r.name} · {r.subtitle}</option>)}
+                {recipes.map(r=><option key={r.id} value={r.id}>{r.name} · {r.subtitle}</option>)}
               </select>
             </label>
           </div>
