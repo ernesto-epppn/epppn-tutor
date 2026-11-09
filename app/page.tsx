@@ -1,6 +1,7 @@
 "use client";
 import { createClient } from "@supabase/supabase-js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import ErnestoRecipeStudio from "./ErnestoRecipeStudio";
 import {
   ActionFlowchart,
   type ActionFlowchartData,
@@ -459,6 +460,9 @@ async function compressImageToJpeg(
 export default function Page() {
   const [speed, setSpeed] = useState<Speed>("BANCO");
   const [message, setMessage] = useState("");
+  const [recipeStudioOpen, setRecipeStudioOpen] = useState(false);
+  const [recipeContext, setRecipeContext] = useState("");
+  const [activeRecipeName, setActiveRecipeName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [chat, setChat] = useState<ChatMsg[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -876,7 +880,7 @@ export default function Page() {
 
       const contextText = [
         buildPersonalContext(personalProfile, workContext, session?.user?.email),
-        options.contextAddon?.trim(),
+        options.contextAddon?.trim() || recipeContext,
       ].filter(Boolean).join("\n\n");
 
       if (selectedImages.length) {
@@ -1014,6 +1018,17 @@ export default function Page() {
     }
   }
 
+  function askFromRecipe(question: string, context: string, name: string) {
+    if (loading || !session) return;
+    setActiveRecipeName(name);
+    setRecipeContext(context);
+    setRecipeStudioOpen(false);
+    void askTutor(
+      "À propos de la recette EPPPN « " + name + " » : " + question,
+      { contextAddon: context, displayText: "📖 " + name + " · " + question }
+    );
+  }
+
   function createDossierFromDraft() {
     const cleanTitle = newDossierTitle.replace(/\s+/g, " ").trim() || "Dossier général";
     const p = makeProject(cleanTitle.slice(0, 80), newDossierColor, "");
@@ -1026,6 +1041,8 @@ export default function Page() {
     setPaywall(null);
     setSelectedQuestion(null);
     setCreateDossierOpen(false);
+    setRecipeContext("");
+    setActiveRecipeName(null);
     setNewDossierTitle("");
     setNewDossierColor(DEFAULT_PROJECT_COLOR);
     setProjectsOpen(false);
@@ -1040,6 +1057,8 @@ export default function Page() {
     const p = projects.find((item) => item.id === id);
     if (!p) return;
     setActiveProjectId(id);
+    setRecipeContext("");
+    setActiveRecipeName(null);
     setChat(p.chat ?? []);
     setMessage("");
     setSelectedImages([]);
@@ -2334,6 +2353,31 @@ export default function Page() {
 
         <div className={`workspace ${session ? "" : "noComposer"} ${chat.length ? "hasChat" : ""}`}>
 
+        {session ? (
+          <nav className="ers-entry" aria-label="Espaces Ernesto">
+            <button type="button" className="ers-entryBtn" onClick={() => setRecipeStudioOpen(true)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 5.5c3.1-1.3 5.9-1.3 8 0v13c-2.1-1.3-4.9-1.3-8 0z"/>
+                <path d="M12 5.5c2.1-1.3 4.9-1.3 8 0v13c-3.1-1.3-5.9-1.3-8 0z"/>
+                <path d="M12 5.5v13"/>
+              </svg>
+              Ricettario EPPPN <span className="ers-entryCount">19</span>
+            </button>
+            {activeRecipeName ? (
+              <div className="ers-contextChip">
+                <button type="button" onClick={() => setRecipeStudioOpen(true)} title="Reprendre le Ricettario">
+                  ↗ {activeRecipeName}
+                </button>
+                <button type="button" className="ers-contextRemove"
+                  onClick={() => { setActiveRecipeName(null); setRecipeContext(""); }}
+                  aria-label="Retirer la recette du contexte du tuteur"
+                  title="Retirer la recette du contexte">×</button>
+              </div>
+            ) : null}
+          </nav>
+        ) : null}
+
+
       {/* --- AUTH / USAGE BANNER --- */}
       <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
         {!session ? (
@@ -2887,6 +2931,12 @@ export default function Page() {
       ) : null}
         </div>
       </div>
+      <ErnestoRecipeStudio
+        open={Boolean(session) && recipeStudioOpen}
+        onClose={() => setRecipeStudioOpen(false)}
+        onAsk={askFromRecipe}
+        accountId={session?.user?.id}
+      />
     </main>
   );
 }
