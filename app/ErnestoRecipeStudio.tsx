@@ -33,8 +33,9 @@ function Field({
   label: string; value: number | null; onChange: (v: number)=>void;
   min?: number; max?: number; step?: number; suffix?: string; note?: string;
 }) {
-  const [draft, setDraft] = useState(value === null ? "" : String(value));
-  useEffect(() => setDraft(value === null ? "" : String(value)), [value]);
+  const show = (n: number | null) => n === null ? "" : String(n).replace(".", ",");
+  const [draft, setDraft] = useState(show(value));
+  useEffect(() => setDraft(show(value)), [value]);
   const parse = (raw: string) => {
     if (!raw.trim()) return null;
     const normalized = raw.trim().replace(",", ".");
@@ -56,8 +57,8 @@ function Field({
       }}
       onBlur={() => {
         const n = parse(draft);
-        if (n === null) setDraft(value === null ? "" : String(value));
-        else { setDraft(String(n)); if (n !== value) onChange(n); }
+        if (n === null) setDraft(show(value));
+        else { setDraft(show(n)); if (n !== value) onChange(n); }
       }}
     />{suffix ? <em>{suffix}</em> : null}</span>
     {note ? <span className="ers-fieldNote">{note}</span> : null}
@@ -90,7 +91,7 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
   const storageKey = accountId ? KEY+accountId : "";
 
   useEffect(()=>{
-    if(!open || !accessToken){return;}
+    if(!open || !accessToken || recipes.length===19){return;}
     let cancelled=false;
     setCatalogLoading(true);
     setCatalogError("");
