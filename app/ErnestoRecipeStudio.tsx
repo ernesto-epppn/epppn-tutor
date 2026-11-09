@@ -24,18 +24,36 @@ const gram = (v: number) => fmt.format(Math.round(v * 10) / 10) + " g";
 const KEY = "ernesto-epppn-recipe-studio-v1:";
 
 function Field({
-  label, value, onChange, min = 0, max = 10000, step = 1, suffix = "", note
+  label, value, onChange, min = 0, max = 10000, step = 1, suffix = "", note,
 }:{
-  label: string; value: number; onChange: (v:number)=>void;
-  min?:number; max?:number; step?:number; suffix?:string;note?:string
+  label: string; value: number | null; onChange: (v: number)=>void;
+  min?: number; max?: number; step?: number; suffix?: string; note?: string;
 }) {
+  const [draft, setDraft] = useState(value === null ? "" : String(value));
+  useEffect(() => setDraft(value === null ? "" : String(value)), [value]);
+  const parse = (raw: string) => {
+    if (!raw.trim()) return null;
+    const normalized = raw.trim().replace(",", ".");
+    if (!/^\\d+(?:\\.\\d+)?$/.test(normalized)) return null;
+    const n = Number(normalized);
+    return Number.isFinite(n) && n >= min && n <= max ? n : null;
+  };
   return <label className="ers-field">
     <span className="ers-fieldLabel">{label}</span>
     <span className="ers-inputWrap"><input
-      type="number" value={value} min={min} max={max} step={step} inputMode="decimal"
+      type="text" inputMode="decimal" value={draft}
+      placeholder={value === null ? "À préciser" : undefined}
       onChange={e => {
-        const n = Number(e.currentTarget.value);
-        if(e.currentTarget.value!=="" && Number.isFinite(n) && n>=min && n<=max) onChange(n);
+        const raw = e.currentTarget.value;
+        if (!/^\\d*(?:[.,]\\d*)?$/.test(raw)) return;
+        setDraft(raw);
+        const n = parse(raw);
+        if (n !== null && n !== value) onChange(n);
+      }}
+      onBlur={() => {
+        const n = parse(draft);
+        if (n === null) setDraft(value === null ? "" : String(value));
+        else { setDraft(String(n)); if (n !== value) onChange(n); }
       }}
     />{suffix ? <em>{suffix}</em> : null}</span>
     {note ? <span className="ers-fieldNote">{note}</span> : null}
@@ -300,7 +318,7 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId}:Props
                     {recipe.levain>0?<Field label="Levain naturel" value={values.levain} suffix="%" step={0.5} max={100} onChange={v=>patch({levain:v})}/>:null}
                     {recipe.oil>0?<Field label="Huile d’olive" value={values.oil} suffix="%" step={0.5} max={50} onChange={v=>patch({oil:v})}/>:null}
                     {recipe.potato>0?<Field label="Pommes de terre" value={values.potato} suffix="%" step={0.5} max={100} onChange={v=>patch({potato:v})}/>:null}
-                    {recipe.levain>0?<div className="ers-hydrInput"><Field label="Hydratation du levain" value={values.levainHydration??0} suffix="%" step={5} max={250} onChange={v=>patch({levainHydration:v})}/>
+                    {recipe.levain>0?<div className="ers-hydrInput"><Field label="Hydratation du levain" value={values.levainHydration} suffix="%" step={5} max={250} onChange={v=>patch({levainHydration:v})}/>
                       {values.levainHydration===null?<small>Non précisée par la fiche : saisissez votre valeur réelle pour calculer le TH total.</small>:<button type="button" onClick={()=>patch({levainHydration:null})}>Non précisée</button>}
                     </div>:null}
                   </div>
