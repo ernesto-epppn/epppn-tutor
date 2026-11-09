@@ -2386,12 +2386,14 @@ export default function Page() {
         <div className={`workspace ${session ? "" : "noComposer"} ${chat.length ? "hasChat" : ""}`}>
 
         {session ? (
-          <div className="ernestoDossierTop">
-            <button type="button" className="ernestoDossierOpen" onClick={() => setProjectsOpen(true)}
-              aria-label="Ouvrir la liste des dossiers">
-              <span className="ernestoDossierTopKicker">DOSSIERS</span>
-              <span className="ernestoDossierTopName">
-                <span className="ernestoDossierTopDot" style={{ background: activeProject ? projectColor(activeProject) : "#6f7d3c" }} />
+          <div className="activeProjectStrip v13 ernestoDossierTop"
+            style={{ "--project-color": activeProjectColor } as React.CSSProperties}>
+            <button type="button" className="ernestoDossierOpen"
+              aria-label="Choisir un dossier" onClick={() => setProjectsOpen(true)}>
+              <span className="activeProjectKicker ernestoDossierTopKicker">
+                <span className="activeProjectDot" /> Dossiers
+              </span>
+              <span className="activeProjectTitleText ernestoDossierTopName">
                 {activeProject?.title ?? "Dossier général"}
               </span>
               <span className="ernestoDossierChevron" aria-hidden="true">⌄</span>
@@ -2399,7 +2401,7 @@ export default function Page() {
             <button type="button" className="ernestoDossierAdd"
               onClick={() => { setCreateDossierOpen(true); setProjectsOpen(true); }}
               aria-label="Créer un dossier" title="Créer un dossier">＋</button>
-            <button type="button" className="ernestoDossierBilan"
+            <button type="button" className="ernestoDossierBilan v145-dossier-summary-trigger"
               onClick={() => void refreshDossierSummary()}>Bilan</button>
           </div>
         ) : null}
@@ -2690,24 +2692,6 @@ export default function Page() {
           ) : null}
         </div>
       </header>
-
-      <div className="activeProjectStrip v13" style={{ "--project-color": activeProjectColor } as React.CSSProperties}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="activeProjectKicker"><span className="activeProjectDot" /> Dossier actif</div>
-          <div className="activeProjectTitleRow" style={{ marginTop: 4 }}>
-            <div className="activeProjectTitleText">
-              {activeProject?.title ?? "Dossier général"}
-            </div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="miniBtn v145-dossier-summary-trigger" type="button" onClick={() => void refreshDossierSummary()}>
-            Bilan du dossier
-          </button>
-          <button className="miniBtn" type="button" onClick={renameActiveProject}>Modifier</button>
-          <button className="miniBtn" type="button" onClick={() => { setCreateDossierOpen(true); setProjectsOpen(true); }}>Créer un dossier</button>
-        </div>
-      </div>
 
       {dossierSummaryOpen ? (
         <DossierSummary
