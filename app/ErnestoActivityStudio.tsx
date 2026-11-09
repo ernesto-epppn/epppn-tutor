@@ -133,7 +133,7 @@ function NumberField({label,value,onChange,min=0,suffix}:{
 }
 
 export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:Props){
- const [section,setSection]=useState<Section>("overview");
+ const [section,setSection]=useState<Section>("stock");
  const [records,setRecords]=useState<Row[]>([]);
  const [loading,setLoading]=useState(false);
  const [saving,setSaving]=useState(false);
@@ -256,57 +256,21 @@ export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:
   <section className="eas-shell" role="dialog" aria-modal="true" aria-labelledby="eas-title">
    <header className="eas-header">
     <div className="eas-logo" aria-hidden="true">E</div>
-    <div className="eas-heading"><span>ERNESTO / APRÈS LA FORMATION</span><h2 id="eas-title">Mon activité</h2></div>
-    <span className="eas-subheading">Votre carnet professionnel</span>
+    <div className="eas-heading"><span>ERNESTO / VOTRE ATELIER</span><h2 id="eas-title">Stocks</h2></div>
+    <span className="eas-subheading">Matières et fournisseurs</span>
     <button ref={closeRef} className="eas-close" type="button" onClick={onClose}>Retour à Ernesto <span aria-hidden="true">×</span></button>
    </header>
 
-   <div className="eas-tabs" role="tablist" aria-label="Gérer mon activité">
-    {([["overview","Tableau de bord"],["suppliers","Fournisseurs"],["stock","Mes stocks"],["opening","Démarrer mon activité"]] as [Section,string][]).map(([id,label])=>
+   <div className="eas-tabs" role="tablist" aria-label="Gestion des stocks">
+    {([["stock","Mes stocks"],["suppliers","Fournisseurs"]] as [Section,string][]).map(([id,label])=>
      <button key={id} role="tab" aria-selected={section===id} className={section===id?"active":""}
       type="button" onClick={()=>switchTab(id)}>{label}</button>)}
    </div>
 
    <div className="eas-body">
-    <div className="eas-project">
-     <label>Type d'activité
-      <select value={kind} onChange={e=>void saveProfile(e.target.value as ActivityKind,checks)} disabled={loading}>
-       {Object.entries(ACTIVITY_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}
-      </select>
-     </label>
-     <span>Des outils utiles au quotidien, que vous travailliez en local, en camion, en livraison ou en laboratoire.</span>
-    </div>
     {error?<div className="eas-error" role="alert">{error}</div>:null}
     {success?<div className="eas-success" role="status">{success}</div>:null}
     {loading?<div className="eas-loading">Chargement de vos données professionnelles…</div>:null}
-
-    {!loading && section==="overview" ? <>
-     <div className="eas-intro"><span>VOTRE ACTIVITÉ, EN UN COUP D’ŒIL</span><h3>À préparer aujourd’hui</h3>
-      <p>Commencez par vos partenaires et vos produits. Les alertes se mettent à jour à partir de vos stocks saisis.</p>
-     </div>
-     <div className="eas-metrics">
-      <button type="button" onClick={()=>switchTab("suppliers")}><span>FOURNISSEURS</span><strong>{suppliers.length}</strong><small>Répertoire personnel</small></button>
-      <button type="button" onClick={()=>switchTab("stock")}><span>PRODUITS EN STOCK</span><strong>{stocks.length}</strong><small>Matières et emballages</small></button>
-      <button type="button" onClick={()=>switchTab("stock")}><span>POINTS À CONTRÔLER</span><strong>{stockAlerts.length}</strong><small>Seuils et dates renseignées</small></button>
-      <button type="button" onClick={()=>switchTab("opening")}><span>PRÉPARATION OUVERTURE</span><strong>{doneCount}/{checklist.length}</strong><small>Étapes cochées</small></button>
-     </div>
-     <div className="eas-overviewGrid">
-      <div className="eas-block"><div className="eas-blockHead"><strong>Priorités de stock</strong><button onClick={()=>switchTab("stock")}>Voir tout</button></div>
-       {stockAlerts.length?stockAlerts.slice(0,6).map(({row,stock:s})=>{
-         const w=stockWarnings(s);
-         return <div className="eas-alertRow" key={row.id}><div><strong>{s.name}</strong>
-          <span>{w.low?"Quantité basse · ":""}{w.expiry?(s.dateType==="DLC"?"DLC dépassée":"DDM dépassée"):w.approaching?"Date proche":""}</span></div>
-          <button type="button" onClick={()=>editStock(row)}>Vérifier</button></div>;
-       }):<p className="eas-empty">Aucune alerte à partir des données saisies.</p>}
-       <button className="eas-linkAction" type="button" onClick={newStock}>+ Ajouter un produit</button>
-      </div>
-      <div className="eas-block"><div className="eas-blockHead"><strong>Premiers réflexes</strong><button onClick={()=>switchTab("opening")}>Checklist</button></div>
-       <p className="eas-bodyText">Pour commencer : choisir vos fournisseurs, définir un stock minimum, enregistrer les dates utiles, puis calculer le coût de chaque recette.</p>
-       <div className="eas-quick"><button type="button" onClick={newSupplier}>+ Fournisseur</button><button type="button" onClick={newStock}>+ Produit</button></div>
-       <p className="eas-privateNote">Données enregistrées dans votre compte, séparées de celles des autres professionnels. Les montants sont indicatifs et saisis par vous.</p>
-      </div>
-     </div>
-    </> : null}
 
     {!loading && section==="suppliers" ? <>
      <div className="eas-sectionTitle"><div><span>01 / PARTENAIRES</span><h3>Mes fournisseurs</h3><p>Farines, levains, mozzarella, légumes, emballages, matériel…</p></div>
@@ -384,20 +348,6 @@ export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:
      <p className="eas-legalNote">Ce suivi manuel ne remplace ni un plan de maîtrise sanitaire, ni le contrôle des températures, ni le système réglementaire de traçabilité.</p>
     </>:null}
 
-    {!loading && section==="opening" ? <>
-     <div className="eas-sectionTitle"><div><span>03 / PROJET PROFESSIONNEL</span><h3>Préparer l'ouverture</h3>
-      <p>Des repères à vérifier pour une activité de type « {ACTIVITY_LABELS[kind]} ».</p></div>
-      <span className="eas-progressText">{doneCount}/{checklist.length} vérifiés</span></div>
-     <div className="eas-checkList">{checklist.map(item=><label className="eas-checkRow" key={item.id}>
-      <input type="checkbox" checked={checks.includes(item.id)} onChange={e=>{
-       const next=e.target.checked?[...checks,item.id]:checks.filter(i=>i!==item.id);
-       void saveProfile(kind,next);
-      }}/>
-      <div><strong>{item.label}</strong><p>{item.detail}</p>
-       {item.url?<a href={item.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>Consulter la source officielle ↗</a>:null}
-      </div></label>)}</div>
-     <p className="eas-legalNote">Checklist d'organisation, non exhaustive, sans valeur de certification. Les formalités dépendent de votre activité précise, de la commune et de votre statut.</p>
-    </> : null}
    </div>
   </section>
  </div>;
