@@ -124,3 +124,10 @@
  .ecf-priceHead,.ecf-ingredientRow{grid-template-columns:minmax(0,1fr) 65px 95px}
 }
 @media(prefers-reduced-motion:reduce){.ecf-layer *{animation:none!important;transition:none!important}}
+
+.ecf-breakEven{display:grid;gap:11px;padding:13px;margin-top:3px;border:1px solid #e3e9dc;
+ border-radius:12px;background:#f7f9f3}
+.ecf-breakEven>div{display:grid;gap:4px}
+.ecf-breakEven>div>span{font-size:10px;color:#748665}
+.ecf-breakEven>div>strong{font-size:17px;font-weight:780;color:#506943}
+.ecf-breakEven>small{font-size:10px;line-height:1.5;color:#93a08c}
