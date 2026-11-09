@@ -2223,31 +2223,37 @@ export default function Page() {
         <aside className="ernestoToolsRail" aria-label="Outils Ernesto">
           <div className="ernestoToolsHeader">
             <strong>ERNESTO</strong>
+            <button type="button" className="ernestoToolsHome"
+              onClick={() => { setWorkspaceView("home"); setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
+              ← Accueil
+            </button>
             <span>Votre espace de travail</span>
           </div>
           <nav className="ernestoToolsMenu" aria-label="Espaces professionnels">
-            <button type="button" className="ernestoToolLink is-current" aria-current="page"
-              onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
+            <button type="button"
+              className={`ernestoToolLink ${workspaceView === "tutor" && !recipeStudioOpen && !activityStudioOpen && !commercialStudioOpen ? "is-current" : ""}`}
+              aria-current={workspaceView === "tutor" && !recipeStudioOpen && !activityStudioOpen && !commercialStudioOpen ? "page" : undefined}
+              onClick={() => { setWorkspaceView("tutor"); setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="M4 6h16v12H4zM8 10h8M8 14h5"/>
               </svg>
               <span>Tuteur Ernesto</span>
             </button>
-            <button type="button" className="ernestoToolLink"
+            <button type="button" className={`ernestoToolLink ${recipeStudioOpen ? "is-current" : ""}`}
               onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(true); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="M3 5c3-1 6-1 9 1v13c-3-2-6-2-9-1zM12 6c3-2 6-2 9-1v13c-3-1-6-1-9 1z"/>
               </svg>
               <span>Le carnet des recettes</span>
             </button>
-            <button type="button" className="ernestoToolLink"
+            <button type="button" className={`ernestoToolLink ${activityStudioOpen ? "is-current" : ""}`}
               onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(true); setCommercialStudioOpen(false); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="M4 7h16v13H4zM4 11h16M9 7V4h6v3"/>
               </svg>
               <span>Stocks</span>
             </button>
-            <button type="button" className="ernestoToolLink"
+            <button type="button" className={`ernestoToolLink ${commercialStudioOpen ? "is-current" : ""}`}
               onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(true); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="M4 19V5m0 14h17M8 15l4-5 3 2 5-7"/>
@@ -2400,7 +2406,25 @@ export default function Page() {
 
         </div>
 
-        <div className={`workspace ${session ? "" : "noComposer"} ${chat.length ? "hasChat" : ""}`}>
+        <div className={`workspace ${session ? "" : "noComposer"} ${chat.length ? "hasChat" : ""} ${session && workspaceView === "home" ? "ernestoHomeActive" : ""}`}>
+          {session && workspaceView === "home" ? (
+            <ErnestoHome
+              dossiers={projects.map((p) => ({
+                id: p.id, title: p.title, count: p.chat.length,
+                updatedAt: p.updatedAt, color: projectColor(p), active: p.id === activeProjectId,
+              }))}
+              onTutor={() => setWorkspaceView("tutor")}
+              onRecipes={() => setRecipeStudioOpen(true)}
+              onStocks={() => setActivityStudioOpen(true)}
+              onCommercial={() => setCommercialStudioOpen(true)}
+              onSelectDossier={selectProject}
+              onAllDossiers={() => setProjectsOpen(true)}
+            />
+          ) : null}
+          {session && workspaceView === "tutor" ? (
+            <button className="ernestoTutorBackHome" type="button"
+              onClick={() => setWorkspaceView("home")}>← Accueil</button>
+          ) : null}
 
         {session ? (
           <div className="activeProjectStrip v13 ernestoDossierTop"
