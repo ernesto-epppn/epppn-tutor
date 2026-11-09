@@ -285,7 +285,8 @@ export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:
        <TextField label="Téléphone" type="tel" value={supplier.phone} onChange={v=>setSupplier(p=>({...p,phone:v}))}/>
        <TextField label="E-mail" type="email" value={supplier.email} onChange={v=>setSupplier(p=>({...p,email:v}))}/>
        <TextField label="Notes / conditions" value={supplier.notes} onChange={v=>setSupplier(p=>({...p,notes:v}))} placeholder="Délais, minimum de commande…"/>
-      </div>
+       </div>
+      </details>
       <div className="eas-formActions"><button type="submit" className="eas-primary" disabled={saving}>Enregistrer</button><button type="button" onClick={()=>setShowForm(false)}>Annuler</button></div>
      </form>:null}
      <div className="eas-cardList">{suppliers.map(row=>{const p=supplierOf(row);return <article className="eas-card" key={row.id}>
@@ -311,6 +312,10 @@ export default function ErnestoActivityStudio({open,onClose,accountId,supabase}:
         <option value="kg">kg</option><option value="L">L</option><option value="pièce">pièce</option></select></label>
        <NumberField label="Seuil minimal" value={stock.minimum} onChange={v=>setStock(p=>({...p,minimum:v}))}/>
        <NumberField label={"Prix d'achat indicatif HT (€/"+stock.unit+")"} value={stock.price} onChange={v=>setStock(p=>({...p,price:v}))}/>
+      </div>
+      <details className="eas-advanced">
+       <summary>Traçabilité et conservation <span>Lot · date · zone · notes</span></summary>
+       <div className="eas-formGrid">
        <label className="eas-field"><span>Type de date</span><select value={stock.dateType} onChange={e=>setStock(p=>({...p,dateType:e.target.value as Stock["dateType"]}))}>
         <option value="DLC">DLC · limite de consommation</option>
         <option value="DDM">DDM · durabilité minimale</option>
