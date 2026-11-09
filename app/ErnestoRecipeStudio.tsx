@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Recipe, RecipeGroup } from "./recipeData";
+import { formatGrams, formatKilograms, formatDualQuantity } from "./recipeUnits";
 import {
   calculateRecipe,
   normalizeRecipeSettings,
@@ -21,7 +22,7 @@ type Props = {
 type Filter = "all" | RecipeGroup | "focaccia" | "favorites";
 
 const fmt = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1, minimumFractionDigits: 0 });
-const gram = (v: number) => fmt.format(Math.round(v * 10) / 10) + " g";
+const gram = formatGrams;
 const KEY = "ernesto-epppn-recipe-studio-v1:";
 const GROUP_LABELS: Record<RecipeGroup, string> = {
   froid: "Levure · J+1", direct: "Levure · directe", levain: "Levain naturel",
@@ -160,9 +161,9 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
   if(!open)return null;
   if(!recipe || !values || !amount){
     return <div className="ers-layer" role="presentation">
-      <section className="ers-shell ers-shellLoading" role="dialog" aria-modal="true" aria-label="Ricettario EPPPN">
+      <section className="ers-shell ers-shellLoading" role="dialog" aria-modal="true" aria-label="Carnet des recettes EPPPN">
         <header className="ers-topbar"><div className="ers-brand"><span className="ers-brandMark">E</span>
-          <div><span className="ers-eyebrow">ERNESTO / EPPPN</span><h2>Le Ricettario</h2></div>
+          <div><span className="ers-eyebrow">ERNESTO / EPPPN</span><h2>Le carnet des recettes</h2></div>
         </div><button className="ers-close" type="button" onClick={onClose}>Retour <span>×</span></button></header>
         <div className="ers-loading">
           <strong>{catalogLoading?"Chargement des 19 recettes…":catalogError||"Catalogue EPPPN"}</strong>
@@ -208,9 +209,9 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
         ? safeValues.trays+" plaque(s) · "+safeValues.trayWidth+" × "+safeValues.trayHeight+" cm"
         : safeValues.pieces+" pâtons · "+safeValues.pieceWeight+" g",
       "",
-      ...safeAmount.quantities.map(i=>i.label+": "+gram(i.grams)+" · "+i.percent+" %"+(i.approximate?" (≈)":"")),
+      ...safeAmount.quantities.map(i=>i.label+": "+formatDualQuantity(i.grams)+" · "+i.percent+" %"+(i.approximate?" (≈)":"")),
       "",
-      "Total : "+gram(safeAmount.dough),
+      "Total : "+formatDualQuantity(safeAmount.dough),
       "Hydratation ajoutée : "+fmt.format(safeAmount.nominalHydration)+" %"+(safeAmount.effectiveHydration===null?" (hydratation du levain non précisée)":"" ),
       "",
       "Protocole :",
@@ -246,10 +247,10 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
       <header className="ers-topbar">
         <div className="ers-brand">
           <span className="ers-brandMark" aria-hidden="true">E</span>
-          <div><span className="ers-eyebrow">ERNESTO / EPPPN</span><h2 id="ers-title">Le Ricettario</h2></div>
+          <div><span className="ers-eyebrow">ERNESTO / EPPPN</span><h2 id="ers-title">Le carnet des recettes</h2></div>
           <span className="ers-year">Édition 2025</span>
         </div>
-        <button ref={closeRef} className="ers-close" type="button" onClick={onClose} aria-label="Fermer le ricettario">
+        <button ref={closeRef} className="ers-close" type="button" onClick={onClose} aria-label="Fermer le carnet des recettes">
           Retour à Ernesto <span aria-hidden="true">×</span>
         </button>
       </header>
@@ -333,17 +334,32 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
               <div className="ers-total">
                 <span>PÂTE À PRÉPARER</span>
                 <strong aria-live="polite">{gram(safeAmount.dough)}</strong>
+                <span className="ers-totalKg">{formatKilograms(safeAmount.dough)}</span>
                 <span>{safeRecipe.mode==="pâtons"
                   ? safeValues.pieces+" × "+fmt.format(safeValues.pieceWeight)+" g"
                   : fmt.format(safeValues.trays)+" plaque(s) · "+safeValues.trayWidth+" × "+safeValues.trayHeight+" cm"}</span>
               </div>
 
-              <div className="ers-tableHead"><strong>Ingrédients</strong><span>% farine <b>Poids</b></span></div>
+              <div className="ers-tableHead">
+                <strong>Ingrédients</strong>
+                <div className="ers-tableColumns">
+                  <details className="ers-bakerHelp">
+                    <summary aria-label="Comprendre les pourcentages du boulanger">% farine <span aria-hidden="true">ⓘ</span></summary>
+                    <div className="ers-bakerExplainer" role="note">
+                      <strong>Le pourcentage du boulanger</strong>
+                      <p>La quantité de farine ajoutée représente toujours 100 %. Les autres ingrédients sont calculés par rapport à ce poids, pas par rapport au poids total de la pâte.</p>
+                      <p>Exemple : pour 1 kg de farine, 65 % d’eau = 650 g (0,65 kg) et 2 % de sel = 20 g (0,02 kg).</p>
+                      <p>Pour les recettes au levain, la farine et l’eau du levain sont prises en compte séparément dans le calcul de l’hydratation totale, lorsque cette information est connue.</p>
+                    </div>
+                  </details>
+                  <b>Poids · g / kg</b>
+                </div>
+              </div>
               <div className="ers-ingredients">
                 {safeAmount.quantities.map((i,index)=><div className={"ers-ingredient"+(index===0?" main":"")} key={i.key}>
                   <span>{i.label}{i.approximate ? <small>≈ selon farine</small>:null}</span>
                   <span className="ers-percentage">{fmt.format(i.percent)} %</span>
-                  <strong>{gram(i.grams)}</strong>
+                  <div className="ers-quantity"><strong>{gram(i.grams)}</strong><small>{formatKilograms(i.grams)}</small></div>
                 </div>)}
               </div>
 
