@@ -461,6 +461,7 @@ export default function Page() {
   const [speed, setSpeed] = useState<Speed>("BANCO");
   const [message, setMessage] = useState("");
   const [recipeStudioOpen, setRecipeStudioOpen] = useState(false);
+  const closeRecipeStudio = React.useCallback(() => setRecipeStudioOpen(false), []);
   const [recipeContext, setRecipeContext] = useState("");
   const [activeRecipeName, setActiveRecipeName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -2946,7 +2947,7 @@ export default function Page() {
       <ErnestoRecipeStudio
         key={session?.user?.id || "guest"}
         open={Boolean(session) && recipeStudioOpen}
-        onClose={() => setRecipeStudioOpen(false)}
+        onClose={closeRecipeStudio}
         onAsk={askFromRecipe}
         accountId={session?.user?.id}
         accessToken={session?.access_token}
