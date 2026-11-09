@@ -119,3 +119,71 @@
   .ernestoHomeCard{transition:none}
   .ernestoHomeCard:hover{transform:none}
 }
+
+/* The menu keeps four professional spaces on desktop and adds an explicit
+   home destination in the mobile bottom bar. */
+.appRoot .ernestoToolsMobileHome,
+.appRoot .ernestoToolsShortName{display:none}
+.appRoot .ernestoToolsFullName{display:inline}
+.appRoot .ernestoExpandAnswer{
+  display:inline-flex;align-items:center;justify-content:center;
+  margin:11px 0 2px;padding:9px 12px;
+  border:1px solid #dce6d6;border-radius:9px;
+  background:#f6f9f2;color:#5c7949;-webkit-text-fill-color:#5c7949;
+  font-weight:740;font-size:11px;cursor:pointer
+}
+.appRoot .ernestoExpandAnswer:hover{background:#eef5e8}
+@media(max-width:740px){
+  .appRoot .ernestoToolsRail{
+    position:fixed!important;top:auto!important;bottom:0!important;
+    left:0!important;right:0!important;width:100%!important;
+    max-width:none!important;min-height:0!important;
+    padding:6px 8px calc(7px + env(safe-area-inset-bottom))!important;
+    border:0!important;border-top:1px solid #e1e8dc!important;
+    border-radius:13px 13px 0 0!important;
+    background:rgba(255,255,255,.98)!important;
+    box-shadow:0 -7px 22px rgba(29,49,37,.08)!important;
+    z-index:130!important;gap:0!important;transform:none!important;opacity:1!important;
+    pointer-events:auto!important;
+  }
+  .appRoot .ernestoToolsRail .ernestoToolsMenu{
+    display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    gap:4px!important
+  }
+  .appRoot .ernestoToolsRail .ernestoToolsMobileHome{display:flex!important}
+  .appRoot .ernestoToolsShortName{display:inline!important}
+  .appRoot .ernestoToolsFullName{display:none!important}
+  .appRoot .ernestoToolsRail .ernestoToolLink{
+    padding:7px 3px!important;border-radius:10px!important;
+    border-color:transparent!important;background:transparent!important;
+    min-height:51px!important;font-size:10px!important;gap:4px!important;
+    font-weight:680!important;line-height:1.2!important
+  }
+  .appRoot .ernestoToolsRail .ernestoToolLink.is-current{
+    background:#edf3e6!important;border-color:#e0e9d9!important;
+    color:#45623e!important;-webkit-text-fill-color:#45623e!important;font-weight:770!important
+  }
+  .appRoot .ernestoToolsRail .ernestoToolLink svg{
+    width:20px!important;height:20px!important;flex:0 0 20px!important
+  }
+  .appRoot .workspace.ernestoHomeActive{
+    padding-bottom:calc(95px + env(safe-area-inset-bottom))!important
+  }
+  .appRoot .workspace:not(.ernestoHomeActive) {
+    padding-bottom:calc(255px + env(safe-area-inset-bottom) + var(--keyboard-offset,0px))!important
+  }
+  .appRoot .chatComposer.composer:not(.keyboardOpen) {
+    bottom:calc(67px + env(safe-area-inset-bottom))!important;
+    padding-bottom:9px!important;
+    border-radius:18px 18px 0 0!important
+  }
+  .appRoot:has(.chatComposer.keyboardOpen) .ernestoToolsRail{display:none!important}
+  .appRoot .chatComposer.composer.keyboardOpen{
+    bottom:var(--keyboard-offset,0px)!important;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom))!important
+  }
+}
+@media(max-width:390px){
+  .appRoot .ernestoToolsRail .ernestoToolLink{font-size:9px!important}
+  .appRoot .ernestoToolsRail .ernestoToolsMenu{gap:2px!important}
+}
