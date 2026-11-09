@@ -119,9 +119,9 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
       const item=JSON.parse(localStorage.getItem(storageKey)||"{}");
       setSettings(item?.settings && typeof item.settings==="object" ? item.settings : {});
       setFavorites(Array.isArray(item?.favorites)?item.favorites.filter((v:unknown)=>typeof v==="string"):[]);
-      setSelectedId(typeof item?.selectedId==="string" && typeof item.selectedId==="string"
-        ? item.selectedId : EPPPN_RECIPES[0].id);
-    }catch{setSettings({});setFavorites([]);setSelectedId(EPPPN_RECIPES[0].id);}
+      setSelectedId(typeof item?.selectedId==="string"
+        ? item.selectedId : "classique-j1");
+    }catch{setSettings({});setFavorites([]);setSelectedId("classique-j1");}
     setHydratedKey(storageKey);
   },[storageKey]);
 
