@@ -1,0 +1,213 @@
+/* Ricettario EPPPN — self-contained layer; legacy Ernesto interface unchanged. */
+.appRoot .ers-entry{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:3px 0 14px;position:relative;z-index:4}
+.appRoot .ers-entryBtn{display:inline-flex;align-items:center;gap:10px;min-height:39px;padding:8px 14px;border:1px solid rgba(111,125,60,.24);border-radius:999px;background:#f5f7ed;color:#344229;-webkit-text-fill-color:#344229;font-weight:760;font-size:13px;cursor:pointer;box-shadow:0 3px 10px rgba(38,56,77,.035);transition:background .15s,border-color .15s}
+.appRoot .ers-entryBtn:hover,.appRoot .ers-entryBtn:focus-visible{border-color:#6f7d3c;background:#eef2e0}
+.appRoot .ers-entryBtn svg{width:17px;height:17px;flex-shrink:0}
+.appRoot .ers-entryCount{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 5px;border-radius:30px;color:#60733b;background:#e3eacc;font-size:11px;-webkit-text-fill-color:#60733b}
+.appRoot .ers-contextChip{display:flex;gap:5px;align-items:center;border-radius:99px;background:#fff;border:1px solid rgba(38,56,77,.11);max-width:min(450px,100%);font-size:12px;color:#5c6770;padding-left:9px}
+.appRoot .ers-contextChip button{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:transparent;padding:9px 5px;color:#384a32;-webkit-text-fill-color:#384a32;max-width:290px;cursor:pointer}
+.appRoot .ers-contextChip .ers-contextRemove{width:29px;min-width:29px;height:31px;border-radius:99px;padding:0;color:#9a6148;-webkit-text-fill-color:#9a6148;font-size:18px;font-weight:400}
+body:has(.ers-layer){overflow:hidden}
+.ers-layer,.ers-layer *{box-sizing:border-box}
+.ers-layer{position:fixed;inset:0;z-index:1000;background:rgba(25,37,36,.58);display:flex;align-items:center;justify-content:center;padding:18px;font-family:var(--font-geist-sans),system-ui,-apple-system,sans-serif;color:#26384d;-webkit-font-smoothing:antialiased}
+.ers-shell{width:min(1320px,100%);height:min(94dvh,960px);display:flex;flex-direction:column;overflow:hidden;border-radius:24px;background:#fffaf5;box-shadow:0 24px 95px rgba(8,26,31,.28);border:1px solid rgba(255,255,255,.65)}
+.ers-shell button,.ers-shell input,.ers-shell select,.ers-shell textarea{font-family:inherit}
+.ers-shell button{cursor:pointer}
+.ers-shell button:focus-visible,.ers-shell input:focus-visible,.ers-shell textarea:focus-visible,.ers-shell select:focus-visible{outline:2px solid #6f7d3c;outline-offset:2px}
+.ers-topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:82px;padding:14px 25px;background:#fffaf5;border-bottom:1px solid #e5e8dc}
+.ers-brand{display:flex;align-items:center;gap:13px;min-width:0}
+.ers-brandMark{display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:#6f7d3c;color:#fff;font-family:Georgia,serif;font-size:28px;font-weight:700}
+.ers-brand .ers-eyebrow{display:block;font-size:9px;letter-spacing:.17em;font-weight:800;color:#7a8568}
+.ers-brand h2{margin:0;font-size:24px;line-height:1.1;letter-spacing:-.04em;font-weight:780;color:#26384d}
+.ers-year{align-self:center;color:#8b937d;font-size:12px;border-left:1px solid #ddd9cb;padding-left:13px;white-space:nowrap}
+.ers-close{display:flex;align-items:center;gap:15px;min-height:38px;padding:8px 10px 8px 15px;border:1px solid #dfe4d5;border-radius:99px;background:white;color:#45513c;font-weight:700;font-size:12px;white-space:nowrap}
+.ers-close span{font-size:21px;line-height:1}
+.ers-close:hover{background:#eef1e7}
+.ers-layout{display:grid;grid-template-columns:258px minmax(0,1fr);flex:1;min-height:0;overflow:hidden}
+.ers-library{display:flex;flex-direction:column;min-height:0;overflow:hidden;border-right:1px solid #e5e8db;background:#f5f7ef}
+.ers-libraryIntro{padding:22px 17px 11px;display:grid;gap:4px}
+.ers-libraryIntro span,.ers-super,.ers-blockTitle>span,.ers-bake>span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:750;color:#70805d}
+.ers-libraryIntro strong{font-size:13px;font-weight:720}
+.ers-search{display:flex;align-items:center;gap:6px;margin:0 12px 12px;padding:7px 10px;border:1px solid #e0e4d5;border-radius:11px;background:#fff}
+.ers-search>span{font-size:25px;line-height:1;color:#77836c}
+.ers-search input{flex:1;min-width:0;border:0;outline:none;font-size:12px;min-height:24px;background:transparent;color:#26384d}
+.ers-filters{display:flex;gap:5px;flex-wrap:wrap;padding:0 12px 12px}
+.ers-chip{min-height:28px;padding:4px 9px;background:transparent;border:1px solid #dce2d0;border-radius:99px;font-size:11px;color:#617058;font-weight:650}
+.ers-chip.is-active{color:#fff;background:#6f7d3c;border-color:#6f7d3c}
+.ers-recipeList{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 8px 18px;scrollbar-color:#cbd2bd transparent;scrollbar-width:thin}
+.ers-recipeRow{display:grid;grid-template-columns:minmax(0,1fr) 30px;gap:2px;align-items:center;margin-bottom:3px;border:1px solid transparent;border-radius:12px;transition:background .12s}
+.ers-recipeRow:hover{background:#eff2e5}
+.ers-recipeRow.is-selected{background:#fff;border-color:#dee5cf;box-shadow:0 3px 12px rgba(73,84,62,.05)}
+.ers-selectRecipe{display:grid;gap:3px;text-align:left;border:0;background:transparent;padding:10px 6px 11px 10px;min-width:0;color:#2d3b43}
+.ers-page{font-size:9px;letter-spacing:.1em;font-weight:760;color:#748066}
+.ers-selectRecipe strong{font-size:12px;font-weight:730;line-height:1.25;color:#26384d}
+.ers-selectRecipe>span:last-child{font-size:10px;color:#89928a;line-height:1.3}
+.ers-favorite{border:0;background:transparent;font-size:17px;color:#aeb69c;height:32px;border-radius:50%;padding:0}
+.ers-favorite.is-favorite{color:#b88a35}
+.ers-libraryFoot{display:grid;gap:3px;padding:13px 17px;border-top:1px solid #e4e8d8;color:#8b957a;font-size:10px;line-height:1.35}
+.ers-libraryFoot strong{color:#506139}
+.ers-libraryFoot span{font-size:9px}
+.ers-empty{padding:15px;font-size:12px;color:#889080}
+.ers-content{overflow:auto;scrollbar-width:thin;scrollbar-color:#d4d9cd transparent;overscroll-behavior:contain;padding:24px 28px 20px;min-width:0}
+.ers-mobileChoose{display:none}
+.ers-titleRow{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}
+.ers-super span{padding:0 4px;color:#bdc4b3}
+.ers-titleRow h3{font-size:clamp(24px,2.4vw,33px);line-height:1.16;letter-spacing:-.045em;font-weight:790;margin:6px 0 3px;color:#26384d}
+.ers-titleRow p{font-size:13px;color:#849080;margin:0}
+.ers-formulaState{display:flex;flex-direction:column;align-items:flex-end;gap:6px;white-space:nowrap;font-size:11px;color:#8d9685}
+.ers-formulaState>.ers-original,.ers-formulaState>.ers-personal{font-size:10px;padding:6px 9px;border-radius:99px;font-weight:750}
+.ers-original{background:#ebf2e3;color:#526938}
+.ers-personal{background:#f8eeda;color:#9c6e2f}
+.ers-infoLine{display:flex;align-items:baseline;gap:15px;border-block:1px solid #e5e8dc;padding:11px 0;margin-bottom:16px}
+.ers-infoLine>span{font-size:10px;font-weight:820;letter-spacing:.1em;color:#95a18f}
+.ers-infoLine strong{font-size:12px;font-weight:590;color:#596758;line-height:1.45}
+.ers-work{display:grid;grid-template-columns:minmax(330px,1.12fr) minmax(245px,.88fr);gap:22px;align-items:start}
+.ers-calculator{min-width:0;border:1px solid #e0e5d9;border-radius:17px;padding:19px;background:white;box-shadow:0 8px 25px rgba(55,65,52,.035)}
+.ers-blockTitle{display:grid;gap:4px;margin-bottom:17px}
+.ers-blockTitle strong{font-size:18px;font-weight:770;letter-spacing:-.02em}
+.ers-variantSwitch{display:flex;gap:5px;background:#f3f5ec;padding:4px;border-radius:12px;margin-bottom:12px}
+.ers-variantSwitch button{flex:1;min-height:34px;border-radius:9px;background:transparent;border:0;color:#64725c;font-size:12px;font-weight:660}
+.ers-variantSwitch button.is-active{background:#fff;color:#34462e;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.ers-countGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:9px;margin-bottom:14px}
+.ers-field{display:grid;align-content:start;gap:5px;min-width:0}
+.ers-fieldLabel,.ers-askLabel{font-size:11px;color:#6e7b70;font-weight:670}
+.ers-inputWrap{position:relative;display:flex;align-items:center;min-width:0}
+.ers-inputWrap input{width:100%;min-width:0;min-height:43px;border:1px solid #dce2da;border-radius:11px;background:#fcfdfa;color:#26384d;-webkit-text-fill-color:#26384d;padding:9px 11px;font-size:17px;font-weight:740;outline-color:#6f7d3c}
+.ers-inputWrap em{font-style:normal;font-size:11px;font-weight:600;color:#8b9787;position:absolute;right:13px;pointer-events:none}
+.ers-inputWrap:has(em) input{padding-right:32px}
+.ers-fieldNote{font-size:10px;color:#8d9785}
+.ers-total{display:grid;justify-content:center;text-align:center;gap:3px;border-radius:15px;padding:15px 12px;margin-bottom:17px;background:#eff3e6;color:#536b39}
+.ers-total>span:first-child{font-size:10px;font-weight:770;letter-spacing:.14em}
+.ers-total strong{font-size:clamp(27px,3.2vw,39px);font-weight:790;letter-spacing:-.06em;line-height:1.15;font-variant-numeric:tabular-nums}
+.ers-total>span:last-child{font-size:11px;color:#6f8160}
+.ers-tableHead{display:flex;justify-content:space-between;gap:8px;align-items:center;padding-bottom:8px;border-bottom:1px solid #e7ebe3}
+.ers-tableHead strong{font-size:13px}
+.ers-tableHead span{font-size:10px;color:#8c9689;display:flex;gap:15px}
+.ers-tableHead b{min-width:76px;text-align:right;font-weight:650}
+.ers-ingredients{display:grid}
+.ers-ingredient{display:grid;grid-template-columns:minmax(0,1fr) 60px 88px;gap:8px;align-items:center;padding:11px 0;border-bottom:1px solid #eff1eb;font-size:12px}
+.ers-ingredient span:first-child{font-weight:570;color:#4b594c}
+.ers-ingredient.main span:first-child{font-weight:760}
+.ers-ingredient small{display:block;font-size:9px;color:#a38b5c;font-weight:500;margin-top:3px}
+.ers-percentage{font-variant-numeric:tabular-nums;text-align:right;font-size:11px;color:#9aa396}
+.ers-ingredient strong{text-align:right;font-size:14px;font-weight:750;font-variant-numeric:tabular-nums}
+.ers-hydrationRow{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:16px}
+.ers-hydrationRow>div{display:grid;gap:5px;padding:12px;background:#f8f9f6;border-radius:11px}
+.ers-hydrationRow small{font-size:10px;color:#849080}
+.ers-hydrationRow strong{font-weight:750;font-size:19px}
+.ers-mathCaption{font-size:10px;line-height:1.5;color:#8a9689;margin:10px 0 15px}
+.ers-adjust{border-top:1px solid #e8ece6;margin-top:7px}
+.ers-adjust>summary{display:flex;justify-content:space-between;gap:6px;align-items:center;padding:14px 0;font-weight:710;font-size:12px;list-style:none;cursor:pointer}
+.ers-adjust>summary::-webkit-details-marker{display:none}
+.ers-adjust>summary span{font-size:10px;font-weight:540;color:#8d9a83}
+.ers-adjustBody{padding:4px 0 16px}
+.ers-adjustBody>p{font-size:11px;color:#889486;line-height:1.5;margin:0 0 14px}
+.ers-adjustGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.ers-adjustGrid .ers-inputWrap input{font-size:14px}
+.ers-hydrInput{display:grid;gap:5px}
+.ers-hydrInput small{font-size:10px;color:#91633f}
+.ers-hydrInput button,.ers-reset{width:max-content;max-width:100%;border:0;background:transparent;color:#718254;font-size:11px;font-weight:650;padding:5px 0}
+.ers-reset{margin-top:15px;color:#a06348}
+.ers-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.ers-actions button{background:#fff;border:1px solid #dee5d9;color:#536744;border-radius:10px;min-height:36px;padding:8px 13px;font-size:11px;font-weight:750}
+.ers-actions button:hover{background:#f3f6ef}
+.ers-notice{padding:6px 2px;font-size:11px;color:#6f7d3c}
+.ers-protocol{min-width:0;padding:14px 0}
+.ers-processMeta{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:24px}
+.ers-processMeta>div{display:grid;gap:5px;border-top:2px solid #dfe7d6;padding-top:9px}
+.ers-processMeta span{font-size:10px;color:#8b9885}
+.ers-processMeta strong{font-size:12px;color:#40533b;line-height:1.4;font-weight:730}
+.ers-steps{padding:0;margin:0;list-style:none;display:grid;gap:0}
+.ers-steps li{display:grid;grid-template-columns:31px 1fr;gap:11px;min-height:64px;position:relative}
+.ers-steps li:not(:last-child)::after{content:"";position:absolute;left:14px;top:33px;bottom:1px;width:1px;background:#dce4d4}
+.ers-stepIndex{display:flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:50%;background:#f0f3ea;border:1px solid #dfe5d9;font-size:10px;font-weight:730;color:#748765;z-index:1}
+.ers-steps li div{padding-bottom:16px}
+.ers-steps strong{display:block;font-size:12px;font-weight:750;color:#3e4a42;margin:2px 0 4px}
+.ers-steps p{font-size:11px;line-height:1.54;color:#859085;margin:0}
+.ers-bake{display:grid;gap:6px;margin:5px 0 18px;padding:13px 15px;border-left:3px solid #b88a35;background:#fff6e9;border-radius:0 11px 11px 0}
+.ers-bake>span{color:#a78345}
+.ers-bake strong{font-size:12px;color:#695233;line-height:1.5}
+.ers-note,.ers-caution{font-size:11px;line-height:1.55;color:#7f8b7b;margin:0 0 18px}
+.ers-note strong,.ers-caution strong{font-size:12px;color:#5d6a59}
+.ers-note p,.ers-caution p{margin:5px 0 0}
+.ers-caution{padding:12px;border-radius:10px;background:#fff4e9;color:#93684c}
+.ers-caution strong{color:#9c6449}
+.ers-tutor{padding:18px;background:#26384d;color:#fff;border-radius:17px;margin-top:26px}
+.ers-tutorTop{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+.ers-tutorTop>span{font-size:24px;color:#d3dfa9}
+.ers-tutorTop>div{display:grid;gap:3px}
+.ers-tutorTop strong{font-size:14px;font-weight:750}
+.ers-tutorTop small{font-size:10px;color:#b7c4ce;line-height:1.4}
+.ers-promptOptions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+.ers-promptOptions button{font-size:10px;min-height:28px;border:1px solid rgba(255,255,255,.20);background:rgba(255,255,255,.06);color:#e5eaeb;border-radius:99px;padding:5px 8px}
+.ers-promptOptions button:hover{background:rgba(255,255,255,.15)}
+.ers-askLabel{display:block;color:#bcc9d3;margin-bottom:5px}
+.ers-tutor textarea{display:block;width:100%;background:#fff;color:#26384d;-webkit-text-fill-color:#26384d;border:0;border-radius:11px;padding:11px;font-size:12px;resize:vertical;min-height:64px;line-height:1.5}
+.ers-askBtn{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:9px;padding:11px 13px;background:#d4e3ab;color:#344333;border:0;border-radius:10px;font-size:12px;font-weight:810;min-height:44px}
+.ers-askBtn:hover{background:#e4efca}
+.ers-askBtn>span{font-size:18px}
+.ers-bottomNotes{font-size:10px;color:#a0a997;padding:16px 3px 0;line-height:1.5}
+@media(max-width:1080px){
+ .ers-layout{grid-template-columns:205px minmax(0,1fr)}
+ .ers-work{grid-template-columns:minmax(0,1fr)}
+ .ers-content{padding:22px}
+ .ers-protocol{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:18px;align-items:start}
+ .ers-protocol .ers-blockTitle,.ers-protocol .ers-processMeta,.ers-protocol .ers-steps{grid-column:1}
+ .ers-protocol .ers-bake,.ers-protocol .ers-note,.ers-protocol .ers-caution,.ers-protocol .ers-tutor{grid-column:2}
+ .ers-protocol .ers-tutor{margin-top:0}
+ .ers-titleRow h3{font-size:27px}
+}
+@media(max-width:740px){
+ .ers-layer{padding:0;background:#fffaf5}
+ .ers-shell{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0;box-shadow:none}
+ .ers-topbar{min-height:68px;padding:10px 14px}
+ .ers-brandMark{width:38px;height:38px;font-size:24px;border-radius:12px}
+ .ers-brand h2{font-size:20px}
+ .ers-brand .ers-eyebrow{font-size:8px}
+ .ers-year{display:none}
+ .ers-close{padding:8px;gap:6px;font-size:0;border-radius:99px}
+ .ers-close span{font-size:23px}
+ .ers-layout{display:block;overflow:hidden}
+ .ers-library{display:none}
+ .ers-content{height:100%;overflow:auto;padding:17px 16px 90px}
+ .ers-mobileChoose{display:block;margin-bottom:18px}
+ .ers-mobileChoose label{display:grid;gap:6px;font-size:10px;color:#829079;font-weight:690}
+ .ers-mobileChoose select{min-height:43px;width:100%;padding:8px 34px 8px 12px;border:1px solid #dce4d5;background:#fff;border-radius:10px;font-size:13px;font-weight:720;color:#26384d}
+ .ers-titleRow{align-items:flex-start;margin-bottom:12px}
+ .ers-titleRow h3{font-size:27px}
+ .ers-formulaState{font-size:10px}
+ .ers-super{font-size:9px}
+ .ers-infoLine{margin-bottom:12px}
+ .ers-work{display:grid;grid-template-columns:minmax(0,1fr);gap:15px}
+ .ers-calculator{padding:14px;border-radius:15px}
+ .ers-protocol{display:block;padding:5px 0 0}
+ .ers-protocol .ers-blockTitle,.ers-protocol .ers-processMeta,.ers-protocol .ers-steps,.ers-protocol .ers-bake,.ers-protocol .ers-note,.ers-protocol .ers-caution,.ers-protocol .ers-tutor{grid-column:auto}
+ .ers-protocol .ers-tutor{margin-top:20px}
+ .ers-countGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ers-total strong{font-size:37px}
+ .appRoot .ers-entry{margin:2px 0 10px}
+ .appRoot .ers-entryBtn{font-size:12px;min-height:37px}
+ .appRoot .ers-contextChip{max-width:100%}
+}
+@media(max-width:390px){
+ .ers-titleRow{flex-direction:column;gap:7px}
+ .ers-formulaState{flex-direction:row;align-items:center}
+ .ers-countGrid,.ers-hydrationRow{grid-template-columns:1fr 1fr}
+ .ers-ingredient{grid-template-columns:minmax(0,1fr) 52px 77px}
+ .ers-ingredient strong{font-size:12px}
+ .ers-calculator{padding:11px}
+ .ers-adjustGrid{gap:9px}
+}
+@media print {
+ body *{visibility:hidden !important}
+ .ers-layer,.ers-layer *{visibility:visible !important}
+ .ers-layer{position:static!important;background:#fff;padding:0;display:block}
+ .ers-shell{width:100%;height:auto;max-height:none;overflow:visible;box-shadow:none;border:0}
+ .ers-topbar,.ers-library,.ers-mobileChoose,.ers-tutor,.ers-actions,.ers-adjust,.ers-close{display:none!important}
+ .ers-layout,.ers-work{display:block!important;overflow:visible}
+ .ers-content{height:auto!important;overflow:visible!important;padding:0}
+ .ers-calculator{border:0;padding:0}
+ .ers-protocol{display:block}
+ .ers-protocol .ers-steps{break-inside:avoid}
+}
+@media(prefers-reduced-motion:reduce){.ers-layer *{animation:none!important;transition:none!important}}
