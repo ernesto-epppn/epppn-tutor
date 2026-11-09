@@ -211,3 +211,11 @@ body:has(.ers-layer){overflow:hidden}
  .ers-protocol .ers-steps{break-inside:avoid}
 }
 @media(prefers-reduced-motion:reduce){.ers-layer *{animation:none!important;transition:none!important}}
+
+/* Direct tutor access remains visible from the top of long recipes. */
+.ers-jumpTutor{display:inline-flex;align-items:center;gap:5px;margin:12px 0 0;padding:8px 10px;border:1px solid #dce6d4;border-radius:9px;background:#f1f5e9;color:#526d3c;font-size:11px;font-weight:750;min-height:36px}
+.ers-jumpTutor:hover{background:#e7efd9}
+.ers-sourceHydration{display:flex;flex-wrap:wrap;gap:5px;align-items:baseline;color:#818f7c;font-size:11px;margin:-6px 0 14px}
+.ers-sourceHydration strong{color:#4e6740;font-weight:800}
+.ers-sourceHydration>span{color:#a0a99a}
+@media(max-width:740px){.ers-jumpTutor{margin-top:8px}.ers-sourceHydration{font-size:10px}}
