@@ -34,7 +34,7 @@ function Field({
   const parse = (raw: string) => {
     if (!raw.trim()) return null;
     const normalized = raw.trim().replace(",", ".");
-    if (!/^\\d+(?:\\.\\d+)?$/.test(normalized)) return null;
+    if (!/^\d+(?:\.\d+)?$/.test(normalized)) return null;
     const n = Number(normalized);
     return Number.isFinite(n) && n >= min && n <= max ? n : null;
   };
@@ -45,7 +45,7 @@ function Field({
       placeholder={value === null ? "À préciser" : undefined}
       onChange={e => {
         const raw = e.currentTarget.value;
-        if (!/^\\d*(?:[.,]\\d*)?$/.test(raw)) return;
+        if (!/^\d*(?:[.,]\d*)?$/.test(raw)) return;
         setDraft(raw);
         const n = parse(raw);
         if (n !== null && n !== value) onChange(n);
