@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:recipes": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/check-recipes.ts",
+    "prebuild": "npm run check:recipes"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.90.1",
