@@ -172,6 +172,10 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
     </div>;
   }
 
+  const safeRecipe: Recipe = recipe;
+  const safeValues: RecipeSettings = values;
+  const safeAmount: ReturnType<typeof calculateRecipe> = amount;
+
   function choose(id:string){
     if(!recipes.some(r=>r.id===id))return;
     setSelectedId(id);
@@ -179,38 +183,38 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
   }
 
   function patch(change:Partial<RecipeSettings>){
-    setSettings(p=>({...p,[recipe.id]:{...normalizeRecipeSettings(recipe,p[recipe.id]),...change}}));
+    setSettings(p=>({...p,[safeRecipe.id]:{...normalizeRecipeSettings(safeRecipe,p[safeRecipe.id]),...change}}));
     setNotice("");
   }
 
   function chooseVariant(variantId:string){
-    const variant=recipe.variants?.find(v=>v.id===variantId);
+    const variant=safeRecipe.variants?.find(v=>v.id===variantId);
     if(!variant)return;
     patch({variantId,oil:variant.oil});
   }
 
   function resetRecipe(){
-    setSettings(p=>({...p,[recipe.id]:recipeDefaults(recipe)}));
+    setSettings(p=>({...p,[safeRecipe.id]:recipeDefaults(safeRecipe)}));
     setNotice("Formule EPPPN rétablie.");
   }
 
   async function copyRecipe(){
     const lines=[
-      "EPPPN · Fiches recettes 2025 · p. "+recipe.page,
-      recipe.name+" — "+recipe.subtitle,
-      (modified?"Version personnelle":"Formule EPPPN")+" · "+recipe.fermentation,
-      recipe.mode==="plaques"
-        ? values.trays+" plaque(s) · "+values.trayWidth+" × "+values.trayHeight+" cm"
-        : values.pieces+" pâtons · "+values.pieceWeight+" g",
+      "EPPPN · Fiches recettes 2025 · p. "+safeRecipe.page,
+      safeRecipe.name+" — "+safeRecipe.subtitle,
+      (modified?"Version personnelle":"Formule EPPPN")+" · "+safeRecipe.fermentation,
+      safeRecipe.mode==="plaques"
+        ? safeValues.trays+" plaque(s) · "+safeValues.trayWidth+" × "+safeValues.trayHeight+" cm"
+        : safeValues.pieces+" pâtons · "+safeValues.pieceWeight+" g",
       "",
-      ...amount.quantities.map(i=>i.label+": "+gram(i.grams)+" · "+i.percent+" %"+(i.approximate?" (≈)":"")),
+      ...safeAmount.quantities.map(i=>i.label+": "+gram(i.grams)+" · "+i.percent+" %"+(i.approximate?" (≈)":"")),
       "",
-      "Total : "+gram(amount.dough),
-      "Hydratation ajoutée : "+fmt.format(amount.nominalHydration)+" %"+(amount.effectiveHydration===null?" (hydratation du levain non précisée)":"" ),
+      "Total : "+gram(safeAmount.dough),
+      "Hydratation ajoutée : "+fmt.format(safeAmount.nominalHydration)+" %"+(safeAmount.effectiveHydration===null?" (hydratation du levain non précisée)":"" ),
       "",
       "Protocole :",
-      ...recipe.steps.map(s=>s.name+" : "+s.detail),
-      ...(recipe.bake?[recipe.bake]:[]),
+      ...safeRecipe.steps.map(s=>s.name+" : "+s.detail),
+      ...(safeRecipe.bake?[safeRecipe.bake]:[]),
       "",
       "Les valeurs ajustées ne remplacent pas la fiche officielle."
     ];
@@ -224,8 +228,8 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
 
   function sendToErnesto(){
     const q=question.trim() || "Quels sont les points de vigilance pour réussir cette recette dans mon contexte de travail ?";
-    const context=recipeContextForTutor(recipe,values);
-    onAsk(q,context,recipe.name);
+    const context=recipeContextForTutor(safeRecipe,safeValues);
+    onAsk(q,context,safeRecipe.name);
     setNotice("");
     onClose();
   }
@@ -264,8 +268,8 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
             <Chip active={filter==="favorites"} onClick={()=>setFilter("favorites")}>★</Chip>
           </div>
           <div className="ers-recipeList">
-            {filtered.map(r=><div key={r.id} className={"ers-recipeRow"+(r.id===recipe.id?" is-selected":"")}>
-              <button className="ers-selectRecipe" onClick={()=>choose(r.id)} type="button" aria-current={r.id===recipe.id?"true":undefined}>
+            {filtered.map(r=><div key={r.id} className={"ers-recipeRow"+(r.id===safeRecipe.id?" is-selected":"")}>
+              <button className="ers-selectRecipe" onClick={()=>choose(r.id)} type="button" aria-current={r.id===safeRecipe.id?"true":undefined}>
                 <span className="ers-page">P. {String(r.page).padStart(2,"0")}</span>
                 <strong>{r.name}</strong>
                 <span>{r.subtitle}</span>
@@ -291,51 +295,51 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
 
           <div className="ers-titleRow">
             <div>
-              <div className="ers-super">02 / FICHE N° {String(recipe.page).padStart(2,"0")} <span>·</span> {GROUP_LABELS[recipe.group]}</div>
-              <h3>{recipe.name}</h3>
-              <p>{recipe.subtitle}</p>
+              <div className="ers-super">02 / FICHE N° {String(safeRecipe.page).padStart(2,"0")} <span>·</span> {GROUP_LABELS[safeRecipe.group]}</div>
+              <h3>{safeRecipe.name}</h3>
+              <p>{safeRecipe.subtitle}</p>
               <button type="button" className="ers-jumpTutor"
                 onClick={()=>tutorRef.current?.scrollIntoView({behavior:"smooth",block:"center"})}>
                 ✳ Une question ? Parler à Ernesto ↗
               </button>
             </div>
-            <div className="ers-formulaState"><span className={modified?"ers-personal":"ers-original"}>{modified?"Ma variante":"Formule EPPPN"}</span><span>Page {recipe.page} / 21</span></div>
+            <div className="ers-formulaState"><span className={modified?"ers-personal":"ers-original"}>{modified?"Ma variante":"Formule EPPPN"}</span><span>Page {safeRecipe.page} / 21</span></div>
           </div>
 
-          <div className="ers-infoLine"><span>FARINE</span><strong>{recipe.flour}</strong></div>
-          {recipe.sourceHydration ? <div className="ers-sourceHydration">Repère d’hydratation dans la fiche : <strong>{recipe.sourceHydration}</strong> <span>· les doses précises figurent ci-dessous</span></div> : null}
+          <div className="ers-infoLine"><span>FARINE</span><strong>{safeRecipe.flour}</strong></div>
+          {safeRecipe.sourceHydration ? <div className="ers-sourceHydration">Repère d’hydratation dans la fiche : <strong>{safeRecipe.sourceHydration}</strong> <span>· les doses précises figurent ci-dessous</span></div> : null}
           <div className="ers-work">
             <div className="ers-calculator">
               <div className="ers-blockTitle"><span>03 / CALCULATEUR</span><strong>Vos quantités</strong></div>
 
-              {recipe.variants?.length ? <div className="ers-variantSwitch" role="group" aria-label="Type de produit">
-                {recipe.variants.map(v=><button key={v.id} type="button"
-                  className={values.variantId===v.id?"is-active":""}
+              {safeRecipe.variants?.length ? <div className="ers-variantSwitch" role="group" aria-label="Type de produit">
+                {safeRecipe.variants.map(v=><button key={v.id} type="button"
+                  className={safeValues.variantId===v.id?"is-active":""}
                   onClick={()=>chooseVariant(v.id)}>{v.label}</button>)}
               </div>:null}
 
               <div className="ers-countGrid">
-                {recipe.mode==="pâtons" ? <>
-                  <Field label={isRoundFocaccia ? "Nombre de focaccias" : "Nombre de pâtons"} min={1} max={5000} value={values.pieces} onChange={v=>patch({pieces:v})}/>
-                  <Field label={isRoundFocaccia ? "Poids par focaccia" : "Poids par pâton"} value={values.pieceWeight} min={50} max={2000} step={5} suffix="g" onChange={v=>patch({pieceWeight:v})}/>
+                {safeRecipe.mode==="pâtons" ? <>
+                  <Field label={isRoundFocaccia ? "Nombre de focaccias" : "Nombre de pâtons"} min={1} max={5000} value={safeValues.pieces} onChange={v=>patch({pieces:v})}/>
+                  <Field label={isRoundFocaccia ? "Poids par focaccia" : "Poids par pâton"} value={safeValues.pieceWeight} min={50} max={2000} step={5} suffix="g" onChange={v=>patch({pieceWeight:v})}/>
                 </> : <>
-                  <Field label="Nombre de plaques" min={1} max={300} value={values.trays} onChange={v=>patch({trays:v})}/>
-                  <Field label="Largeur" min={10} max={200} value={values.trayWidth} suffix="cm" onChange={v=>patch({trayWidth:v})}/>
-                  <Field label="Longueur" min={10} max={200} value={values.trayHeight} suffix="cm" onChange={v=>patch({trayHeight:v})}/>
+                  <Field label="Nombre de plaques" min={1} max={300} value={safeValues.trays} onChange={v=>patch({trays:v})}/>
+                  <Field label="Largeur" min={10} max={200} value={safeValues.trayWidth} suffix="cm" onChange={v=>patch({trayWidth:v})}/>
+                  <Field label="Longueur" min={10} max={200} value={safeValues.trayHeight} suffix="cm" onChange={v=>patch({trayHeight:v})}/>
                 </>}
               </div>
 
               <div className="ers-total">
                 <span>PÂTE À PRÉPARER</span>
-                <strong aria-live="polite">{gram(amount.dough)}</strong>
-                <span>{recipe.mode==="pâtons"
-                  ? values.pieces+" × "+fmt.format(values.pieceWeight)+" g"
-                  : fmt.format(values.trays)+" plaque(s) · "+values.trayWidth+" × "+values.trayHeight+" cm"}</span>
+                <strong aria-live="polite">{gram(safeAmount.dough)}</strong>
+                <span>{safeRecipe.mode==="pâtons"
+                  ? safeValues.pieces+" × "+fmt.format(safeValues.pieceWeight)+" g"
+                  : fmt.format(safeValues.trays)+" plaque(s) · "+safeValues.trayWidth+" × "+safeValues.trayHeight+" cm"}</span>
               </div>
 
               <div className="ers-tableHead"><strong>Ingrédients</strong><span>% farine <b>Poids</b></span></div>
               <div className="ers-ingredients">
-                {amount.quantities.map((i,index)=><div className={"ers-ingredient"+(index===0?" main":"")} key={i.key}>
+                {safeAmount.quantities.map((i,index)=><div className={"ers-ingredient"+(index===0?" main":"")} key={i.key}>
                   <span>{i.label}{i.approximate ? <small>≈ selon farine</small>:null}</span>
                   <span className="ers-percentage">{fmt.format(i.percent)} %</span>
                   <strong>{gram(i.grams)}</strong>
@@ -343,12 +347,12 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
               </div>
 
               <div className="ers-hydrationRow">
-                <div><small>Eau ajoutée / farine</small><strong>{fmt.format(amount.nominalHydration)} %</strong></div>
-                <div><small>Hydratation totale*</small><strong>{amount.effectiveHydration===null?"À préciser":fmt.format(amount.effectiveHydration)+" %"}</strong></div>
+                <div><small>Eau ajoutée / farine</small><strong>{fmt.format(safeAmount.nominalHydration)} %</strong></div>
+                <div><small>Hydratation totale*</small><strong>{safeAmount.effectiveHydration===null?"À préciser":fmt.format(safeAmount.effectiveHydration)+" %"}</strong></div>
               </div>
               <p className="ers-mathCaption">
                 * Avec la farine et l’eau du levain lorsque son hydratation est connue.
-                {recipe.potato>0?" L’eau contenue dans les pommes de terre n’est pas estimée.":""}
+                {safeRecipe.potato>0?" L’eau contenue dans les pommes de terre n’est pas estimée.":""}
                 {" "}Bassinage indicatif, à adapter à l’absorption réelle de la farine.
               </p>
 
@@ -357,15 +361,15 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
                 <div className="ers-adjustBody">
                   <p>Les modifications créent une variante personnelle. La fiche EPPPN reste inchangée.</p>
                   <div className="ers-adjustGrid">
-                    <Field label="Eau de coulage" value={values.water} suffix="%" step={0.5} max={120} onChange={v=>patch({water:v})}/>
-                    <Field label="Bassinage ≈" value={values.bassinage} suffix="%" step={0.5} max={120} onChange={v=>patch({bassinage:v})}/>
-                    <Field label="Sel" value={values.salt} suffix="%" step={0.1} max={20} onChange={v=>patch({salt:v})}/>
-                    {recipe.yeast>0?<Field label="Levure fraîche" value={values.yeast} suffix="%" step={0.05} max={20} onChange={v=>patch({yeast:v})}/>:null}
-                    {recipe.levain>0?<Field label="Levain naturel" value={values.levain} suffix="%" step={0.5} max={100} onChange={v=>patch({levain:v})}/>:null}
-                    {recipe.oil>0?<Field label="Huile d’olive" value={values.oil} suffix="%" step={0.5} max={50} onChange={v=>patch({oil:v})}/>:null}
-                    {recipe.potato>0?<Field label="Pommes de terre" value={values.potato} suffix="%" step={0.5} max={100} onChange={v=>patch({potato:v})}/>:null}
-                    {recipe.levain>0?<div className="ers-hydrInput"><Field label="Hydratation du levain" value={values.levainHydration} suffix="%" step={5} max={250} onChange={v=>patch({levainHydration:v})}/>
-                      {values.levainHydration===null?<small>Non précisée par la fiche : saisissez votre valeur réelle pour calculer le TH total.</small>:<button type="button" onClick={()=>patch({levainHydration:null})}>Non précisée</button>}
+                    <Field label="Eau de coulage" value={safeValues.water} suffix="%" step={0.5} max={120} onChange={v=>patch({water:v})}/>
+                    <Field label="Bassinage ≈" value={safeValues.bassinage} suffix="%" step={0.5} max={120} onChange={v=>patch({bassinage:v})}/>
+                    <Field label="Sel" value={safeValues.salt} suffix="%" step={0.1} max={20} onChange={v=>patch({salt:v})}/>
+                    {safeRecipe.yeast>0?<Field label="Levure fraîche" value={safeValues.yeast} suffix="%" step={0.05} max={20} onChange={v=>patch({yeast:v})}/>:null}
+                    {safeRecipe.levain>0?<Field label="Levain naturel" value={safeValues.levain} suffix="%" step={0.5} max={100} onChange={v=>patch({levain:v})}/>:null}
+                    {safeRecipe.oil>0?<Field label="Huile d’olive" value={safeValues.oil} suffix="%" step={0.5} max={50} onChange={v=>patch({oil:v})}/>:null}
+                    {safeRecipe.potato>0?<Field label="Pommes de terre" value={safeValues.potato} suffix="%" step={0.5} max={100} onChange={v=>patch({potato:v})}/>:null}
+                    {safeRecipe.levain>0?<div className="ers-hydrInput"><Field label="Hydratation du levain" value={safeValues.levainHydration} suffix="%" step={5} max={250} onChange={v=>patch({levainHydration:v})}/>
+                      {safeValues.levainHydration===null?<small>Non précisée par la fiche : saisissez votre valeur réelle pour calculer le TH total.</small>:<button type="button" onClick={()=>patch({levainHydration:null})}>Non précisée</button>}
                     </div>:null}
                   </div>
                   <button className="ers-reset" type="button" onClick={resetRecipe}>↺ Rétablir la fiche originale</button>
@@ -382,15 +386,15 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
             <aside className="ers-protocol">
               <div className="ers-blockTitle"><span>04 / PROCÉDÉ</span><strong>De la pâte au four</strong></div>
               <div className="ers-processMeta">
-                <div><span>Fermentation</span><strong>{recipe.fermentation}</strong></div>
-                {recipe.targetDoughTemp?<div><span>Température pâte</span><strong>{recipe.targetDoughTemp}</strong></div>:null}
+                <div><span>Fermentation</span><strong>{safeRecipe.fermentation}</strong></div>
+                {safeRecipe.targetDoughTemp?<div><span>Température pâte</span><strong>{safeRecipe.targetDoughTemp}</strong></div>:null}
               </div>
               <ol className="ers-steps">
-                {recipe.steps.map((step,i)=><li key={i}><span className="ers-stepIndex">{String(i+1).padStart(2,"0")}</span><div><strong>{step.name}</strong><p>{step.detail}</p></div></li>)}
+                {safeRecipe.steps.map((step,i)=><li key={i}><span className="ers-stepIndex">{String(i+1).padStart(2,"0")}</span><div><strong>{step.name}</strong><p>{step.detail}</p></div></li>)}
               </ol>
-              {recipe.bake?<div className="ers-bake"><span>CUISSON · SOURCE</span><strong>{recipe.bake}</strong></div>:null}
-              {recipe.sourceNotes?.length?<div className="ers-note"><strong>Repères EPPPN</strong>{recipe.sourceNotes.map((n,i)=><p key={i}>{n}</p>)}</div>:null}
-              {recipe.caution?<div className="ers-caution"><strong>Point à vérifier</strong><p>{recipe.caution}</p></div>:null}
+              {safeRecipe.bake?<div className="ers-bake"><span>CUISSON · SOURCE</span><strong>{safeRecipe.bake}</strong></div>:null}
+              {safeRecipe.sourceNotes?.length?<div className="ers-note"><strong>Repères EPPPN</strong>{safeRecipe.sourceNotes.map((n,i)=><p key={i}>{n}</p>)}</div>:null}
+              {safeRecipe.caution?<div className="ers-caution"><strong>Point à vérifier</strong><p>{safeRecipe.caution}</p></div>:null}
 
               <div className="ers-tutor" ref={tutorRef}>
                 <div className="ers-tutorTop"><span aria-hidden="true">✳</span><div><strong>Un doute ? Ernesto est là.</strong><small>La recette et vos doses suivent la question.</small></div></div>
@@ -403,7 +407,7 @@ export default function ErnestoRecipeStudio({open,onClose,onAsk,accountId,access
               </div>
             </aside>
           </div>
-          <div className="ers-bottomNotes">Fiches recettes EPPPN 2025 · Source p. {recipe.page} · Calcul en pourcentages boulangers, sans génération IA. {storageKey?"Vos préférences restent sur cet appareil.":""}</div>
+          <div className="ers-bottomNotes">Fiches recettes EPPPN 2025 · Source p. {safeRecipe.page} · Calcul en pourcentages boulangers, sans génération IA. {storageKey?"Vos préférences restent sur cet appareil.":""}</div>
         </div>
       </div>
     </section>
