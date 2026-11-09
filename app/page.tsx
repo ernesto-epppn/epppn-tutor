@@ -2932,10 +2932,12 @@ export default function Page() {
         </div>
       </div>
       <ErnestoRecipeStudio
+        key={session?.user?.id || "guest"}
         open={Boolean(session) && recipeStudioOpen}
         onClose={() => setRecipeStudioOpen(false)}
         onAsk={askFromRecipe}
         accountId={session?.user?.id}
+        accessToken={session?.access_token}
       />
     </main>
   );
