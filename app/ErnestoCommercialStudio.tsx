@@ -166,6 +166,11 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
  },[entries,month]);
  const formulaPrices=cost.prices;
  const ingredients=calc?.quantities||[];
+ const priceableIngredients=ingredients.filter(i=>i.grams>0.01&&!["eau","bassinage"].includes(i.key));
+ const pricedIngredientCount=priceableIngredients.filter(i=>Object.prototype.hasOwnProperty.call(cost.prices,i.key)).length;
+ const pricesComplete=priceableIngredients.length>0&&pricedIngredientCount===priceableIngredients.length;
+ const readyForMargin=pricesComplete&&cost.sellingPriceTtc>0&&cost.vatRate!=="";
+
  const subtotal=ingredients.reduce((sum,i)=>sum+i.grams/1000*(formulaPrices[i.key]||0),0);
  const isTray=recipe?.mode==="plaques";
  const units=calc?(isTray?calc.trays:calc.pieces):1;
@@ -244,98 +249,113 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
  return <div className="ecf-layer" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
   <section className="ecf-shell" role="dialog" aria-modal="true" aria-labelledby="ecf-title">
    <header className="ecf-head"><div className="ecf-monogram" aria-hidden="true">E</div><div>
-    <small>ERNESTO / OUTILS PROFESSIONNELS</small><h2 id="ecf-title">Commercial</h2>
+    <small>ERNESTO / EPPPN</small><h2 id="ecf-title">Commercial</h2>
     </div><div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
       <button type="button" className="ecf-close" ref={closeRef} onClick={onClose} aria-label="Fermer Commercial">×</button></div>
    </header>
    <div className="ecf-tabs" role="tablist" aria-label="Commercial">
     <button type="button" role="tab" aria-selected={tab==="cost"} className={tab==="cost"?"active":""}
-     onClick={()=>setTab("cost")}>Coût & marge</button>
+     onClick={()=>setTab("cost")}>Marge</button>
     <button type="button" role="tab" aria-selected={tab==="journal"} className={tab==="journal"?"active":""}
-     onClick={()=>setTab("journal")}>Journal des ventes & dépenses</button>
+     onClick={()=>setTab("journal")}>Recettes & dépenses</button>
    </div>
    <div className="ecf-content">
     {error?<div className="ecf-error" role="alert">{error}</div>:null}
     {notice?<div className="ecf-ok" role="status">{notice}</div>:null}
     {loading?<div className="ecf-muted">Chargement de vos données…</div>:null}
     {tab==="cost" ? <>
-      <div className="ecf-sectionTitle"><small>01 / RENTABILITÉ</small><h3>Combien me rapporte chaque vente ?</h3>
-       <p>Choisissez une fiche EPPPN, puis saisissez vos prix d’achat réels. Les grammes viennent directement du carnet des recettes.</p>
-      </div>
+      <div className="ecf-sectionTitle"><h3>Coût & marge</h3></div>
       <div className="ecf-costGrid">
        <section className="ecf-card">
         <label className="ecf-field"><span>Recette EPPPN</span><select value={recipeId} onChange={e=>setRecipeId(e.target.value)}>
           {recipes.map(r=><option value={r.id} key={r.id}>{r.name} · {r.subtitle}</option>)}</select></label>
         {!recipe? <p className="ecf-muted">{recipeLoading?"Chargement des recettes…":"Recettes indisponibles."}</p> :
-        <><p className="ecf-batch">Formule originale · {isTray?calc?.trays+" plaque":calc?.pieces+" pâtons"} · {N.format(calc?.dough||0)} g de pâte</p>
-         <div className="ecf-priceHead"><span>Ingrédient</span><span>Dans la formule</span><span>Prix d'achat HT / kg</span></div>
-         {ingredients.map(i=><div key={i.key} className="ecf-ingredientRow">
-          <span>{i.label}</span><small>{N.format(i.grams)} g</small>
-          <CostNumber value={cost.prices[i.key]||0} unit="€/kg" onChange={v=>patchCost({prices:{...formulaPrices,[i.key]:v}})}/>
-         </div>)}
-        </>}
-        <p className="ecf-hint">Prix en € HT/kg, eau et produits compris. Une valeur à 0 € signifie « non chiffré » : le résultat sous-estime alors le coût réel.</p>
-        <div className="ecf-inputColumns">
+         <>
+          <p className="ecf-batch">{isTray?calc?.trays+" plaque(s)":calc?.pieces+" pâtons"} · {N.format(calc?.dough||0)} g de pâte</p>
+          <details className="ecf-optional" key={"ingredients-"+recipeId}>
+           <summary>Prix d'achat des ingrédients <span>{pricedIngredientCount}/{priceableIngredients.length} renseignés</span></summary>
+           <div className="ecf-optionalBody">
+            <div className="ecf-priceHead"><span>Ingrédient</span><span>Quantité</span><span>Prix HT/kg</span></div>
+            {ingredients.map(i=><div key={i.key} className="ecf-ingredientRow">
+              <span>{i.label}</span><small>{N.format(i.grams)} g</small>
+              <CostNumber value={cost.prices[i.key]??0} unit="€/kg" onChange={v=>patchCost({prices:{...formulaPrices,[i.key]:v}})}/>
+            </div>)}
+            <p className="ecf-hint">Indiquez 0 € si l'ingrédient est réellement gratuit. Pour calculer une marge, renseignez tous les autres prix hors eau.</p>
+           </div>
+          </details>
+         </>}
+       </section>
+       <section className="ecf-card ecf-result">
+        <div className="ecf-blockLabel">PRIX DE VENTE</div>
+        <label className="ecf-field"><span>Prix affiché TTC / {isTray?"plaque":"pizza ou pain"}</span>
+         <CostNumber value={cost.sellingPriceTtc} onChange={v=>patchCost({sellingPriceTtc:v})}/></label>
+        <label className="ecf-field"><span>TVA applicable au produit (à vérifier)</span><VatSelect value={cost.vatRate} onChange={v=>patchCost({vatRate:v})}/></label>
+        <div className="ecf-marginHero" aria-live="polite">
+          <span>Marge estimée / {isTray?"plaque":"unité"}</span>
+          <strong className={readyForMargin&&margin!==null&&margin<0?"negative":""}>
+            {!readyForMargin?"À compléter":EUR.format(margin??0)}
+          </strong>
+          {readyForMargin&&marginRate!==null?<small>{P.format(marginRate)} % du prix HT</small>:null}
+        </div>
+        <div className="ecf-costLine"><span>Coût matières / unité</span>
+          <strong>{pricesComplete?EUR.format(ingredientPerUnit):"—"}</strong></div>
+        <div className="ecf-costLine"><span>Coût variable / unité</span>
+          <strong>{pricesComplete?EUR.format(totalPerUnit):"—"}</strong></div>
+        {!pricesComplete?<p className="ecf-hint">Saisissez les prix des ingrédients pour calculer le coût réel de la recette.</p>:null}
+        <details className="ecf-optional ecf-optionalCosts">
+          <summary>Autres coûts de production <span>Facultatif</span></summary>
+          <div className="ecf-optionalBody">
+                    <div className="ecf-inputColumns">
          {([["toppingsPerUnit","Garniture"],["packagingPerUnit","Emballage"],["energyPerUnit","Énergie"],["laborPerUnit","Main-d’œuvre directe"],["otherPerUnit","Autres coûts variables"]] as [keyof CostSettings,string][]).map(([k,label])=>
           <label className="ecf-field" key={k}><span>{label} · €/unité</span>
            <CostNumber value={Number(cost[k])||0} onChange={v=>patchCost({[k]:v})}/></label>
          )}
         </div>
-       </section>
-       <section className="ecf-card ecf-result">
-        <div className="ecf-blockLabel">VOTRE PRIX DE VENTE</div>
-        <label className="ecf-field"><span>Prix affiché TTC / {isTray?"plaque":"pizza ou pain"}</span>
-         <CostNumber value={cost.sellingPriceTtc} onChange={v=>patchCost({sellingPriceTtc:v})}/></label>
-        <label className="ecf-field"><span>TVA applicable au produit (à vérifier)</span><VatSelect value={cost.vatRate} onChange={v=>patchCost({vatRate:v})}/></label>
-        <div className="ecf-kpis">
-         <div><small>Coût matières / unité</small><strong>{EUR.format(ingredientPerUnit)}</strong></div>
-         <div><small>Coût variable estimé / unité</small><strong>{EUR.format(totalPerUnit)}</strong></div>
-         <div><small>Marge sur coûts variables / unité</small>
-          <strong className={margin!==null&&margin<0?"negative":""}>{margin===null?"TVA à préciser":EUR.format(margin)}</strong></div>
-         <div><small>Taux de marque (marge / prix HT)</small><strong>{marginRate===null?"—":P.format(marginRate)+" %"}</strong></div>
-        </div>
-        <div className="ecf-marginBar" aria-hidden="true"><span style={{width:(costRate===null?0:Math.min(100,Math.max(0,costRate)))+"%"}}/></div>
-        <p className="ecf-hint">Marge = prix de vente HT − coût variable estimé. Ce n'est <strong>pas</strong> le bénéfice net : loyer, cotisations, charges fixes, amortissements et fiscalité restent à traiter séparément.</p>
-        <div className="ecf-breakEven">
-          <label className="ecf-field"><span>Charges fixes mensuelles estimées (optionnel)</span>
-            <CostNumber value={cost.monthlyFixed} onChange={v=>patchCost({monthlyFixed:v})}/></label>
-          {cost.monthlyFixed>0?<div><span>Ventes pour couvrir ces charges *</span>
-            <strong>{breakEven===null?"Marge positive et TVA nécessaires":N.format(breakEven)+" unités / mois"}</strong></div>:null}
-          <small>* Estimation théorique si tous les articles vendus ont la même marge. Ne tient pas compte des variations de ventes, charges sociales ni de l'impôt.</small>
-        </div>
+            <label className="ecf-field ecf-monthlyField"><span>Charges fixes mensuelles estimées</span>
+              <CostNumber value={cost.monthlyFixed} onChange={v=>patchCost({monthlyFixed:v})}/></label>
+            {cost.monthlyFixed>0?<p className="ecf-hint">
+              Seuil théorique : {readyForMargin&&breakEven!==null?N.format(breakEven)+" ventes/mois":"marge positive requise"}.
+              Hypothèse d'une marge constante par vente.</p>:null}
+          </div>
+        </details>
+        <p className="ecf-hint">Marge avant charges fixes, cotisations et impôts. Ce n'est pas le bénéfice net.</p>
         <button type="button" className="ecf-primary" disabled={working||!recipe} onClick={()=>void storeCost()}>Enregistrer ce calcul</button>
        </section>
       </div>
     </> : <>
-     <div className="ecf-sectionTitle"><small>02 / JOURNAL SIMPLIFIÉ</small><h3>Suivre les entrées et les sorties</h3>
-      <p>Une opération en quelques secondes. Les montants sont TTC ; l'export CSV peut être transmis au comptable.</p></div>
+     <div className="ecf-sectionTitle"><h3>Journal</h3></div>
      <div className="ecf-journalBar"><label>Choisir le mois <input type="month" value={month} onChange={e=>setMonth(e.target.value)}/></label>
        <div><button type="button" onClick={()=>newRow("vente")}>+ Encaissement</button>
        <button type="button" onClick={()=>newRow("depense")}>+ Dépense</button></div>
      </div>
      <div className="ecf-ledgerTotals">
-      <div><small>VENTES ENCAISSÉES TTC</small><strong>{EUR.format(totals.incomes)}</strong></div>
-      <div><small>DÉCAISSEMENTS TTC</small><strong>{EUR.format(totals.outgoings)}</strong></div>
-      <div><small>SOLDE ENREGISTRÉ TTC</small><strong>{EUR.format(totals.balance)}</strong></div>
+      <div><small>Entrées</small><strong>{EUR.format(totals.incomes)}</strong></div>
+      <div><small>Sorties</small><strong>{EUR.format(totals.outgoings)}</strong></div>
+      <div><small>Solde</small><strong>{EUR.format(totals.balance)}</strong></div>
      </div>
      {showForm?<form className="ecf-form" onSubmit={e=>void storeLedger(e)}>
-      <div className="ecf-formTitle"><strong>{editingId?"Modifier l'opération":"Nouvelle opération"}</strong>
+      <div className="ecf-formTitle"><strong>{editingId?"Modifier l'opération":ledger.kind==="vente"?"Nouvelle entrée":"Nouvelle dépense"}</strong>
        <button type="button" onClick={()=>setShowForm(false)} aria-label="Fermer la saisie">×</button></div>
-      <div className="ecf-formGrid">
-       <label className="ecf-field"><span>Type</span><select value={ledger.kind} onChange={e=>{
-         const kind=e.target.value as LedgerKind;setLedger(p=>({...p,kind,category:kind==="vente"?CAT_IN[0]:CAT_OUT[0]}));}}>
-        <option value="vente">Encaissement</option><option value="depense">Dépense</option></select></label>
-       <label className="ecf-field"><span>Date</span><input type="date" required value={ledger.date} onChange={e=>setLedger(p=>({...p,date:e.target.value}))}/></label>
-       <label className="ecf-field"><span>Libellé</span><input required maxLength={160} value={ledger.title}
-        placeholder="Ex. Service du samedi, commande farine…" onChange={e=>setLedger(p=>({...p,title:e.target.value}))}/></label>
-       <label className="ecf-field"><span>Catégorie</span><select value={ledger.category} onChange={e=>setLedger(p=>({...p,category:e.target.value}))}>
-         {(ledger.kind==="vente"?CAT_IN:CAT_OUT).map(v=><option key={v}>{v}</option>)}</select></label>
-       <label className="ecf-field"><span>Montant TTC</span><CostNumber value={ledger.amountTtc} onChange={v=>setLedger(p=>({...p,amountTtc:v}))}/></label>
-       <label className="ecf-field"><span>TVA de l'opération</span><VatSelect value={ledger.vatRate} onChange={v=>setLedger(p=>({...p,vatRate:v}))}/></label>
-       <label className="ecf-field"><span>Mode de règlement</span><select value={ledger.payment} onChange={e=>setLedger(p=>({...p,payment:e.target.value}))}>
-        {CHOICES.map(x=><option key={x}>{x}</option>)}</select></label>
-       <label className="ecf-field"><span>Note facultative</span><input maxLength={500} value={ledger.note} onChange={e=>setLedger(p=>({...p,note:e.target.value}))}/></label>
+      <div className="ecf-formGrid ecf-formGridPrimary">
+        <label className="ecf-field"><span>Date</span><input type="date" required value={ledger.date} onChange={e=>setLedger(p=>({...p,date:e.target.value}))}/></label>
+        <label className="ecf-field"><span>Montant TTC</span><CostNumber value={ledger.amountTtc} onChange={v=>setLedger(p=>({...p,amountTtc:v}))}/></label>
+        <label className="ecf-field ecf-formWide"><span>Libellé</span><input required maxLength={160} value={ledger.title}
+         placeholder="Service du midi, achat farine…" onChange={e=>setLedger(p=>({...p,title:e.target.value}))}/></label>
       </div>
+      <details className="ecf-optional ecf-ledgerExtra">
+        <summary>Catégorie, TVA et règlement <span>Facultatif</span></summary>
+        <div className="ecf-optionalBody ecf-formGrid">
+          <label className="ecf-field"><span>Type</span><select value={ledger.kind} onChange={e=>{
+            const kind=e.target.value as LedgerKind;setLedger(p=>({...p,kind,category:kind==="vente"?CAT_IN[0]:CAT_OUT[0]}));}}>
+            <option value="vente">Entrée</option><option value="depense">Dépense</option></select></label>
+          <label className="ecf-field"><span>Catégorie</span><select value={ledger.category} onChange={e=>setLedger(p=>({...p,category:e.target.value}))}>
+            {(ledger.kind==="vente"?CAT_IN:CAT_OUT).map(v=><option key={v}>{v}</option>)}</select></label>
+          <label className="ecf-field"><span>TVA</span><VatSelect value={ledger.vatRate} onChange={v=>setLedger(p=>({...p,vatRate:v}))}/></label>
+          <label className="ecf-field"><span>Mode de règlement</span><select value={ledger.payment} onChange={e=>setLedger(p=>({...p,payment:e.target.value}))}>
+            {CHOICES.map(x=><option key={x}>{x}</option>)}</select></label>
+          <label className="ecf-field ecf-formWide"><span>Note</span><input maxLength={500} value={ledger.note} onChange={e=>setLedger(p=>({...p,note:e.target.value}))}/></label>
+        </div>
+      </details>
       <div className="ecf-formActions"><button type="submit" className="ecf-primary" disabled={working}>Enregistrer</button>
         <button type="button" onClick={()=>setShowForm(false)}>Annuler</button></div>
      </form>:null}
