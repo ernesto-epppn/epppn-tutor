@@ -1,0 +1,217 @@
+/* Aide contextuelle et finition visuelle, novembre 2026.
+   Une seule aide par rubrique, accessible au clavier, sans fenêtre modale. */
+:root {
+  --ern-paper: #f8f7f3;
+  --ern-white: #fffefa;
+  --ern-line: #e1ded8;
+  --ern-warm: #a7795e;
+}
+
+.appRoot .appFrame,
+.appRoot .workspace.ernestoHomeActive {
+  background: var(--ern-paper) !important;
+}
+
+.appRoot .ernestoHomeIntro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard {
+  background: #fffefa !important;
+  border-color: #e3dfd8 !important;
+  border-radius: 11px !important;
+  box-shadow: 0 2px 10px rgba(54, 45, 36, .045) !important;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, transform .15s ease !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
+  background: #fff !important;
+  border-color: #b9a594 !important;
+  box-shadow: 0 6px 17px rgba(54, 45, 36, .075) !important;
+  transform: translateY(-1px) !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover .ernestoHomeCardIcon {
+  color: #8a624c !important;
+}
+.appRoot .ernestoHomeDossierList {
+  border-color: #e3dfd8;
+  background: #fffefa;
+}
+.appRoot .ernestoHomeDossier:hover {
+  background: #f8f5f0;
+}
+.appRoot .ernestoToolsRail {
+  background: #f8f7f3;
+  border-color: #e7e2da;
+  border-radius: 12px;
+}
+.appRoot .ernestoToolLink.is-current {
+  position: relative;
+}
+@media(min-width:741px) {
+  .appRoot .ernestoToolLink.is-current::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 25%;
+    bottom: 25%;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--ern-warm);
+  }
+}
+.appRoot .ernestoGlobalTopbar {
+  border-color: #e6e1d8;
+}
+
+.ernestoHomeIntro,
+.ernestoGlobalTopbar,
+.ers-topbar,
+.ecf-head,
+.eas-header,
+.enote-header {
+  position: relative;
+  z-index: 20;
+}
+
+.ernestoHelp {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  font-family: var(--ern-editorial-ui), "Helvetica Neue", Arial, sans-serif;
+  color: #354650;
+  text-align: left;
+}
+.ernestoHelp > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #e1ddd5;
+  border-radius: 8px;
+  background: #fffefa;
+  color: #52616a;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.ernestoHelp > summary::-webkit-details-marker { display: none; }
+.ernestoHelp > summary::marker { content: ""; }
+.ernestoHelp > summary:hover,
+.ernestoHelp[open] > summary {
+  color: #614e41;
+  border-color: #c9b9aa;
+  background: #f9f6f1;
+}
+.ernestoHelp > summary:focus-visible {
+  outline: 2px solid #31566a;
+  outline-offset: 3px;
+}
+.ernestoHelpMark {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #b2a69b;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  color: #886a55;
+}
+.ernestoHelpPanel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 200;
+  width: min(345px, calc(100vw - 30px));
+  max-height: min(65dvh, 530px);
+  overflow-y: auto;
+  padding: 18px 19px 17px;
+  border: 1px solid #dcd8d0;
+  border-radius: 11px;
+  background: #fffefa;
+  box-shadow: 0 13px 33px rgba(40, 42, 39, .13);
+  line-height: 1.5;
+}
+.ernestoHelpTitle {
+  display: block;
+  margin-bottom: 10px;
+  color: #273840;
+  font-size: 15px;
+  font-weight: 600;
+}
+.ernestoHelpPanel ol {
+  margin: 0 0 8px;
+  padding: 0 0 0 20px;
+}
+.ernestoHelpPanel li {
+  margin: 0 0 8px;
+  padding-left: 3px;
+  color: #425158;
+  font-size: 13px;
+  font-weight: 400;
+}
+.ernestoHelpPanel li::marker {
+  color: #a7795e;
+  font-weight: 600;
+}
+.ernestoHelpNote {
+  margin: 11px 0 12px;
+  padding: 9px 0 0;
+  border-top: 1px solid #ece7df;
+  color: #606669;
+  font-size: 12px;
+}
+.ernestoHelpPanel a {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #31566a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ernestoGlobalTopbar > .ernestoHelp { margin-left: auto; }
+.ernestoHelpBodyRow {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 12px;
+  position: relative;
+  z-index: 15;
+}
+.enote-nav > .ernestoHelp > summary,
+.ernestoOverlayNav > .ernestoHelp > summary {
+  min-height: 36px;
+  font-size: 13px;
+}
+.ernestoHomeIntro .ernestoHelp > summary {
+  min-height: 34px;
+}
+@media(max-width:740px) {
+  .appRoot .ernestoToolsRail {
+    border-radius: 12px 12px 0 0 !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
+    transform: none !important;
+  }
+  .ernestoHelpPanel {
+    padding: 16px;
+    max-height: min(55dvh, 420px);
+  }
+  .ernestoHelpBodyRow { margin-bottom: 9px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard {
+    transition: none !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
+    transform: none !important;
+  }
+}
