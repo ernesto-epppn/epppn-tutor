@@ -59,3 +59,12 @@
  .enote-entryTop{align-items:start}
  .enote-entry time{font-size:11px}
 }
+
+/* Optional date of the observed experience, distinct from filing date. */
+.enote-dateField{max-width:260px}
+.enote-dateField input[type="date"]{width:100%;max-width:260px;min-height:43px;cursor:pointer}
+.enote-entryTop time{font-variant-numeric:tabular-nums}
+@media(max-width:520px){
+  .enote-dateField{max-width:none}
+  .enote-dateField input[type="date"]{max-width:none}
+}
