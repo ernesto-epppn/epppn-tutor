@@ -34,10 +34,10 @@ export default function ErnestoHome({
   dossiers, onTutor, onRecipes, onCarnet, onCommercial, onSelectDossier, onAllDossiers,
 }: Props) {
   const actions = [
-    { key: "chat" as const, title: "Tuteur Ernesto", action: onTutor },
-    { key: "recipes" as const, title: "Le carnet des recettes", action: onRecipes },
-    { key: "commercial" as const, title: "Commercial", action: onCommercial },
-    { key: "carnet" as const, title: "Mon carnet", action: onCarnet },
+    { key: "chat" as const, title: "Tuteur Ernesto", subtitle: "Comprendre, expérimenter, progresser", action: onTutor },
+    { key: "recipes" as const, title: "Le carnet des recettes", subtitle: "Retrouver et ajuster une formule", action: onRecipes },
+    { key: "commercial" as const, title: "Commercial", subtitle: "Prix, ventes, stocks et fournisseurs", action: onCommercial },
+    { key: "carnet" as const, title: "Mon carnet", subtitle: "Notes et rapports d’expérience", action: onCarnet },
   ];
 
   const recent = [...dossiers]
@@ -48,6 +48,7 @@ export default function ErnestoHome({
   return <section className="ernestoHomeDashboard" aria-labelledby="ernesto-home-title">
     <header className="ernestoHomeIntro">
       <h1 id="ernesto-home-title">Mon espace</h1>
+      <p className="ernestoEditorialHomeSubtitle">Vos outils, vos dossiers et vos notes.</p>
     </header>
 
     <div className="ernestoHomeCards" aria-label="Choisir un outil">
@@ -57,7 +58,7 @@ export default function ErnestoHome({
         <span className="ernestoHomeCardIcon"><MiniIcon name={action.key}/></span>
         <span className="ernestoHomeCardBody">
           <strong>{action.title}</strong>
-          {action.key==="carnet"?<small>Rapports d’expérience</small>:null}
+          <small className="ernestoEditorialCardSubtitle">{action.subtitle}</small>
         </span>
         <span className="ernestoHomeCardArrow" aria-hidden="true">↗</span>
       </button>)}
