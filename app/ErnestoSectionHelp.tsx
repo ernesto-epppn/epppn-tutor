@@ -78,7 +78,6 @@ export default function ErnestoSectionHelp({ topic }: { topic: HelpTopic }) {
               {help.steps.map((step) => <li key={step}>{step}</li>)}
             </ol>
             {help.note ? <p className="ernestoHelpNote">{help.note}</p> : null}
-            {topic !== "home" ? <a href="/aide" target="_blank" rel="noopener noreferrer">Toutes les aides</a> : null}
           </div>
         </dialog>,
         document.body
