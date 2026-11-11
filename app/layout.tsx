@@ -31,6 +31,7 @@ import "./ernesto-visual-refinement.css";
 import "./ernesto-experience-carnet.css";
 import "./ernesto-workspace-extension.css";
 import "./ernesto-editorial-identity.css";
+import "./ernesto-help-polish.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
