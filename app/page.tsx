@@ -5,6 +5,7 @@ import ErnestoRecipeStudio from "./ErnestoRecipeStudio";
 import ErnestoExperienceCarnet from "./ErnestoExperienceCarnet";
 import ErnestoCommercialStudio from "./ErnestoCommercialStudio";
 import ErnestoHome from "./ErnestoHome";
+import ErnestoSectionHelp from "./ErnestoSectionHelp";
 import {
   ActionFlowchart,
   type ActionFlowchartData,
@@ -2448,6 +2449,7 @@ export default function Page() {
               {workspaceView === "tutor" ? (
                 <span className="ernestoGlobalLocation">/ Tuteur Ernesto</span>
               ) : null}
+              {workspaceView === "tutor" ? <ErnestoSectionHelp topic="tutor" /> : null}
             </div>
           ) : null}
           {session && workspaceView === "home" ? (
