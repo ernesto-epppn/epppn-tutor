@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Recipe } from "./recipeData";
 import { calculateRecipe, recipeDefaults } from "./recipeMath";
 import ErnestoActivityStudio from "./ErnestoActivityStudio";
+import ErnestoSectionHelp from "./ErnestoSectionHelp";
 
 type RecordRow = { id:string; kind:string; payload:Record<string,unknown>; updated_at:string };
 type LedgerKind = "vente" | "depense";
@@ -276,7 +277,9 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
   <section className="ecf-shell" role="dialog" aria-modal="true" aria-labelledby="ecf-title">
    <header className="ecf-head"><div className="ecf-monogram" aria-hidden="true">E</div><div>
     <h2 id="ecf-title">Commercial</h2>
-    </div><div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
+    </div><div className="ernestoOverlayNav">
+      {tab !== "stocks" ? <ErnestoSectionHelp topic={tab==="journal"?"journal":"cost"}/> : null}
+      <button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
       <button type="button" className="ecf-close" ref={closeRef} onClick={onClose} aria-label="Fermer Commercial">×</button></div>
    </header>
    <div className="ecf-tabs" role="tablist" aria-label="Commercial">
