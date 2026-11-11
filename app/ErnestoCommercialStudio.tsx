@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Recipe } from "./recipeData";
 import { calculateRecipe, recipeDefaults } from "./recipeMath";
+import ErnestoActivityStudio from "./ErnestoActivityStudio";
 
 type RecordRow = { id:string; kind:string; payload:Record<string,unknown>; updated_at:string };
 type LedgerKind = "vente" | "depense";
@@ -13,7 +14,7 @@ type Ledger = {
   amountTtc:number; vatRate:VatChoice; payment:string; note:string;
 };
 type CostSettings = {
-  recipeId:string; prices:Record<string,number>;
+  recipeId:string; productName:string; baseIngredientsPerUnit:number; prices:Record<string,number>;
   sellingPriceTtc:number; vatRate:VatChoice;
   packagingPerUnit:number; toppingsPerUnit:number; energyPerUnit:number; laborPerUnit:number;
   otherPerUnit:number; monthlyFixed:number;
@@ -76,7 +77,7 @@ function VatSelect({value,onChange}:{value:VatChoice;onChange:(value:VatChoice)=
  </select>;
 }
 export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,userId,accessToken}:Props){
- const [tab,setTab]=useState<"cost"|"journal">("cost");
+ const [tab,setTab]=useState<"cost"|"journal"|"stocks">("cost");
  const [rows,setRows]=useState<RecordRow[]>([]);
  const [recipes,setRecipes]=useState<Recipe[]>([]);
  const [recipeLoading,setRecipeLoading]=useState(false);
@@ -85,9 +86,9 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const [refresh,setRefresh]=useState(0);
- const [recipeId,setRecipeId]=useState("classique-j1");
+ const [recipeId,setRecipeId]=useState("custom:draft");
  const [cost,setCost]=useState<CostSettings>({
-   recipeId:"classique-j1",prices:{},sellingPriceTtc:0,vatRate:"",
+   recipeId:"custom:draft",productName:"",baseIngredientsPerUnit:0,prices:{},sellingPriceTtc:0,vatRate:"",
    packagingPerUnit:0,toppingsPerUnit:0,energyPerUnit:0,laborPerUnit:0,otherPerUnit:0,monthlyFixed:0
  });
  const [month,setMonth]=useState(MONTH);
@@ -98,7 +99,9 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
  const latest=useRef("");
  const costs=useMemo(()=>rows.filter(r=>r.kind==="costing"),[rows]);
  const entries=useMemo(()=>rows.filter(r=>r.kind==="transaction"),[rows]);
- const recipe=recipes.find(r=>r.id===recipeId)||recipes[0];
+ const isCustom=recipeId.startsWith("custom:");
+ const customProducts=costs.filter(r=>safeText(r.payload.recipeId).startsWith("custom:"));
+ const recipe=isCustom?null:(recipes.find(r=>r.id===recipeId)||null);
  const calc=useMemo(()=>recipe?calculateRecipe(recipe,recipeDefaults(recipe)):null,[recipe]);
  const recorded=useMemo(()=>{
   const saved=costs.find(r=>safeText(r.payload.recipeId)===recipeId)?.payload;
@@ -107,13 +110,13 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
   if(saved.prices&&typeof saved.prices==="object"){
    for(const [k,v] of Object.entries(saved.prices as Record<string,unknown>))prices[k]=safeNumber(v,100000);
   }
-  return {recipeId,prices,sellingPriceTtc:safeNumber(saved.sellingPriceTtc),vatRate:parsedVat(saved.vatRate),
+  return {recipeId,productName:safeText(saved.productName,120),baseIngredientsPerUnit:safeNumber(saved.baseIngredientsPerUnit),prices,sellingPriceTtc:safeNumber(saved.sellingPriceTtc),vatRate:parsedVat(saved.vatRate),
    packagingPerUnit:safeNumber(saved.packagingPerUnit),toppingsPerUnit:safeNumber(saved.toppingsPerUnit),energyPerUnit:safeNumber(saved.energyPerUnit),
    laborPerUnit:safeNumber(saved.laborPerUnit),otherPerUnit:safeNumber(saved.otherPerUnit),monthlyFixed:safeNumber(saved.monthlyFixed)} as CostSettings;
  },[costs,recipeId]);
  useEffect(()=>{
   if(recorded)setCost(recorded);
-  else setCost({recipeId,prices:{},sellingPriceTtc:0,vatRate:"",
+  else setCost({recipeId,productName:"",baseIngredientsPerUnit:0,prices:{},sellingPriceTtc:0,vatRate:"",
    packagingPerUnit:0,toppingsPerUnit:0,energyPerUnit:0,laborPerUnit:0,otherPerUnit:0,monthlyFixed:0});
  },[recorded,recipeId]);
 
@@ -187,7 +190,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
  const subtotal=ingredients.reduce((sum,i)=>sum+i.grams/1000*(formulaPrices[i.key]||0),0);
  const isTray=recipe?.mode==="plaques";
  const units=calc?(isTray?calc.trays:calc.pieces):1;
- const ingredientPerUnit=units>0?subtotal/units:0;
+ const ingredientPerUnit=isCustom?cost.baseIngredientsPerUnit:(units>0?subtotal/units:0);
  const extra=cost.toppingsPerUnit+cost.packagingPerUnit+cost.energyPerUnit+cost.laborPerUnit+cost.otherPerUnit;
  const totalPerUnit=ingredientPerUnit+extra;
  const selling=taxable(cost.sellingPriceTtc,cost.vatRate);
@@ -200,17 +203,26 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
 
  function patchCost(next:Partial<CostSettings>){setCost(p=>({...p,...next}));setNotice("");}
  async function storeCost(){
-  if(!userId||!recipe)return;
+  if(!userId||(!isCustom&&!recipe))return;
+  if(isCustom&&!cost.productName.trim()){
+   setError("Indiquez le nom du produit avant d'enregistrer.");return;
+  }
   setWorking(true);setError("");setNotice("");
   try{
-   const existing=costs.find(r=>safeText(r.payload.recipeId)===recipeId);
-   const body={...cost,recipeId,prices:Object.fromEntries(Object.entries(cost.prices).map(([k,v])=>[k,safeNumber(v,100000)]))};
+   const savedId=recipeId==="custom:draft"?"custom:"+crypto.randomUUID():recipeId;
+   const existing=costs.find(r=>safeText(r.payload.recipeId)===savedId);
+   const body={...cost,productName:safeText(cost.productName,120),baseIngredientsPerUnit:safeNumber(cost.baseIngredientsPerUnit),
+    recipeId:savedId,prices:Object.fromEntries(Object.entries(cost.prices).map(([k,v])=>[k,safeNumber(v,100000)]))};
    const query=supabase.from("ernesto_activity_records");
-   const {error}=existing?
-     await query.update({payload:body,updated_at:new Date().toISOString()}).eq("id",existing.id).eq("user_id",userId):
-     await query.insert({user_id:userId,kind:"costing",payload:body});
-   if(error)throw Error(error.message);
-   setRefresh(n=>n+1);setNotice("Calcul sauvegardé dans votre compte.");
+   const {data:stored,error:saveError}=existing?
+     await query.update({payload:body,updated_at:new Date().toISOString()}).eq("id",existing.id).eq("user_id",userId)
+       .select("id,kind,payload,updated_at").single():
+     await query.insert({user_id:userId,kind:"costing",payload:body})
+       .select("id,kind,payload,updated_at").single();
+   if(saveError)throw Error(saveError.message);
+   if(stored)setRows(prev=>[stored as RecordRow,...prev.filter(row=>row.id!==stored.id)]);
+   if(savedId!==recipeId)setRecipeId(savedId);
+   setNotice("Calcul enregistré dans votre compte.");
   }catch(e){setError(e instanceof Error?e.message:"Sauvegarde impossible.");}
   finally{setWorking(false);}
  }
@@ -271,27 +283,63 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
      onClick={()=>setTab("cost")}>Coût & marge</button>
     <button type="button" role="tab" aria-selected={tab==="journal"} className={tab==="journal"?"active":""}
      onClick={()=>setTab("journal")}>Journal des ventes & dépenses</button>
+    <button type="button" role="tab" aria-selected={tab==="stocks"} className={tab==="stocks"?"active":""}
+     onClick={()=>setTab("stocks")}>Stocks & fournisseurs</button>
    </div>
    <div className="ecf-content">
     {error?<div className="ecf-error" role="alert">{error}</div>:null}
     {notice?<div className="ecf-ok" role="status">{notice}</div>:null}
     {loading?<div className="ecf-muted">Chargement de vos données…</div>:null}
+    {tab==="stocks" ? <ErnestoActivityStudio open={true} embedded={true}
+       onClose={()=>setTab("cost")} onHome={onHome} accountId={userId} supabase={supabase}/> : null}
     {tab==="cost" ? <>
       <div className="ecf-sectionTitle"><h3>Coûts et marges</h3>
       </div>
       <div className="ecf-costGrid">
        <section className="ecf-card">
-        <label className="ecf-field"><span>Recette EPPPN</span><select value={recipeId} onChange={e=>setRecipeId(e.target.value)}>
-          {recipes.map(r=><option value={r.id} key={r.id}>{r.name} · {r.subtitle}</option>)}</select></label>
-        {!recipe? <p className="ecf-muted">{recipeLoading?"Chargement des recettes…":"Recettes indisponibles."}</p> :
-        <><p className="ecf-batch">Formule originale · {isTray?calc?.trays+" plaque":calc?.pieces+" pâtons"} · {N.format(calc?.dough||0)} g de pâte</p>
-         <div className="ecf-priceHead"><span>Ingrédient</span><span>Dans la formule</span><span>Prix d'achat HT / kg</span></div>
-         {ingredients.map(i=><div key={i.key} className="ecf-ingredientRow">
-          <span>{i.label}</span><small>{N.format(i.grams)} g</small>
-          <CostNumber value={cost.prices[i.key]||0} unit="€/kg" onChange={v=>patchCost({prices:{...formulaPrices,[i.key]:v}})}/>
-         </div>)}
-        </>}
-        <p className="ecf-hint">Prix en € HT/kg, eau et produits compris. Une valeur à 0 € signifie « non chiffré » : le résultat sous-estime alors le coût réel.</p>
+        <div className="ecf-sourceChoice" role="group" aria-label="Origine du produit">
+         <button type="button" className={isCustom?"active":""}
+          aria-pressed={isCustom} onClick={()=>setRecipeId(customProducts.length?safeText(customProducts[0].payload.recipeId):"custom:draft")}>
+          Mon produit
+         </button>
+         <button type="button" className={!isCustom?"active":""}
+          aria-pressed={!isCustom} onClick={()=>setRecipeId(recipes[0]?.id||"classique-j1")}>
+          Recette EPPPN
+         </button>
+        </div>
+        {isCustom ? <>
+          {customProducts.length>0?<label className="ecf-field"><span>Mes produits enregistrés</span>
+           <select value={recipeId} onChange={e=>setRecipeId(e.target.value)}>
+            <option value="custom:draft">+ Nouveau produit</option>
+            {customProducts.map(row=><option key={row.id} value={safeText(row.payload.recipeId)}>
+             {safeText(row.payload.productName,120)||"Produit sans nom"}</option>)}
+           </select>
+          </label>:null}
+          <label className="ecf-field"><span>Produit ou pizza</span>
+           <input maxLength={120} value={cost.productName} onChange={e=>patchCost({productName:e.target.value})}
+             placeholder="Ex. Pizza Margherita, focaccia maison…"/>
+          </label>
+          <label className="ecf-field"><span>Coût des ingrédients HT / unité</span>
+           <CostNumber value={cost.baseIngredientsPerUnit} onChange={v=>patchCost({baseIngredientsPerUnit:v})}/>
+          </label>
+          <p className="ecf-hint">Saisissez votre coût réel de pâte et d'ingrédients par unité. Les autres coûts ci-dessous s'ajoutent à ce montant : ne comptez pas deux fois une garniture déjà incluse.</p>
+         </> : <>
+          <label className="ecf-field"><span>Recette EPPPN</span>
+           <select value={recipeId} onChange={e=>setRecipeId(e.target.value)}>
+            {!recipes.length?<option value={recipeId}>Chargement du carnet…</option>:null}
+            {recipes.map(r=><option value={r.id} key={r.id}>{r.name} · {r.subtitle}</option>)}
+           </select>
+          </label>
+          {!recipe?<p className="ecf-muted">{recipeLoading?"Chargement des recettes…":"Recettes indisponibles."}</p>:<>
+           <p className="ecf-batch">{isTray?calc?.trays+" plaque(s)":calc?.pieces+" pâtons"} · {N.format(calc?.dough||0)} g de pâte</p>
+           <div className="ecf-priceHead"><span>Ingrédient</span><span>Dans la formule</span><span>Prix d'achat HT / kg</span></div>
+           {ingredients.map(i=><div key={i.key} className="ecf-ingredientRow">
+            <span>{i.label}</span><small>{N.format(i.grams)} g</small>
+            <CostNumber value={cost.prices[i.key]||0} unit="€/kg" onChange={v=>patchCost({prices:{...formulaPrices,[i.key]:v}})}/>
+           </div>)}
+          </>}
+          <p className="ecf-hint">Les ingrédients sans prix renseigné diminuent artificiellement le coût calculé. Vérifiez vos prix d'achat HT/kg.</p>
+         </>}
         <div className="ecf-inputColumns">
          {([["toppingsPerUnit","Garniture"],["packagingPerUnit","Emballage"],["energyPerUnit","Énergie"],["laborPerUnit","Main-d’œuvre directe"],["otherPerUnit","Autres coûts variables"]] as [keyof CostSettings,string][]).map(([k,label])=>
           <label className="ecf-field" key={k}><span>{label} · €/unité</span>
@@ -301,7 +349,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
        </section>
        <section className="ecf-card ecf-result">
         <div className="ecf-blockLabel">VOTRE PRIX DE VENTE</div>
-        <label className="ecf-field"><span>Prix affiché TTC / {isTray?"plaque":"pizza ou pain"}</span>
+        <label className="ecf-field"><span>Prix affiché TTC / {isTray?"plaque":"unité"}</span>
          <CostNumber value={cost.sellingPriceTtc} onChange={v=>patchCost({sellingPriceTtc:v})}/></label>
         <label className="ecf-field"><span>TVA applicable au produit (à vérifier)</span><VatSelect value={cost.vatRate} onChange={v=>patchCost({vatRate:v})}/></label>
         <div className="ecf-kpis">
@@ -320,7 +368,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
             <strong>{breakEven===null?"Marge positive et TVA nécessaires":N.format(breakEven)+" unités / mois"}</strong></div>:null}
           <small>* Estimation théorique si tous les articles vendus ont la même marge. Ne tient pas compte des variations de ventes, charges sociales ni de l'impôt.</small>
         </div>
-        <button type="button" className="ecf-primary" disabled={working||!recipe} onClick={()=>void storeCost()}>Enregistrer ce calcul</button>
+        <button type="button" className="ecf-primary" disabled={working||(!isCustom&&!recipe)} onClick={()=>void storeCost()}>Enregistrer ce calcul</button>
        </section>
       </div>
     </> : <>
