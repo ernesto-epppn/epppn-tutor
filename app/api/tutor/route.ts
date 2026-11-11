@@ -1012,11 +1012,11 @@ export async function POST(req: Request) {
 
     // User-authored, explicitly enabled experience notes. Never mix them with EPPPN sources.
     // The authenticated user ID is validated above; all reads are scoped to its owner.
-    let personalNotesConsulted: {title:string; body:string; date:string}[] = [];
+    let personalNotesConsulted: {title:string; body:string; experienceDate:string|null}[] = [];
     try {
       const {data: personalRows, error: noteError} = await supabase
         .from("ernesto_experience_notes")
-        .select("title,body,updated_at")
+        .select("title,body,updated_at,experience_date")
         .eq("user_id",userId)
         .eq("use_in_answers",true)
         .order("updated_at",{ascending:false})
@@ -1039,12 +1039,13 @@ export async function POST(req: Request) {
           const matched=tokens.filter((token:string)=>haystack.includes(token.slice(0,Math.min(6,token.length))));
           const score=matched.reduce((total:number,term:string)=>total+
             (titleTokens.includes(term.slice(0,Math.min(6,term.length)))?3:1),0);
-          return {title,body,date:String(note.updated_at||"").slice(0,10),score,matched:matched.length};
+          return {title,body,experienceDate:typeof note.experience_date==="string"
+            ? note.experience_date.slice(0,10) : null,score,matched:matched.length};
         }).filter((note:any)=>note.matched>=2||(note.matched===1&&note.score>=3))
           .sort((a:any,b:any)=>b.score-a.score)
           .slice(0,3);
         personalNotesConsulted=scored.map((note:any)=>({
-          title:note.title||"Sans titre",body:note.body.slice(0,1250),date:note.date
+          title:note.title||"Sans titre",body:note.body.slice(0,1250),experienceDate:note.experienceDate
         }));
       }
     } catch (noteErr) {
@@ -1052,7 +1053,8 @@ export async function POST(req: Request) {
     }
     const personalNotesContext = personalNotesConsulted.length
       ? personalNotesConsulted.map((note,index)=>JSON.stringify({
-          numero:index+1,titre:note.title,date:note.date,observation:note.body
+          numero:index+1,titre:note.title,date_experience:note.experienceDate,
+          observation:note.body
         })).join("\n")
       : "(aucune note personnelle pertinente ou autorisée)";
 
@@ -1107,6 +1109,7 @@ ANALYSE D’IMAGE :
 
 EXPÉRIENCES PERSONNELLES :
 - Les notes du « Mon carnet » sont des observations individuelles de ce stagiaire, jamais des sources officielles EPPPN ou des preuves scientifiques.
+- Le champ date_experience, lorsqu'il existe, désigne le jour de l'essai rapporté par le stagiaire. S'il est absent, n'invente aucune date et ne confonds pas la date de modification de la note avec celle de l'essai.
 - N'y puise que des informations réellement pertinentes pour la question. Distingue l'observation de l'utilisateur, les hypothèses et la recommandation documentée.
 - Si une note a matériellement influencé la réponse, indique-le naturellement (« Dans votre carnet, vous avez noté… »).
 - Ne généralise jamais une observation personnelle à d'autres stagiaires. Ne réutilise pas ses données privées ailleurs.
