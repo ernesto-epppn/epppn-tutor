@@ -164,6 +164,24 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
   return {relevant,incomes,outgoings,balance:incomes-outgoings,taxCollected,taxPaid,
    vatUnknown:relevant.filter(x=>x.vatRate==="").length};
  },[entries,month]);
+ const trend=useMemo(()=>{
+  const [year,number]=month.split("-").map(Number);
+  if(!Number.isFinite(year)||!Number.isFinite(number)||number<1||number>12)return [];
+  const tx=entries.map(r=>parseLedger(r)).filter(v=>/^\\d{4}-\\d{2}-\\d{2}$/.test(v.date));
+  return Array.from({length:6},(_,offset)=>{
+   const when=new Date(Date.UTC(year,number-1-(5-offset),1));
+   const key=when.toISOString().slice(0,7);
+   const relevant=tx.filter(t=>t.date.startsWith(key));
+   return {
+    key,
+    label:when.toLocaleDateString("fr-FR",{month:"short",year:"2-digit",timeZone:"UTC"}),
+    income:relevant.filter(t=>t.kind==="vente").reduce((sum,t)=>sum+t.amountTtc,0),
+    expenses:relevant.filter(t=>t.kind==="depense").reduce((sum,t)=>sum+t.amountTtc,0),
+   };
+  });
+ },[entries,month]);
+ const hasTrend=trend.filter(m=>m.income>0||m.expenses>0).length>=2;
+ const trendMax=Math.max(1,...trend.flatMap(m=>[m.income,m.expenses]));
  const formulaPrices=cost.prices;
  const ingredients=calc?.quantities||[];
  const priceableIngredients=ingredients.filter(i=>i.grams>0.01&&!["eau","bassinage"].includes(i.key));
@@ -333,6 +351,23 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
       <div><small>Sorties</small><strong>{EUR.format(totals.outgoings)}</strong></div>
       <div><small>Solde</small><strong>{EUR.format(totals.balance)}</strong></div>
      </div>
+     {hasTrend?<section className="ecf-trend" aria-label="Évolution des entrées et sorties au cours des six derniers mois">
+      <div className="ecf-trendHead"><strong>Les six derniers mois</strong>
+       <div className="ecf-trendLegend"><span><i/> Entrées</span><span><i/> Sorties</span></div>
+      </div>
+      <div className="ecf-trendBars" role="img"
+       aria-label={trend.map(m=>m.label+": "+EUR.format(m.income)+" d'entrées et "+EUR.format(m.expenses)+" de sorties").join(" ; ")}>
+       {trend.map(m=><div className="ecf-trendMonth" key={m.key}>
+        <div className="ecf-trendPair">
+         <span className="income" title={m.label+" · Entrées : "+EUR.format(m.income)}
+          style={{height:m.income>0?Math.max(3,m.income/trendMax*100)+"%":"0"}}/>
+         <span className="outgoing" title={m.label+" · Sorties : "+EUR.format(m.expenses)}
+          style={{height:m.expenses>0?Math.max(3,m.expenses/trendMax*100)+"%":"0"}}/>
+        </div>
+        <small>{m.label}</small>
+       </div>)}
+      </div>
+     </section>:null}
      {showForm?<form className="ecf-form" onSubmit={e=>void storeLedger(e)}>
       <div className="ecf-formTitle"><strong>{editingId?"Modifier l'opération":ledger.kind==="vente"?"Nouvelle entrée":"Nouvelle dépense"}</strong>
        <button type="button" onClick={()=>setShowForm(false)} aria-label="Fermer la saisie">×</button></div>
