@@ -13,7 +13,10 @@ assert.match(home, /title: "Recettes"/, "Use an unambiguous recipe label");
 assert.doesNotMatch(home, /ernestoHomeCardArrow|ernestoHomeDossierGo/, "Clickable cards and dossier rows need no decorative arrows");
 assert.match(stylesheet, /\.ernestoHomeCards\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s, "Preserve 2x2 layout");
 assert.match(stylesheet, /min-height:\s*96px\s*!important/, "Use compact desktop cards");
-assert.match(layout, /IBM_Plex_Sans\(/, "Use the shared typographic system");
+const globalCSS = read("app/globals.css");
+assert.doesNotMatch(layout, /next\/font\/google/, "Build must not depend on Google Fonts downloads");
+assert.match(layout, /fonts\.googleapis\.com/, "Preserve IBM Plex Sans where browser downloads are available");
+assert.match(globalCSS, /--font-ernesto-ui:\s*"IBM Plex Sans"/, "Keep matching font-family variable and browser fallback");
 assert.match(notes, /setExperienceDate\(todayLocalISO\(\)\)/, "Default new observations to today's local date");
 assert.match(notes, /Autorisée pour les réponses/, "Consent is not evidence of actual note usage");
 
