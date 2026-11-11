@@ -1,0 +1,66 @@
+/* Commercial houses Stocks without nesting a second modal. */
+.ecf-content>.eas-layer.eas-embedded{
+  position:relative!important;inset:auto!important;z-index:auto!important;
+  display:block!important;padding:0!important;overflow:visible!important;
+  height:auto!important;min-height:0!important;width:100%!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;
+}
+.ecf-content>.eas-layer.eas-embedded>.eas-shell{
+  width:100%!important;height:auto!important;max-height:none!important;
+  min-height:0!important;border:0!important;border-radius:0!important;
+  box-shadow:none!important;background:transparent!important;
+  display:block!important;overflow:visible!important;
+}
+.ecf-content>.eas-layer.eas-embedded .eas-body{
+  flex:none!important;overflow:visible!important;min-height:0!important;
+  padding:18px 0 38px!important;
+}
+.ecf-content>.eas-layer.eas-embedded .eas-tabs{
+  padding:0 2px!important;margin:0!important;
+  background:transparent!important;border-color:#e4e4df!important;
+}
+.ecf-content>.eas-layer.eas-embedded .eas-tabs button{
+  font-size:14px!important;color:#596871!important;
+}
+.ecf-content>.eas-layer.eas-embedded .eas-tabs button.active{
+  color:#294e66!important;
+}
+.ecf-content>.eas-layer.eas-embedded .eas-tabs button.active:after{
+  background:#b77450!important;
+}
+.ecf-content>.eas-layer.eas-embedded .eas-header{display:none!important}
+.ecf-sourceChoice{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 17px;
+}
+.ecf-sourceChoice button{
+  min-height:39px;border:1px solid #d9dcd9;border-radius:8px;background:#fff;
+  padding:9px 14px;font-size:13px;font-weight:610;color:#51616b;cursor:pointer;
+}
+.ecf-sourceChoice button:hover{border-color:#a6b5be}
+.ecf-sourceChoice button.active{
+  background:#eaf0f3;border-color:#b7cbd4;color:#294f67;font-weight:680;
+}
+.ecf-sourceChoice+label.ecf-field{margin-top:3px}
+.ecf-card>.ecf-field{margin:0 0 13px}
+.ecf-card>.ecf-field>input{
+  width:100%;min-height:42px;border:1px solid #d8dedb;border-radius:8px;
+  padding:9px 11px;background:#fff;color:#2d4352;font-size:14px;
+}
+.ecf-sourceChoice~p.ecf-hint{margin:5px 0 13px}
+.enote-provenance{font-size:12px;line-height:1.45;color:#657982;margin:8px 0 12px}
+.ernestoHomeCard--carnet .ernestoHomeCardBody{
+  display:flex!important;flex-direction:column;align-items:flex-start!important;gap:4px!important;
+}
+.ernestoHomeCard--carnet .ernestoHomeCardBody small{
+  font-size:13px;line-height:1.32;color:#77868d;letter-spacing:0;font-weight:470;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--carnet .ernestoHomeCardIcon{
+  background:#f3eae3!important;color:#9b6850!important;
+}
+@media(max-width:740px){
+  .ecf-content>.eas-layer.eas-embedded .eas-body{padding:14px 0 38px!important}
+  .ecf-content>.eas-layer.eas-embedded .eas-tabs{gap:20px!important}
+  .ecf-sourceChoice{gap:7px}
+  .ecf-sourceChoice button{flex:1;min-width:0;font-size:12px;padding:9px 7px}
+  .ernestoHomeCard--carnet .ernestoHomeCardBody small{font-size:11px}
+}
