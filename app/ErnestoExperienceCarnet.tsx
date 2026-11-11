@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ErnestoSectionHelp from "./ErnestoSectionHelp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type ExperienceNote = {
@@ -162,6 +163,7 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
           <h2 id="enote-title">Mon carnet</h2>
         </div>
         <div className="enote-nav">
+          <ErnestoSectionHelp topic="carnet"/>
           <button type="button" onClick={onHome}>Accueil</button>
           <button type="button" onClick={onClose} aria-label="Fermer Mon carnet">×</button>
         </div>

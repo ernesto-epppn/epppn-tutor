@@ -1,5 +1,7 @@
 "use client";
 
+import ErnestoSectionHelp from "./ErnestoSectionHelp";
+
 type RecentDossier = {
   id: string;
   title: string;
@@ -48,6 +50,7 @@ export default function ErnestoHome({
   return <section className="ernestoHomeDashboard" aria-labelledby="ernesto-home-title">
     <header className="ernestoHomeIntro">
       <h1 id="ernesto-home-title">Mon espace</h1>
+      <ErnestoSectionHelp topic="home"/>
     </header>
 
     <div className="ernestoHomeCards" aria-label="Choisir un outil">

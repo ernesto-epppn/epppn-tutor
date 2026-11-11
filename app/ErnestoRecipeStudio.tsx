@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import ErnestoSectionHelp from "./ErnestoSectionHelp";
 import type { Recipe, RecipeGroup } from "./recipeData";
 import { formatGrams, formatKilograms, formatDualQuantity } from "./recipeUnits";
 import {
@@ -253,6 +254,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
           <span className="ers-year">Édition 2025</span>
         </div>
         <div className="ernestoOverlayNav">
+          <ErnestoSectionHelp topic="recipes"/>
           <button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
           <button ref={closeRef} className="ers-close" type="button" onClick={onClose}
             aria-label="Fermer le carnet des recettes">×</button>

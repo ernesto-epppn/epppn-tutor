@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import ErnestoSectionHelp from "./ErnestoSectionHelp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Category = "supplier" | "stock" | "profile";
@@ -270,6 +271,7 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
    </div>
 
    <div className="eas-body">
+    <div className="ernestoHelpBodyRow"><ErnestoSectionHelp topic={section==="stock"?"stock":"suppliers"}/></div>
     {error?<div className="eas-error" role="alert">{error}</div>:null}
     {success?<div className="eas-success" role="status">{success}</div>:null}
     {loading?<div className="eas-loading">Chargement de vos données professionnelles…</div>:null}
