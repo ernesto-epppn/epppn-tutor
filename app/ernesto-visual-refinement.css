@@ -1,0 +1,400 @@
+/*
+ * Ernesto — visual refinement, November 2026.
+ * A practical personal workspace, not a generic dashboard.
+ * Styles only. The four actions, modules, saved fields and data graphs remain.
+ * Imported after all module styles, including the four-card layout contract.
+ */
+:root {
+  --ern-ink: #2c3438;
+  --ern-dim: #626a70;
+  --ern-line: #dce0de;
+  --ern-paper: #f8f8f6;
+  --ern-white: #fffefc;
+  --ern-accent: #946a51;
+  --ern-accent-dark: #78533d;
+  --ern-slate: #455663;
+}
+.appRoot .ernestoHomeDashboard,
+.appRoot .ernestoToolsRail,
+.appRoot .ernestoGlobalTopbar,
+.eas-layer, .ecf-layer, .ers-layer {
+  font-family: "Avenir Next", "Avenir", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--ern-ink);
+}
+
+/* Home: four unchanged illustrated destinations, with better proportions. */
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard {
+  max-width: 845px;
+  padding: clamp(21px, 3vw, 37px) clamp(6px, 1.7vw, 17px) 25px;
+}
+.appRoot .ernestoHomeIntro { margin: 0 0 23px; }
+.appRoot .ernestoHomeIntro h1 {
+  margin: 0;
+  font-size: clamp(30px, 3vw, 39px);
+  line-height: 1.17;
+  font-weight: 610;
+  letter-spacing: -.032em;
+  color: var(--ern-ink);
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCards {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard {
+  min-height: 121px !important;
+  padding: 19px 19px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 15px !important;
+  border: 1px solid var(--ern-line) !important;
+  border-radius: 11px !important;
+  background: var(--ern-white) !important;
+  box-shadow: none !important;
+  color: var(--ern-ink) !important;
+  transition: border-color .13s ease, background .13s ease !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
+  background: #f5f4f1 !important;
+  border-color: #aaa9a2 !important;
+  transform: none !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:focus-visible {
+  outline: 2px solid var(--ern-accent) !important;
+  outline-offset: 3px;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon {
+  display: grid !important;
+  place-items: center !important;
+  width: 43px !important;
+  height: 43px !important;
+  flex: 0 0 43px !important;
+  background: #f3f2ef !important;
+  color: #55585a !important;
+  border: 1px solid #e7e5e1;
+  border-radius: 10px !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon svg {
+  width: 23px !important;
+  height: 23px !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody {
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  align-self: center !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody strong {
+  font-size: 18px !important;
+  line-height: 1.35 !important;
+  font-weight: 640 !important;
+  letter-spacing: -.018em;
+  color: var(--ern-ink) !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardArrow {
+  position: static;
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 19px;
+  color: #9b9994;
+}
+.appRoot .ernestoHomeRecent { margin-top: 30px; }
+.appRoot .ernestoHomeRecentHeading h2 {
+  font-size: 17px;
+  font-weight: 620;
+  color: var(--ern-ink);
+  letter-spacing: -.015em;
+}
+.appRoot .ernestoHomeRecentHeading button {
+  font-size: 13px;
+  color: var(--ern-slate);
+  font-weight: 550;
+}
+.appRoot .ernestoHomeDossierList {
+  background: var(--ern-white);
+  border: 1px solid var(--ern-line);
+  border-radius: 10px;
+}
+.appRoot .ernestoHomeDossier {
+  min-height: 52px;
+  padding: 11px 13px;
+  border-color: #e9e9e6;
+}
+.appRoot .ernestoHomeDossier:hover { background: #f5f4f1; }
+.appRoot .ernestoHomeDossierName {
+  font-size: 14px;
+  font-weight: 590;
+  color: var(--ern-ink);
+}
+.appRoot .ernestoHomeDossierMeta { font-size: 12px; color: var(--ern-dim); }
+.appRoot .ernestoHomeDossierGo { color: #8c8c85; }
+.appRoot .ernestoHomeEmpty p { font-size: 13px; color: var(--ern-dim); }
+
+/* Sidebar and the return to Accueil. No pale-green selected states. */
+.appRoot .ernestoToolsRail {
+  background: #f7f6f3;
+  border: 1px solid #e4e4df;
+  border-radius: 15px;
+  box-shadow: none;
+}
+.appRoot .ernestoToolsRail .ernestoToolsHeader { border-color: var(--ern-line); }
+.appRoot .ernestoBrandHomeMark { background: #424b50; }
+.appRoot .ernestoBrandHome strong { color: var(--ern-ink); font-size: 14px; }
+.appRoot .ernestoBrandHome small { color: var(--ern-dim); font-size: 12px; }
+.appRoot .ernestoBrandHome:hover { background: #ededea; }
+.appRoot .ernestoToolLink {
+  font-size: 13px;
+  font-weight: 570;
+  color: #525a5e;
+  -webkit-text-fill-color: #525a5e;
+}
+.appRoot .ernestoToolLink svg { stroke: #6b6f70; }
+.appRoot .ernestoToolLink:hover { background: #ededea; }
+.appRoot .ernestoToolLink.is-current {
+  background: #e8e8e5;
+  border-color: #e8e8e5;
+  color: #2c3438;
+  -webkit-text-fill-color: #2c3438;
+  font-weight: 670;
+  box-shadow: none;
+}
+.appRoot .ernestoToolLink.is-current svg { stroke: #454b4f; }
+.appRoot .ernestoGlobalHome, .ernestoOverlayHome {
+  background: var(--ern-white);
+  color: var(--ern-ink);
+  -webkit-text-fill-color: var(--ern-ink);
+  border-color: #dfe0dd;
+  font-size: 13px;
+  font-weight: 620;
+}
+.appRoot .ernestoGlobalHome:hover, .ernestoOverlayHome:hover { background: #efefeb; }
+.appRoot .ernestoDossierTop.activeProjectStrip.v13 {
+  background: var(--ern-white);
+  border-color: var(--ern-line);
+}
+.appRoot .ernestoDossierTopKicker { color: var(--ern-dim); font-size: 12px; letter-spacing: 0; }
+.appRoot .ernestoDossierTopName { font-size: 14px; }
+.appRoot .ernestoDossierBilan { background: #f1f1ee; color: #424b50; -webkit-text-fill-color: #424b50; }
+
+/* All three working notebooks share one calm typographic system. */
+.eas-layer, .ecf-layer, .ers-layer {
+  color: var(--ern-ink);
+  background: rgba(33,37,38,.48);
+}
+.eas-shell, .ecf-shell, .ers-shell {
+  background: var(--ern-paper);
+  border: 1px solid #e1e2df;
+  border-radius: 14px;
+  box-shadow: 0 19px 55px rgba(27,32,34,.17);
+}
+.eas-header, .ecf-head, .ers-topbar {
+  background: var(--ern-paper);
+  border-color: var(--ern-line);
+  min-height: 72px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.eas-logo, .ecf-monogram, .ers-brandMark {
+  background: #444d52;
+  border-radius: 9px;
+  box-shadow: none;
+}
+.eas-heading>span, .ecf-head>div>small, .ers-brand .ers-eyebrow { display: none; }
+.eas-heading h2, .ecf-head h2, .ers-brand h2 {
+  font-size: 26px;
+  font-weight: 620;
+  line-height: 1.15;
+  letter-spacing: -.027em;
+  color: var(--ern-ink);
+}
+.eas-tabs, .ecf-tabs {
+  background: var(--ern-paper);
+  border-color: var(--ern-line);
+  gap: 25px;
+}
+.eas-tabs button, .ecf-tabs button {
+  padding: 12px 0 13px;
+  font-size: 14px;
+  color: var(--ern-dim);
+  font-weight: 530;
+}
+.eas-tabs button.active, .ecf-tabs button.active { color: var(--ern-ink); font-weight: 660; }
+.eas-tabs button.active:after, .ecf-tabs button.active:after { background: #4c5255; height: 2px; }
+.eas-sectionTitle h3, .ecf-sectionTitle h3 {
+  font-size: 21px;
+  color: var(--ern-ink);
+  letter-spacing: -.016em;
+  font-weight: 625;
+}
+.eas-sectionTitle, .ecf-sectionTitle { margin: 3px 0 15px; }
+.eas-sectionTitle p, .ecf-sectionTitle p, .eas-bodyText {
+  font-size: 13px;
+  color: var(--ern-dim);
+  line-height: 1.55;
+}
+.eas-card, .ecf-card, .eas-form, .ecf-form {
+  background: var(--ern-white);
+  border: 1px solid var(--ern-line);
+  border-radius: 10px;
+  box-shadow: none;
+}
+.eas-card { padding: 14px 15px; }
+.eas-card h4 { font-size: 15px; font-weight: 650; color: var(--ern-ink); }
+.eas-card>div:first-child>span { font-size: 12px; color: var(--ern-dim); letter-spacing: 0; font-weight: 570; }
+.eas-card p, .eas-card small { font-size: 13px; color: var(--ern-dim); }
+.eas-stockDetails { font-size: 13px; color: var(--ern-dim); }
+.eas-stockDetails strong { font-size: 16px; color: var(--ern-ink); }
+.eas-valueSummary small, .ecf-ledgerTotals small {
+  font-size: 12px;
+  color: var(--ern-dim);
+  font-weight: 560;
+  letter-spacing: 0;
+}
+.eas-valueSummary strong, .ecf-ledgerTotals strong { color: var(--ern-ink); font-size: 23px; font-weight: 640; }
+.eas-valueSummary>div, .ecf-ledgerTotals>div {
+  background: var(--ern-white);
+  border: 1px solid var(--ern-line);
+  box-shadow: none;
+}
+.ecf-ledgerTotals>div { border-radius: 10px; }
+.eas-primary, .ecf-primary {
+  background: #404a50 !important;
+  border: 1px solid #404a50 !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 630 !important;
+}
+.eas-primary:hover, .ecf-primary:hover { background: #303a40 !important; }
+.eas-cardActions button, .ecf-actions button, .ecf-rowsHead button { color: var(--ern-slate); font-size: 12px; }
+.eas-field>span, .ecf-field>span {
+  font-size: 13px;
+  font-weight: 570;
+  color: #505a60;
+}
+.eas-field>input, .eas-field>select, .eas-number input,
+.ecf-field>input, .ecf-field select {
+  font-size: 14px;
+  color: var(--ern-ink);
+  border-color: #d7dad8;
+  background: #fff;
+  border-radius: 8px;
+  min-height: 41px;
+}
+.eas-form h4, .ecf-formTitle strong { color: var(--ern-ink); font-size: 16px; font-weight: 620; }
+.eas-privateNote, .eas-legalNote, .ecf-hint, .ecf-bottomHint {
+  font-size: 12px;
+  color: var(--ern-dim);
+  line-height: 1.55;
+}
+.ecf-batch { font-size: 13px; background: #f1f1ee; color: #596268; }
+.ecf-priceHead { font-size: 12px; color: var(--ern-dim); font-weight: 610; }
+.ecf-ingredientRow>span, .ecf-ingredientRow>small { font-size: 13px; color: #465159; }
+.ecf-number input { font-size: 14px; font-weight: 620; color: var(--ern-ink)!important; -webkit-text-fill-color: var(--ern-ink)!important; }
+.ecf-number small { font-size: 12px; color: var(--ern-dim); }
+.ecf-kpis small { font-size: 13px; color: #566167; }
+.ecf-kpis strong { font-size: 19px; font-weight: 660; color: var(--ern-ink); }
+.ecf-marginBar { background: #e4e3df; }
+.ecf-marginBar span { background: #92705c; }
+.ecf-blockLabel { font-size: 12px; color: var(--ern-dim); font-weight: 620; letter-spacing: 0; }
+.ecf-journalBar>label { font-size: 13px; font-weight: 580; color: var(--ern-ink); }
+.ecf-journalBar button { font-size: 13px; border-color: #d5d9d7; background: #efefec; color: var(--ern-ink); }
+.ecf-journalBar button:last-child { background: #fff; color: var(--ern-ink); border-color: #d5d9d7; }
+.ecf-ledgerRow>div:nth-child(2)>strong { font-size: 14px; }
+.ecf-ledgerRow>div:nth-child(2)>small, .ecf-ledgerRow>.ecf-date { font-size: 12px; color: var(--ern-dim); }
+.ecf-ledgerRow>strong { font-size: 14px; }
+.ecf-trend { background: var(--ern-white); border-color: var(--ern-line); }
+.ecf-trendHead strong { font-size: 14px; color: var(--ern-ink); font-weight: 620; }
+.ecf-trendLegend, .ecf-trendMonth>small { font-size: 12px; color: var(--ern-dim); }
+.ecf-trendLegend i, .ecf-trendPair .income { background: #53636d; }
+.ecf-trendLegend span:last-child i, .ecf-trendPair .outgoing { background: #bb9580; }
+.eas-stockLevel { background: #ebeae6; }
+.eas-stockLevel>span { background: #b98d6b; }
+
+/* Recipe notebook: restore neutral surfaces while preserving working controls. */
+.ers-library { background: #f3f3f0; border-right-color: var(--ern-line); }
+.ers-search { border-color: var(--ern-line); border-radius: 8px; }
+.ers-search input { font-size: 14px; color: var(--ern-ink); }
+.ers-libraryIntro strong { font-size: 15px; color: var(--ern-ink); }
+.ers-libraryIntro span, .ers-super, .ers-blockTitle>span, .ers-bake>span {
+  font-size: 12px;
+  font-weight: 570;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ern-dim);
+}
+.ers-chip { color: var(--ern-ink); border-color: #d5d8d5; font-size: 12px; }
+.ers-chip.is-active { background: #414c52; border-color: #414c52; color: #fff; }
+.ers-recipeRow:hover { background: #ededeb; }
+.ers-recipeRow.is-selected { border-color: #cfd4d2; background: var(--ern-white); }
+.ers-page { font-size: 12px; letter-spacing: 0; color: var(--ern-dim); }
+.ers-selectRecipe strong { font-size: 14px; color: var(--ern-ink); }
+.ers-selectRecipe>span:last-child { font-size: 12px; color: var(--ern-dim); }
+.ers-libraryFoot { font-size: 12px; color: var(--ern-dim); }
+.ers-libraryFoot strong { color: var(--ern-ink); }
+.ers-libraryFoot span { font-size: 11px; }
+.ers-bakerHelp>summary { font-size: 12px; color: var(--ern-slate); }
+.ers-bakerExplainer p { font-size: 12px; color: var(--ern-dim); }
+.ers-ingredient .ers-quantity small { font-size: 12px; color: var(--ern-dim); }
+.ers-total .ers-totalKg { color: var(--ern-ink) !important; }
+.ers-brand .ers-eyebrow { display: none; }
+.ers-brandMark { background: #444d52; }
+
+/* Focus state must be visible, even with a less colourful interface. */
+:is(.eas-layer,.ecf-layer,.ers-layer) :is(button,input,select,textarea,a):focus-visible {
+  outline: 2px solid #9d7056;
+  outline-offset: 2px;
+}
+@media(max-width:860px) {
+  .appRoot .ernestoToolsRail { background: #f8f8f6; }
+  .appRoot .ernestoToolLink { font-size: 12px !important; }
+  .appRoot .ernestoToolLink.is-current { background: #e8e8e5 !important; border-color: #d9d9d6 !important; color: var(--ern-ink) !important; -webkit-text-fill-color: var(--ern-ink) !important; }
+  .appRoot .ernestoToolLink.is-current svg { stroke: #444c52 !important; }
+  .eas-layer, .ecf-layer, .ers-layer { background: var(--ern-paper); }
+  .eas-shell, .ecf-shell, .ers-shell { border: 0; border-radius: 0; box-shadow: none; }
+}
+@media(max-width:570px) {
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard { padding: 23px 7px 24px; }
+  .appRoot .ernestoHomeIntro { margin-bottom: 18px; }
+  .appRoot .ernestoHomeIntro h1 { font-size: 31px; }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCards { gap: 9px !important; }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    min-height: 126px !important;
+    padding: 14px 12px !important;
+    gap: 9px !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon {
+    width: 35px !important;
+    height: 35px !important;
+    flex: 0 0 35px !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon svg { width: 20px !important; height: 20px !important; }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody strong {
+    font-size: 15px !important;
+    line-height: 1.23 !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardArrow {
+    position: absolute;
+    top: 10px;
+    right: 11px;
+    font-size: 16px;
+  }
+  .appRoot .ernestoHomeDossierName { font-size: 13px; }
+  .appRoot .ernestoHomeDossierMeta { font-size: 11px; }
+  .eas-heading h2, .ecf-head h2, .ers-brand h2 { font-size: 23px; }
+  .eas-tabs button, .ecf-tabs button { font-size: 13px; }
+  .eas-valueSummary small, .ecf-ledgerTotals small { font-size: 11px; }
+  .eas-valueSummary strong, .ecf-ledgerTotals strong { font-size: 18px; }
+  .eas-field>span, .ecf-field>span { font-size: 12px; }
+  .ecf-ingredientRow>span, .ecf-ingredientRow>small { font-size: 12px; }
+  .ecf-kpis small { font-size: 12px; }
+  .ecf-trendMonth>small { font-size: 10px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard { transition: none !important; }
+}
