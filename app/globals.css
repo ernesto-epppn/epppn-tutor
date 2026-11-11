@@ -1,4 +1,7 @@
 :root {
+  --font-ernesto-ui: "IBM Plex Sans";
+  --font-geist-sans: "Helvetica Neue", Arial, sans-serif;
+  --font-geist-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
   --background: #f7f7f4;
   --foreground: #0f172a;
 }
