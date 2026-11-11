@@ -1,0 +1,61 @@
+/* Mon carnet: writing space, not another management dashboard. */
+.enote-layer,.enote-layer *{box-sizing:border-box}
+.enote-layer{position:fixed;inset:0;z-index:1004;display:grid;place-items:center;padding:18px;background:rgba(27,40,46,.52);font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;color:#263948}
+.enote-shell{display:flex;flex-direction:column;overflow:hidden;width:min(890px,100%);height:min(94dvh,930px);background:#fcfaf6;border:1px solid #e2ded8;border-radius:15px;box-shadow:0 22px 70px rgba(20,35,41,.23)}
+.enote-header{display:flex;align-items:center;gap:13px;padding:17px 22px;background:#fcfaf6;border-bottom:1px solid #e4e2dc;flex-shrink:0}
+.enote-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:9px;background:#315369;color:#fff;font-size:25px;flex-shrink:0}
+.enote-heading{min-width:0}
+.enote-heading h2{font-size:23px;font-weight:650;letter-spacing:-.025em;margin:0;line-height:1.2}
+.enote-heading p{font-size:13px;color:#66747b;margin:3px 0 0}
+.enote-nav{display:flex;align-items:center;gap:8px;margin-left:auto}
+.enote-nav button{border:1px solid #dfe0dc;color:#335064;background:#fff;border-radius:9px;min-height:38px;padding:7px 12px;font-size:13px;cursor:pointer;font-weight:620}
+.enote-nav button:last-child{min-width:38px;padding:0;font-size:22px}
+.enote-nav button:hover{background:#f1f3f3}
+.enote-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:23px clamp(15px,3vw,34px) 50px}
+.enote-intro{font-size:14px;line-height:1.55;color:#65747c;margin:0 0 20px;max-width:650px}
+.enote-form{display:grid;gap:16px;background:#fff;border:1px solid #e1e2de;border-radius:12px;padding:22px;box-shadow:0 4px 17px rgba(30,46,56,.035)}
+.enote-formHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.enote-form h3,.enote-history h3{margin:0;font-size:19px;font-weight:660;letter-spacing:-.018em}
+.enote-textButton{border:0;background:transparent;color:#365b70;cursor:pointer;font-size:13px}
+.enote-field{display:grid;gap:7px;font-size:13px;font-weight:620;color:#41545e}
+.enote-field small{font-weight:400;color:#819097}
+.enote-field input,.enote-field textarea{font-family:inherit;color:#243c4d;font-size:15px;line-height:1.55;width:100%;border:1px solid #d6ddd9;background:#fff;border-radius:8px;min-height:43px;padding:10px 12px;resize:vertical}
+.enote-field textarea{min-height:134px}
+.enote-field :is(input,textarea):focus-visible,.enote-shell button:focus-visible{outline:2px solid #9c745d;outline-offset:2px}
+.enote-consent{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.45;color:#5a686e;cursor:pointer}
+.enote-consent input{width:17px;height:17px;flex-shrink:0;accent-color:#3d6275;margin-top:1px}
+.enote-formFooter{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.enote-formFooter>span{font-size:12px;color:#94a0a3}
+.enote-save{min-height:40px;background:#31566c;color:#fff;border:1px solid #31566c;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:660;cursor:pointer}
+.enote-save:hover{background:#254456}
+.enote-save:disabled{opacity:.6;cursor:default}
+.enote-error,.enote-notice{padding:11px 13px;border:1px solid #ecc7bb;border-radius:8px;background:#fcf1ed;color:#a15d46;font-size:13px}
+.enote-notice{border-color:#cfdfd8;background:#f0f6f1;color:#386e59}
+.enote-history{margin-top:30px}
+.enote-history h3{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.enote-history h3 span{color:#7a8589;font-size:13px;font-weight:500}
+.enote-empty{font-size:14px;color:#829093;margin:18px 0}
+.enote-entry{border:1px solid #e1e2de;background:#fff;border-radius:10px;padding:16px 19px;margin-bottom:11px}
+.enote-entryTop{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.enote-entry h4{font-size:15px;font-weight:650;margin:0;color:#2d485b}
+.enote-entry time{font-size:12px;color:#8a989b;white-space:nowrap}
+.enote-entry p{margin:10px 0 14px;font-size:14px;color:#53646d;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.enote-entryActions{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.enote-entryActions button{font-size:12px;font-weight:580;border:0;background:transparent;color:#355d76;padding:6px 3px;cursor:pointer}
+.enote-entryActions button:hover{text-decoration:underline}
+.enote-entryActions .enote-remove{color:#b17662}
+.enote-entryActions .enote-use{margin-right:auto;color:#687a82}
+.enote-entryActions .enote-use[aria-pressed="true"]{color:#3a7166}
+@media(max-width:700px){
+ .enote-layer{padding:0;background:#fcfaf6}
+ .enote-shell{border:0;border-radius:0;box-shadow:none;width:100%;height:100dvh}
+ .enote-header{padding:13px 15px}
+ .enote-heading h2{font-size:21px}
+ .enote-heading p{font-size:12px}
+ .enote-scroll{padding:17px 13px 60px}
+ .enote-form{padding:16px}
+ .enote-entry{padding:13px}
+ .enote-entryActions{gap:7px}
+ .enote-entryTop{align-items:start}
+ .enote-entry time{font-size:11px}
+}
