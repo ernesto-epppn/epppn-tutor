@@ -276,6 +276,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
   <section className="ecf-shell" role="dialog" aria-modal="true" aria-labelledby="ecf-title">
    <header className="ecf-head"><div className="ecf-monogram" aria-hidden="true">E</div><div>
     <h2 id="ecf-title">Commercial</h2>
+    <p className="ernestoEditorialPanelSubtitle">Vos prix, vos ventes et vos approvisionnements.</p>
     </div><div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
       <button type="button" className="ecf-close" ref={closeRef} onClick={onClose} aria-label="Fermer Commercial">×</button></div>
    </header>
