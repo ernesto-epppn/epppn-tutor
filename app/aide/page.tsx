@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HELP_TOPICS, type HelpTopic } from "../ErnestoSectionHelp";
+import { HELP_TOPICS, type HelpTopic } from "../ernestoHelpTopics";
 import "./aide.css";
 
 const sections: { key: HelpTopic; label: string }[] = [
