@@ -37,7 +37,7 @@ export default function ErnestoHome({
   return <section className="ernestoHomeDashboard" aria-labelledby="ernesto-home-title">
     <header className="ernestoHomeIntro">
       <span className="ernestoHomeLead">ERNESTO  /  EPPPN</span>
-      <h1 id="ernesto-home-title">L’atelier</h1>
+      <h1 id="ernesto-home-title">Mon espace</h1>
     </header>
 
     <div className="ernestoHomeCards" aria-label="Choisir un outil">
