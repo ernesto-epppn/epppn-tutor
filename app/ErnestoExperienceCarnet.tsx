@@ -156,7 +156,7 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
         <div className="enote-mark" aria-hidden="true">✎</div>
         <div className="enote-heading">
           <h2 id="enote-title">Mon carnet</h2>
-          <p>Notes et rapports d’expérience</p>
+          <p>Vos essais, vos résultats, vos observations.</p>
         </div>
         <div className="enote-nav">
           <button type="button" onClick={onHome}>Accueil</button>
