@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Manrope, Spectral } from "next/font/google";
+import { Geist, Geist_Mono, Manrope } from "next/font/google";
 import ErnestoAccountStorageGuard from "./ErnestoAccountStorageGuard";
 import ErnestoUiCleanup from "./ErnestoUiCleanup";
 import ErnestoV144Enhancer from "./ErnestoV144Enhancer";
@@ -47,13 +47,6 @@ const manrope = Manrope({
   subsets: ["latin"],
   display: "swap",
 });
-const spectral = Spectral({
-  variable: "--font-ernesto-editorial",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  display: "swap",
-});
-
 const approvedErnestoIcon = "/logo-ernesto-approved.png";
 
 export const viewport: Viewport = {
@@ -87,7 +80,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable} ${spectral.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable}`}>
         <ErnestoAccountStorageGuard />
         <ErnestoUiCleanup />
         <ErnestoV144Enhancer />
