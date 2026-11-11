@@ -27,6 +27,7 @@ import "./ernesto-commercial-studio.css";
 import "./ernesto-workspace-navigation.css";
 import "./ernesto-home.css";
 import "./ernesto-data-visuals.css";
+import "./ernesto-visual-refinement.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
