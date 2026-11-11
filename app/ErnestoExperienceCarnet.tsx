@@ -8,6 +8,7 @@ type ExperienceNote = {
   user_id: string;
   title: string;
   body: string;
+  experience_date: string | null;
   use_in_answers: boolean;
   created_at: string;
   updated_at: string;
@@ -22,8 +23,13 @@ type Props = {
   prefill?: Prefill;
 };
 const noteDate = (date: string) => {
-  try { return new Intl.DateTimeFormat("fr-FR",{day:"numeric",month:"short",year:"numeric"}).format(new Date(date)); }
-  catch { return ""; }
+  try {
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? new Date(date+"T12:00:00")
+      : new Date(date);
+    return Number.isNaN(parsed.getTime()) ? "" :
+      new Intl.DateTimeFormat("fr-FR",{day:"numeric",month:"short",year:"numeric"}).format(parsed);
+  } catch { return ""; }
 };
 
 export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,userId,prefill}:Props){
@@ -34,6 +40,7 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
   const [notice,setNotice]=useState("");
   const [title,setTitle]=useState("");
   const [body,setBody]=useState("");
+  const [experienceDate,setExperienceDate]=useState("");
   const [useInAnswers,setUseInAnswers]=useState(true);
   const [editingId,setEditingId]=useState<string|null>(null);
   const [refresh,setRefresh]=useState(0);
@@ -45,7 +52,7 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
     setLoading(true);
     setError("");
     void supabase.from("ernesto_experience_notes")
-      .select("id,user_id,title,body,use_in_answers,created_at,updated_at")
+      .select("id,user_id,title,body,experience_date,use_in_answers,created_at,updated_at")
       .eq("user_id",userId)
       .order("updated_at",{ascending:false})
       .limit(200)
@@ -62,6 +69,7 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
     setEditingId(null);
     setTitle("Note issue d’une conversation");
     setBody(prefill.text.slice(0,6000));
+    setExperienceDate("");
     // A copied AI answer should not silently become a personal observation.
     setUseInAnswers(false);
     setNotice("");
@@ -85,11 +93,12 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
   if(!open)return null;
 
   function reset(){
-    setEditingId(null);setTitle("");setBody("");setUseInAnswers(true);
+    setEditingId(null);setTitle("");setBody("");setExperienceDate("");setUseInAnswers(true);
     setError("");setNotice("");
   }
   function edit(note:ExperienceNote){
     setEditingId(note.id);setTitle(note.title);setBody(note.body);
+    setExperienceDate(note.experience_date||"");
     setUseInAnswers(note.use_in_answers);setNotice("");setError("");
     inputRef.current?.focus();
   }
@@ -99,7 +108,9 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
     const cleanBody=body.trim().slice(0,6000);
     if(!cleanBody){setError("Écrivez quelques lignes avant d'enregistrer.");return;}
     setSaving(true);setError("");setNotice("");
-    const payload={title:title.trim().slice(0,140),body:cleanBody,use_in_answers:useInAnswers,updated_at:new Date().toISOString()};
+    const payload={title:title.trim().slice(0,140),body:cleanBody,
+      experience_date:experienceDate||null,
+      use_in_answers:useInAnswers,updated_at:new Date().toISOString()};
     try{
       const result=editingId
         ? await supabase.from("ernesto_experience_notes").update(payload)
@@ -168,6 +179,11 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
             <input value={title} onChange={e=>setTitle(e.target.value.slice(0,140))}
               placeholder="Ex. Pâte trop collante avec la T80" maxLength={140}/>
           </label>
+          <label className="enote-field enote-dateField">
+            <span>Date de l’expérience <small>facultative</small></span>
+            <input type="date" value={experienceDate} onChange={e=>setExperienceDate(e.target.value)}
+              aria-label="Date à laquelle l'expérience a eu lieu" />
+          </label>
           <label className="enote-field">
             <span>Votre observation</span>
             <textarea ref={inputRef} rows={5} value={body}
@@ -192,7 +208,13 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
           {notes.map(note=><article key={note.id} className="enote-entry">
             <div className="enote-entryTop">
               <h4>{note.title||"Sans titre"}</h4>
-              <time dateTime={note.updated_at}>{noteDate(note.updated_at)}</time>
+              {note.experience_date
+                ? <time dateTime={note.experience_date} title="Date de l’expérience">
+                    Expérience du {noteDate(note.experience_date)}
+                  </time>
+                : <time dateTime={note.created_at} title="Date d’enregistrement">
+                    Ajoutée le {noteDate(note.created_at)}
+                  </time>}
             </div>
             <p>{note.body}</p>
             <div className="enote-entryActions">
