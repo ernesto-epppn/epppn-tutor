@@ -351,7 +351,14 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
        <div className="eas-stockDetails"><strong>{fmt.format(p.quantity)} {p.unit}</strong>
          {p.minimum>0?<span>Min. {fmt.format(p.minimum)} {p.unit}</span>:null}
          {p.expiry&&p.dateType!=="Aucune"?<span>{p.dateType} · {p.expiry.split("-").reverse().join("/")}</span>:null}
-       </div></div>
+       </div>
+       {w.low&&p.minimum>0?<div className="eas-stockLevel" role="progressbar"
+         aria-label={"Stock de "+p.name+" par rapport au seuil de réapprovisionnement"}
+         aria-valuemin={0} aria-valuemax={100}
+         aria-valuenow={Math.max(0,Math.min(100,Math.round(100*p.quantity/p.minimum)))}>
+         <span style={{width:Math.max(0,Math.min(100,(p.quantity/p.minimum)*100))+"%"}}/>
+       </div>:null}
+       </div>
        <div className="eas-cardActions"><button onClick={()=>editStock(row)}>Actualiser</button><button className="remove" onClick={()=>void removeRecord(row)} disabled={saving} aria-label={"Supprimer "+p.name} title="Supprimer">×</button></div>
       </article>})}
       {!stocks.length?<div className="eas-blank"><strong>Liste vide</strong><p>Ajoutez une première matière première.</p></div>:null}
