@@ -16,4 +16,28 @@ assert.match(stylesheet, /min-height:\s*96px\s*!important/, "Use compact desktop
 assert.match(layout, /IBM_Plex_Sans\(/, "Use the shared typographic system");
 assert.match(notes, /setExperienceDate\(todayLocalISO\(\)\)/, "Default new observations to today's local date");
 assert.match(notes, /Autorisée pour les réponses/, "Consent is not evidence of actual note usage");
+
+// Contextual help must cover the workspaces and each commercial sub-section.
+const topics = read("app/ErnestoSectionHelp.tsx");
+const helpPage = read("app/aide/page.tsx");
+const recipeStudio = read("app/ErnestoRecipeStudio.tsx");
+const commercial = read("app/ErnestoCommercialStudio.tsx");
+const activity = read("app/ErnestoActivityStudio.tsx");
+const page = read("app/page.tsx");
+const visual = read("app/ernesto-help-polish.css");
+const keys = ["home", "tutor", "recipes", "cost", "journal", "stock", "suppliers", "carnet"];
+for (const key of keys) {
+  assert.match(topics, new RegExp('^\\s*' + key + ': \\{', 'm'), "Missing help content: " + key);
+  assert.match(helpPage, new RegExp('key: "' + key + '"'), "Missing help index link: " + key);
+}
+assert.match(home, /<ErnestoSectionHelp topic="home"\\s*\\/>/, "Home needs in-place help");
+assert.match(page, /<ErnestoSectionHelp topic="tutor"\\s*\\/>/, "Tutor needs in-place help");
+assert.match(recipeStudio, /<ErnestoSectionHelp topic="recipes"\\s*\\/>/, "Recipes need in-place help");
+assert.match(commercial, /<ErnestoSectionHelp topic=\\{tab==="journal"\\?"journal":"cost"\\}\\s*\\/>/, "Cost and journal need help");
+assert.match(activity, /<ErnestoSectionHelp topic=\\{section==="stock"\\?"stock":"suppliers"\\}\\s*\\/>/, "Stock and suppliers need separate help");
+assert.match(notes, /<ErnestoSectionHelp topic="carnet"\\s*\\/>/, "Carnet needs in-place help");
+assert.match(topics, /target="_blank" rel="noopener noreferrer"/, "Help index must not interrupt forms");
+assert.match(layout, /ernesto-help-polish.css/, "Include shared help CSS");
+assert.match(visual, /prefers-reduced-motion/, "Respect reduced motion");
+
 console.log("Ernesto UI contracts verified.");
