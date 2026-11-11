@@ -2,7 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ErnestoRecipeStudio from "./ErnestoRecipeStudio";
-import ErnestoActivityStudio from "./ErnestoActivityStudio";
+import ErnestoExperienceCarnet from "./ErnestoExperienceCarnet";
 import ErnestoCommercialStudio from "./ErnestoCommercialStudio";
 import ErnestoHome from "./ErnestoHome";
 import {
@@ -468,16 +468,18 @@ export default function Page() {
 
   const [message, setMessage] = useState("");
   const [recipeStudioOpen, setRecipeStudioOpen] = useState(false);
-  const [activityStudioOpen, setActivityStudioOpen] = useState(false);
+  const [carnetOpen, setCarnetOpen] = useState(false);
+  const [carnetPrefill,setCarnetPrefill] = useState<{text:string;key:number}|null>(null);
   const [commercialStudioOpen, setCommercialStudioOpen] = useState(false);
   const closeCommercialStudio = React.useCallback(() => setCommercialStudioOpen(false), []);
-  const closeActivityStudio = React.useCallback(() => setActivityStudioOpen(false), []);
+  const closeCarnet = React.useCallback(() => {setCarnetOpen(false);setCarnetPrefill(null);}, []);
   const closeRecipeStudio = React.useCallback(() => setRecipeStudioOpen(false), []);
   const goHome = React.useCallback(() => {
     setWorkspaceView("home");
     setProjectsOpen(false);
     setRecipeStudioOpen(false);
-    setActivityStudioOpen(false);
+    setCarnetOpen(false);
+    setCarnetPrefill(null);
     setCommercialStudioOpen(false);
   }, []);
 
@@ -2244,7 +2246,7 @@ export default function Page() {
             </button>
           </div>
           <nav className="ernestoToolsMenu" aria-label="Espaces professionnels">
-            <button type="button" className={`ernestoToolLink ernestoToolsMobileHome ${workspaceView === "home" && !recipeStudioOpen && !activityStudioOpen && !commercialStudioOpen ? "is-current" : ""}`}
+            <button type="button" className={`ernestoToolLink ernestoToolsMobileHome ${workspaceView === "home" && !recipeStudioOpen && !carnetOpen && !commercialStudioOpen ? "is-current" : ""}`}
               onClick={goHome}
               aria-label="Accueil Ernesto" aria-current={workspaceView === "home" ? "page" : undefined}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
@@ -2253,34 +2255,34 @@ export default function Page() {
               <span>Accueil</span>
             </button>
             <button type="button"
-              className={`ernestoToolLink ${workspaceView === "tutor" && !recipeStudioOpen && !activityStudioOpen && !commercialStudioOpen ? "is-current" : ""}`}
-              aria-current={workspaceView === "tutor" && !recipeStudioOpen && !activityStudioOpen && !commercialStudioOpen ? "page" : undefined}
-              onClick={() => { setWorkspaceView("tutor"); setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
+              className={`ernestoToolLink ${workspaceView === "tutor" && !recipeStudioOpen && !carnetOpen && !commercialStudioOpen ? "is-current" : ""}`}
+              aria-current={workspaceView === "tutor" && !recipeStudioOpen && !carnetOpen && !commercialStudioOpen ? "page" : undefined}
+              onClick={() => { setWorkspaceView("tutor"); setProjectsOpen(false); setRecipeStudioOpen(false); setCarnetOpen(false); setCommercialStudioOpen(false); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="M4 6h16v12H4zM8 10h8M8 14h5"/>
               </svg>
               <span className="ernestoToolsFullName">Tuteur Ernesto</span><span className="ernestoToolsShortName">Tuteur</span>
             </button>
             <button type="button" className={`ernestoToolLink ${recipeStudioOpen ? "is-current" : ""}`}
-              onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(true); setActivityStudioOpen(false); setCommercialStudioOpen(false); }}>
+              onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(true); setCarnetOpen(false); setCommercialStudioOpen(false); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="M3 5c3-1 6-1 9 1v13c-3-2-6-2-9-1zM12 6c3-2 6-2 9-1v13c-3-1-6-1-9 1z"/>
               </svg>
               <span className="ernestoToolsFullName">Le carnet des recettes</span><span className="ernestoToolsShortName">Recettes</span>
             </button>
-            <button type="button" className={`ernestoToolLink ${activityStudioOpen ? "is-current" : ""}`}
-              onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(true); setCommercialStudioOpen(false); }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-                <path d="M4 7h16v13H4zM4 11h16M9 7V4h6v3"/>
-              </svg>
-              <span>Stocks</span>
-            </button>
             <button type="button" className={`ernestoToolLink ${commercialStudioOpen ? "is-current" : ""}`}
-              onClick={() => { setProjectsOpen(false); setRecipeStudioOpen(false); setActivityStudioOpen(false); setCommercialStudioOpen(true); }}>
+              onClick={() => {setProjectsOpen(false);setRecipeStudioOpen(false);setCarnetOpen(false);setCommercialStudioOpen(true);}}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                 <path d="M4 19V5m0 14h17M8 15l4-5 3 2 5-7"/>
               </svg>
               <span>Commercial</span>
+            </button>
+            <button type="button" className={`ernestoToolLink ${carnetOpen ? "is-current" : ""}`}
+              onClick={() => {setProjectsOpen(false);setRecipeStudioOpen(false);setCommercialStudioOpen(false);setCarnetPrefill(null);setCarnetOpen(true);}}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path d="M5 3h13v18H5zM9 7h6M9 11h6M9 15h4M16 19l5-5"/>
+              </svg>
+              <span className="ernestoToolsFullName">Mon carnet</span><span className="ernestoToolsShortName">Carnet</span>
             </button>
           </nav>
                     <div className="sidebarBrand" aria-label="Identité EPPPN et Ernesto">
@@ -2452,7 +2454,7 @@ export default function Page() {
               }))}
               onTutor={() => setWorkspaceView("tutor")}
               onRecipes={() => setRecipeStudioOpen(true)}
-              onStocks={() => setActivityStudioOpen(true)}
+              onCarnet={() => {setCarnetPrefill(null);setCarnetOpen(true);}}
               onCommercial={() => setCommercialStudioOpen(true)}
               onSelectDossier={selectProject}
               onAllDossiers={() => setProjectsOpen(true)}
@@ -3065,14 +3067,6 @@ export default function Page() {
         accountId={session?.user?.id}
         accessToken={session?.access_token}
       />
-      <ErnestoActivityStudio
-        key={"activity-"+(session?.user?.id || "guest")}
-        open={Boolean(session) && activityStudioOpen}
-        onClose={closeActivityStudio}
-        onHome={goHome}
-        accountId={session?.user?.id}
-        supabase={supabase}
-      />
       <ErnestoCommercialStudio
         key={"commercial-"+(session?.user?.id || "guest")}
         open={Boolean(session) && commercialStudioOpen}
@@ -3081,6 +3075,15 @@ export default function Page() {
         userId={session?.user?.id}
         accessToken={session?.access_token}
         supabase={supabase}
+      />
+      <ErnestoExperienceCarnet
+        key={"carnet-"+(session?.user?.id||"guest")}
+        open={Boolean(session)&&carnetOpen}
+        onClose={closeCarnet}
+        onHome={goHome}
+        userId={session?.user?.id}
+        supabase={supabase}
+        prefill={carnetPrefill}
       />
     </main>
   );
