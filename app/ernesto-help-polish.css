@@ -1,5 +1,5 @@
 /* Aide contextuelle et finition visuelle, novembre 2026.
-   Une seule aide par rubrique, accessible au clavier, sans fenêtre modale. */
+   Native modal dialog avoids clipping inside mobile scroll panes. */
 :root {
   --ern-paper: #f8f7f3;
   --ern-white: #fffefa;
@@ -75,143 +75,287 @@
   z-index: 20;
 }
 
-.ernestoHelp {
-  position: relative;
-  display: inline-block;
-  flex: 0 0 auto;
-  font-family: var(--ern-editorial-ui), "Helvetica Neue", Arial, sans-serif;
-  color: #354650;
-  text-align: left;
-}
-.ernestoHelp > summary {
+
+/* Single help trigger; native <dialog> escapes clipped/scrollable ancestors. */
+.ernestoHelpTrigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 7px 10px;
-  border: 1px solid #e1ddd5;
-  border-radius: 8px;
+  flex: 0 0 auto;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 12px;
   background: #fffefa;
   color: #52616a;
+  border: 1px solid #e1ddd5;
+  border-radius: 9px;
+  font-family: var(--ern-editorial-ui), "Helvetica Neue", Arial, sans-serif;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
-  list-style: none;
-  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .16s ease, border-color .16s ease, color .16s ease;
 }
-.ernestoHelp > summary::-webkit-details-marker { display: none; }
-.ernestoHelp > summary::marker { content: ""; }
-.ernestoHelp > summary:hover,
-.ernestoHelp[open] > summary {
+.ernestoHelpTrigger:hover {
   color: #614e41;
   border-color: #c9b9aa;
   background: #f9f6f1;
 }
-.ernestoHelp > summary:focus-visible {
-  outline: 2px solid #31566a;
-  outline-offset: 3px;
+.ernestoHelpTrigger:active { background: #f0e9e0; }
+.ernestoHelpTrigger:focus-visible,
+.ernestoHelpClose:focus-visible,
+.ernestoHelpDialog a:focus-visible {
+  outline: 2px solid #31566a !important;
+  outline-offset: 3px !important;
 }
 .ernestoHelpMark {
   display: inline-grid;
   place-items: center;
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   border: 1px solid #b2a69b;
   border-radius: 50%;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
   color: #886a55;
 }
-.ernestoHelpPanel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  z-index: 200;
-  width: min(345px, calc(100vw - 30px));
-  max-height: min(65dvh, 530px);
-  overflow-y: auto;
-  padding: 18px 19px 17px;
+.ernestoHelpDialog {
+  box-sizing: border-box;
+  inset: 0;
+  margin: auto;
+  padding: 0;
+  width: min(440px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: min(76dvh, 640px);
+  overflow: hidden;
   border: 1px solid #dcd8d0;
-  border-radius: 11px;
+  border-radius: 14px;
   background: #fffefa;
-  box-shadow: 0 13px 33px rgba(40, 42, 39, .13);
-  line-height: 1.5;
-}
-.ernestoHelpTitle {
-  display: block;
-  margin-bottom: 10px;
   color: #273840;
-  font-size: 15px;
+  font-family: var(--ern-editorial-ui), "Helvetica Neue", Arial, sans-serif;
+  box-shadow: 0 22px 65px rgba(21, 30, 34, .20);
+  -webkit-font-smoothing: antialiased;
+}
+.ernestoHelpDialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.ernestoHelpDialog::backdrop {
+  background: rgba(20, 28, 34, .46);
+}
+.ernestoHelpDialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-shrink: 0;
+  padding: 18px 20px 14px;
+  background: #fffefa;
+  border-bottom: 1px solid #ebe6df;
+}
+.ernestoHelpDialogHeader h2 {
+  margin: 0;
+  font-size: 20px;
   font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -.012em;
+  color: #293841;
 }
-.ernestoHelpPanel ol {
-  margin: 0 0 8px;
-  padding: 0 0 0 20px;
+.ernestoHelpClose {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 1px solid #e7e1d9;
+  border-radius: 10px;
+  background: #f8f6f2;
+  color: #4e5659;
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
 }
-.ernestoHelpPanel li {
-  margin: 0 0 8px;
+.ernestoHelpClose:hover { background: #f0eae1; }
+.ernestoHelpDialogBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 19px 23px 22px;
+}
+.ernestoHelpDialogBody ol {
+  padding: 0 0 0 22px;
+  margin: 0 0 13px;
+}
+.ernestoHelpDialogBody li {
+  margin: 0 0 12px;
   padding-left: 3px;
   color: #425158;
-  font-size: 13px;
+  font-size: 15px;
+  line-height: 1.58;
   font-weight: 400;
 }
-.ernestoHelpPanel li::marker {
-  color: #a7795e;
+.ernestoHelpDialogBody li::marker {
   font-weight: 600;
+  color: #a7795e;
 }
 .ernestoHelpNote {
-  margin: 11px 0 12px;
-  padding: 9px 0 0;
+  margin: 12px 0 15px;
+  padding: 13px 0 0;
   border-top: 1px solid #ece7df;
   color: #606669;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.55;
 }
-.ernestoHelpPanel a {
+.ernestoHelpDialogBody a {
   display: inline-block;
-  margin-top: 3px;
-  font-size: 12px;
-  font-weight: 600;
+  margin-top: 4px;
+  padding: 5px 0;
   color: #31566a;
+  font-size: 13px;
+  font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-
-.ernestoGlobalTopbar > .ernestoHelp { margin-left: auto; }
+.ernestoGlobalTopbar > .ernestoHelpTrigger {
+  margin-left: auto;
+}
 .ernestoHelpBodyRow {
   display: flex;
   justify-content: flex-end;
   margin: 0 0 12px;
-  position: relative;
-  z-index: 15;
-}
-.enote-nav > .ernestoHelp > summary,
-.ernestoOverlayNav > .ernestoHelp > summary {
-  min-height: 36px;
-  font-size: 13px;
-}
-.ernestoHomeIntro .ernestoHelp > summary {
-  min-height: 34px;
 }
 @media(max-width:740px) {
-  .appRoot .ernestoToolsRail {
-    border-radius: 12px 12px 0 0 !important;
+  /* Mobile sheet is always on-screen, regardless of the module's overflow. */
+  .ernestoHelpDialog {
+    position: fixed;
+    inset: auto 0 0 0;
+    margin: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    max-height: min(82dvh, 640px);
+    border: 1px solid #e1dbd2;
+    border-bottom: 0;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
-    transform: none !important;
+  .ernestoHelpDialog[open] {
+    animation: ernestoHelpUp .19s cubic-bezier(.2,.75,.3,1) both;
   }
-  .ernestoHelpPanel {
-    padding: 16px;
-    max-height: min(55dvh, 420px);
+  .ernestoHelpDialogHeader {
+    padding: 13px 16px 10px 20px;
   }
-  .ernestoHelpBodyRow { margin-bottom: 9px; }
+  .ernestoHelpDialogHeader h2 {
+    font-size: 19px;
+  }
+  .ernestoHelpDialogBody {
+    padding: 16px 21px 24px;
+  }
+  .ernestoHelpDialogBody li {
+    font-size: 15px;
+    line-height: 1.56;
+    margin-bottom: 13px;
+  }
+  .ernestoHelpBodyRow {
+    margin: 0 0 10px;
+  }
+
+  /* Thumb-friendly controls and fewer accidental iOS input zooms. */
+  .appRoot .ernestoToolsRail .ernestoToolLink {
+    min-height: 54px !important;
+    font-size: 11px !important;
+    transition: background .15s ease, color .15s ease !important;
+  }
+  .appRoot .ernestoToolsRail .ernestoToolLink:active {
+    background: #e4e9e5 !important;
+  }
+  .appRoot .ernestoHomeDashboard .ernestoHomeCard {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:active {
+    background: #f3eee8 !important;
+    border-color: #b8a08d !important;
+    transform: scale(.985) !important;
+  }
+  .appRoot .ernestoHomeDossier {
+    min-height: 48px;
+  }
+  .appRoot .ernestoHomeIntro h1 {
+    font-size: clamp(27px, 7.5vw, 32px);
+  }
+
+  .ers-shell :is(input, select, textarea),
+  .ecf-shell :is(input, select, textarea),
+  .eas-shell :is(input, select, textarea),
+  .enote-shell :is(input, select, textarea) {
+    font-size: 16px !important;
+  }
+  .ecf-tabs, .eas-tabs {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .ecf-tabs::-webkit-scrollbar, .eas-tabs::-webkit-scrollbar { display: none; }
+  .ecf-tabs button, .eas-tabs button {
+    min-height: 44px;
+    font-size: 13px !important;
+  }
+  .eas-cardActions button,
+  .ecf-actions button,
+  .enote-entryActions button {
+    min-height: 40px;
+  }
+  .ernestoOverlayNav {
+    gap: 5px;
+    min-width: 0;
+  }
+  .ernestoOverlayHome {
+    padding: 6px 9px;
+    min-height: 40px;
+  }
+  .ernestoOverlayNav :is(.ers-close,.eas-close,.ecf-close) {
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+  }
+  .ers-topbar .ers-brand,
+  .ecf-head > div:nth-child(2),
+  .enote-heading {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .ers-topbar .ers-brand h2,
+  .ecf-head h2,
+  .enote-heading h2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 19px;
+  }
+  .ers-topbar .ers-year { display: none; }
+  .enote-nav { gap: 5px; }
+  .enote-nav > button {
+    min-height: 40px;
+  }
+  .enote-header { gap: 7px; }
+  .enote-scroll { padding-bottom: max(70px, env(safe-area-inset-bottom)); }
 }
-@media(prefers-reduced-motion:reduce) {
-  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard {
-    transition: none !important;
-  }
-  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
+@keyframes ernestoHelpUp {
+  from { opacity: .92; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media(prefers-reduced-motion: reduce) {
+  .ernestoHelpDialog[open] { animation: none; }
+  .ernestoHelpTrigger { transition: none; }
+  .appRoot .ernestoToolsRail .ernestoToolLink { transition: none !important; }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:active {
     transform: none !important;
   }
 }
