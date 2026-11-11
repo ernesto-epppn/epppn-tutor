@@ -1023,13 +1023,13 @@ export async function POST(req: Request) {
         .limit(120);
       if (!noteError && Array.isArray(personalRows)) {
         const normalize = (value:string) => value.toLowerCase()
-          .normalize("NFD").replace(/[\\u0300-\\u036f]/g,"")
+          .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
           .replace(/[^a-z0-9]+/g," ");
         const stop = new Set(["avec","dans","pour","comment","pourquoi","quand","quelle","quelles","quels",
           "peux","pouvez","faire","voudrais","serait","savoir","estce","autres","entre","avant",
           "apres","aussi","leurs","votre","notre","cette","sont","sous","plus","moins","j'ai",
           "pizza","pizzas","pain","pains","pate","pates","pizzaiolo","ernesto","bonjour","merci"]);
-        const tokens = [...new Set(normalize(message).trim().split(/\\s+/)
+        const tokens = [...new Set(normalize(message).trim().split(/\s+/)
           .filter((word:string)=>word.length>=4&&!stop.has(word)))].slice(0,25);
         const scored = personalRows.map((note:any)=>{
           const title=String(note.title||"").slice(0,140);
@@ -1053,7 +1053,7 @@ export async function POST(req: Request) {
     const personalNotesContext = personalNotesConsulted.length
       ? personalNotesConsulted.map((note,index)=>JSON.stringify({
           numero:index+1,titre:note.title,date:note.date,observation:note.body
-        })).join("\\n")
+        })).join("\n")
       : "(aucune note personnelle pertinente ou autorisée)";
 
     const systemPrompt = `
