@@ -262,7 +262,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
  return <div className="ecf-layer" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
   <section className="ecf-shell" role="dialog" aria-modal="true" aria-labelledby="ecf-title">
    <header className="ecf-head"><div className="ecf-monogram" aria-hidden="true">E</div><div>
-    <small>ERNESTO / OUTILS PROFESSIONNELS</small><h2 id="ecf-title">Commercial</h2>
+    <h2 id="ecf-title">Commercial</h2>
     </div><div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
       <button type="button" className="ecf-close" ref={closeRef} onClick={onClose} aria-label="Fermer Commercial">×</button></div>
    </header>
@@ -277,8 +277,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
     {notice?<div className="ecf-ok" role="status">{notice}</div>:null}
     {loading?<div className="ecf-muted">Chargement de vos données…</div>:null}
     {tab==="cost" ? <>
-      <div className="ecf-sectionTitle"><small>01 / RENTABILITÉ</small><h3>Combien me rapporte chaque vente ?</h3>
-       <p>Choisissez une fiche EPPPN, puis saisissez vos prix d’achat réels. Les grammes viennent directement du carnet des recettes.</p>
+      <div className="ecf-sectionTitle"><h3>Coûts et marges</h3>
       </div>
       <div className="ecf-costGrid">
        <section className="ecf-card">
@@ -325,16 +324,15 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
        </section>
       </div>
     </> : <>
-     <div className="ecf-sectionTitle"><small>02 / JOURNAL SIMPLIFIÉ</small><h3>Suivre les entrées et les sorties</h3>
-      <p>Une opération en quelques secondes. Les montants sont TTC ; l'export CSV peut être transmis au comptable.</p></div>
+     <div className="ecf-sectionTitle"><h3>Opérations du mois</h3></div>
      <div className="ecf-journalBar"><label>Choisir le mois <input type="month" value={month} onChange={e=>setMonth(e.target.value)}/></label>
        <div><button type="button" onClick={()=>newRow("vente")}>+ Encaissement</button>
        <button type="button" onClick={()=>newRow("depense")}>+ Dépense</button></div>
      </div>
      <div className="ecf-ledgerTotals">
-      <div><small>VENTES ENCAISSÉES TTC</small><strong>{EUR.format(totals.incomes)}</strong></div>
-      <div><small>DÉCAISSEMENTS TTC</small><strong>{EUR.format(totals.outgoings)}</strong></div>
-      <div><small>SOLDE ENREGISTRÉ TTC</small><strong>{EUR.format(totals.balance)}</strong></div>
+      <div><small>Ventes TTC</small><strong>{EUR.format(totals.incomes)}</strong></div>
+      <div><small>Dépenses TTC</small><strong>{EUR.format(totals.outgoings)}</strong></div>
+      <div><small>Solde TTC</small><strong>{EUR.format(totals.balance)}</strong></div>
      </div>
      {hasTrend?<section className="ecf-trend" aria-label="Évolution des entrées et sorties au cours des six derniers mois">
       <div className="ecf-trendHead"><strong>Les six derniers mois</strong>
