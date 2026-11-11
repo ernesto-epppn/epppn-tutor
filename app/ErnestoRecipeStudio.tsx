@@ -164,7 +164,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
     return <div className="ers-layer" role="presentation">
       <section className="ers-shell ers-shellLoading" role="dialog" aria-modal="true" aria-label="Carnet des recettes EPPPN">
         <header className="ers-topbar"><div className="ers-brand"><span className="ers-brandMark">E</span>
-          <div><h2>Le carnet des recettes</h2><p className="ernestoEditorialPanelSubtitle">Formules, quantités et variantes.</p></div>
+          <div><h2>Le carnet des recettes</h2></div>
         </div><div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
           <button className="ers-close" type="button" onClick={onClose} aria-label="Fermer le carnet">×</button></div></header>
         <div className="ers-loading">
@@ -249,7 +249,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
       <header className="ers-topbar">
         <div className="ers-brand">
           <span className="ers-brandMark" aria-hidden="true">E</span>
-          <div><h2 id="ers-title">Le carnet des recettes</h2><p className="ernestoEditorialPanelSubtitle">Formules, quantités et variantes.</p></div>
+          <div><h2 id="ers-title">Le carnet des recettes</h2></div>
           <span className="ers-year">Édition 2025</span>
         </div>
         <div className="ernestoOverlayNav">
@@ -261,7 +261,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
 
       <div className="ers-layout">
         <aside className="ers-library" aria-label="Bibliothèque de recettes">
-          <div className="ers-libraryIntro"><span>Recettes EPPPN</span><strong>{recipes.length} recettes officielles</strong></div>
+          <div className="ers-libraryIntro"><strong>{recipes.length} recettes EPPPN</strong></div>
           <label className="ers-search"><span aria-hidden="true">⌕</span><input
             type="search" placeholder="Chercher une recette…" value={search} onChange={e=>setSearch(e.target.value)}
           /></label>
