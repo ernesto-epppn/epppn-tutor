@@ -256,8 +256,7 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
   <section className="eas-shell" role="dialog" aria-modal="true" aria-labelledby="eas-title">
    <header className="eas-header">
     <div className="eas-logo" aria-hidden="true">E</div>
-    <div className="eas-heading"><span>ERNESTO / VOTRE ATELIER</span><h2 id="eas-title">Stocks</h2></div>
-    <span className="eas-subheading">Matières et fournisseurs</span>
+    <div className="eas-heading"><h2 id="eas-title">Stocks</h2></div>
     <div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
       <button ref={closeRef} className="eas-close" type="button" onClick={onClose} aria-label="Fermer Stocks">×</button></div>
    </header>
@@ -274,7 +273,7 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
     {loading?<div className="eas-loading">Chargement de vos données professionnelles…</div>:null}
 
     {!loading && section==="suppliers" ? <>
-     <div className="eas-sectionTitle"><div><span>01 / PARTENAIRES</span><h3>Mes fournisseurs</h3><p>Farines, levains, mozzarella, légumes, emballages, matériel…</p></div>
+     <div className="eas-sectionTitle"><div><h3>Fournisseurs</h3></div>
       <button type="button" className="eas-primary" onClick={newSupplier}>+ Ajouter</button></div>
      {showForm?<form className="eas-form" onSubmit={e=>void submitSupplier(e)}>
       <h4>{editingId?"Modifier le fournisseur":"Nouveau fournisseur"}</h4>
@@ -299,7 +298,7 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
     </>:null}
 
     {!loading && section==="stock" ? <>
-     <div className="eas-sectionTitle"><div><span>02 / MATIÈRES & TRAÇABILITÉ</span><h3>Mes stocks</h3><p>Quantité, seuil d'approvisionnement, lot, emplacement et DLC / DDM.</p></div>
+     <div className="eas-sectionTitle"><div><h3>Produits en stock</h3></div>
       <button type="button" className="eas-primary" onClick={newStock}>+ Ajouter</button></div>
      {showForm?<form className="eas-form" onSubmit={e=>void submitStock(e)}>
       <h4>{editingId?"Modifier le produit":"Nouveau produit en stock"}</h4>
@@ -331,9 +330,9 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
       <p className="eas-privateNote">La date est celle que vous saisissez : Ernesto n'infère jamais une DLC ni une durée de conservation.</p>
      </form>:null}
      <div className="eas-valueSummary">
-      <div><small>RÉFÉRENCES</small><strong>{stocks.length}</strong></div>
-      <div><small>POINTS À CONTRÔLER</small><strong>{stockAlerts.length}</strong></div>
-      <div><small>VALORISATION SAISIE · HT</small><strong>{money.format(stockValue)}</strong></div>
+      <div><small>Produits</small><strong>{stocks.length}</strong></div>
+      <div><small>À vérifier</small><strong>{stockAlerts.length}</strong></div>
+      <div><small>Valeur estimée HT</small><strong>{money.format(stockValue)}</strong></div>
      </div>
      <div className="eas-cardList">{stocks.map(row=>{const p=stockOf(row),w=stockWarnings(p);const supp=suppliers.find(r=>r.id===p.supplierId);
       return <article className="eas-card" key={row.id}><div className="eas-stockInfo">
