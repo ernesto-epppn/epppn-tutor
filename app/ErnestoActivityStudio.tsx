@@ -256,8 +256,8 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
   <section className="eas-shell" role="dialog" aria-modal="true" aria-labelledby="eas-title">
    <header className="eas-header">
     <div className="eas-logo" aria-hidden="true">E</div>
-    <div className="eas-heading"><span>ERNESTO / EPPPN</span><h2 id="eas-title">Stocks</h2></div>
-    
+    <div className="eas-heading"><span>ERNESTO / VOTRE ATELIER</span><h2 id="eas-title">Stocks</h2></div>
+    <span className="eas-subheading">Matières et fournisseurs</span>
     <div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
       <button ref={closeRef} className="eas-close" type="button" onClick={onClose} aria-label="Fermer Stocks">×</button></div>
    </header>
@@ -274,7 +274,7 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
     {loading?<div className="eas-loading">Chargement de vos données professionnelles…</div>:null}
 
     {!loading && section==="suppliers" ? <>
-     <div className="eas-sectionTitle"><div><h3>Fournisseurs</h3></div>
+     <div className="eas-sectionTitle"><div><span>01 / PARTENAIRES</span><h3>Mes fournisseurs</h3><p>Farines, levains, mozzarella, légumes, emballages, matériel…</p></div>
       <button type="button" className="eas-primary" onClick={newSupplier}>+ Ajouter</button></div>
      {showForm?<form className="eas-form" onSubmit={e=>void submitSupplier(e)}>
       <h4>{editingId?"Modifier le fournisseur":"Nouveau fournisseur"}</h4>
@@ -282,45 +282,40 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
        <TextField label="Nom *" value={supplier.name} onChange={v=>setSupplier(p=>({...p,name:v}))} placeholder="Nom de l'entreprise"/>
        <label className="eas-field"><span>Catégorie</span><select value={supplier.speciality} onChange={e=>setSupplier(p=>({...p,speciality:e.target.value}))}>
         {["Farines","Produits frais","Fromages","Légumes","Emballages","Équipement","Logistique","Autre"].map(v=><option key={v}>{v}</option>)}</select></label>
+       <TextField label="Contact" value={supplier.contact} onChange={v=>setSupplier(p=>({...p,contact:v}))}/>
        <TextField label="Téléphone" type="tel" value={supplier.phone} onChange={v=>setSupplier(p=>({...p,phone:v}))}/>
+       <TextField label="E-mail" type="email" value={supplier.email} onChange={v=>setSupplier(p=>({...p,email:v}))}/>
+       <TextField label="Notes / conditions" value={supplier.notes} onChange={v=>setSupplier(p=>({...p,notes:v}))} placeholder="Délais, minimum de commande…"/>
        </div>
-       <details className="eas-advanced">
-         <summary>Informations complémentaires</summary>
-         <div className="eas-formGrid">
-           <TextField label="Contact" value={supplier.contact} onChange={v=>setSupplier(p=>({...p,contact:v}))}/>
-           <TextField label="E-mail" type="email" value={supplier.email} onChange={v=>setSupplier(p=>({...p,email:v}))}/>
-           <TextField label="Notes / conditions" value={supplier.notes} onChange={v=>setSupplier(p=>({...p,notes:v}))} placeholder="Délais, minimum de commande…"/>
-         </div>
-       </details>
       <div className="eas-formActions"><button type="submit" className="eas-primary" disabled={saving}>Enregistrer</button><button type="button" onClick={()=>setShowForm(false)}>Annuler</button></div>
      </form>:null}
      <div className="eas-cardList">{suppliers.map(row=>{const p=supplierOf(row);return <article className="eas-card" key={row.id}>
       <div><span>{p.speciality||"Fournisseur"}</span><h4>{p.name}</h4><p>{[p.contact,p.phone,p.email].filter(Boolean).join(" · ")||"Contact à renseigner"}</p>
        {p.notes?<small>{p.notes}</small>:null}</div>
-      <div className="eas-cardActions"><button onClick={()=>editSupplier(row)}>Modifier</button><button className="remove" onClick={()=>void removeRecord(row)} disabled={saving} aria-label={"Supprimer "+p.name} title="Supprimer">×</button></div>
+      <div className="eas-cardActions"><button onClick={()=>editSupplier(row)}>Modifier</button><button className="remove" onClick={()=>void removeRecord(row)} disabled={saving}>Supprimer</button></div>
      </article>})}
-      {!suppliers.length?<div className="eas-blank"><strong>Aucun fournisseur</strong><p>Ajoutez votre premier contact.</p></div>:null}
+      {!suppliers.length?<div className="eas-blank"><strong>Votre réseau commence ici.</strong><p>Ajoutez vos meuniers, fournisseurs de produits frais et partenaires logistiques.</p></div>:null}
      </div>
     </>:null}
 
     {!loading && section==="stock" ? <>
-     <div className="eas-sectionTitle"><div><h3>Mes stocks</h3></div>
+     <div className="eas-sectionTitle"><div><span>02 / MATIÈRES & TRAÇABILITÉ</span><h3>Mes stocks</h3><p>Quantité, seuil d'approvisionnement, lot, emplacement et DLC / DDM.</p></div>
       <button type="button" className="eas-primary" onClick={newStock}>+ Ajouter</button></div>
      {showForm?<form className="eas-form" onSubmit={e=>void submitStock(e)}>
       <h4>{editingId?"Modifier le produit":"Nouveau produit en stock"}</h4>
       <div className="eas-formGrid">
        <TextField label="Produit *" value={stock.name} onChange={v=>setStock(p=>({...p,name:v}))} placeholder="Farine T65, mozzarella, carton…"/>
+       <label className="eas-field"><span>Fournisseur</span><select value={stock.supplierId} onChange={e=>setStock(p=>({...p,supplierId:e.target.value}))}>
+        <option value="">Non renseigné</option>{suppliers.map(r=><option key={r.id} value={r.id}>{supplierOf(r).name}</option>)}</select></label>
        <NumberField label="Quantité disponible" value={stock.quantity} onChange={v=>setStock(p=>({...p,quantity:v}))}/>
        <label className="eas-field"><span>Unité</span><select value={stock.unit} onChange={e=>setStock(p=>({...p,unit:e.target.value as Stock["unit"]}))}>
         <option value="kg">kg</option><option value="L">L</option><option value="pièce">pièce</option></select></label>
-       <NumberField label="Seuil de réapprovisionnement" value={stock.minimum} onChange={v=>setStock(p=>({...p,minimum:v}))}/>
+       <NumberField label="Seuil minimal" value={stock.minimum} onChange={v=>setStock(p=>({...p,minimum:v}))}/>
+       <NumberField label={"Prix d'achat indicatif HT (€/"+stock.unit+")"} value={stock.price} onChange={v=>setStock(p=>({...p,price:v}))}/>
       </div>
       <details className="eas-advanced">
-       <summary>Fournisseur, prix et traçabilité</summary>
+       <summary>Traçabilité et conservation <span>Lot · date · zone · notes</span></summary>
        <div className="eas-formGrid">
-        <label className="eas-field"><span>Fournisseur</span><select value={stock.supplierId} onChange={e=>setStock(p=>({...p,supplierId:e.target.value}))}>
-         <option value="">Non renseigné</option>{suppliers.map(r=><option key={r.id} value={r.id}>{supplierOf(r).name}</option>)}</select></label>
-        <NumberField label={"Prix d'achat HT (€/"+stock.unit+")"} value={stock.price} onChange={v=>setStock(p=>({...p,price:v}))}/>
        <label className="eas-field"><span>Type de date</span><select value={stock.dateType} onChange={e=>setStock(p=>({...p,dateType:e.target.value as Stock["dateType"]}))}>
         <option value="DLC">DLC · limite de consommation</option>
         <option value="DDM">DDM · durabilité minimale</option>
@@ -336,11 +331,9 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
       <p className="eas-privateNote">La date est celle que vous saisissez : Ernesto n'infère jamais une DLC ni une durée de conservation.</p>
      </form>:null}
      <div className="eas-valueSummary">
-      <span>{stocks.length} produit{stocks.length!==1?"s":""}</span>
-      {stockAlerts.length?<strong>{stockAlerts.length} à vérifier</strong>:null}
-      {stocks.length?<details className="eas-valueDetails"><summary>Valeur estimée</summary>
-         <span>{money.format(stockValue)} HT · selon les prix renseignés</span>
-       </details>:null}
+      <div><small>RÉFÉRENCES</small><strong>{stocks.length}</strong></div>
+      <div><small>POINTS À CONTRÔLER</small><strong>{stockAlerts.length}</strong></div>
+      <div><small>VALORISATION SAISIE · HT</small><strong>{money.format(stockValue)}</strong></div>
      </div>
      <div className="eas-cardList">{stocks.map(row=>{const p=stockOf(row),w=stockWarnings(p);const supp=suppliers.find(r=>r.id===p.supplierId);
       return <article className="eas-card" key={row.id}><div className="eas-stockInfo">
@@ -349,19 +342,23 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
         {w.expiry?<span className="eas-state alert">{p.dateType} dépassée</span>:w.approaching?<span className="eas-state warning">{p.dateType} proche</span>:null}
        </div>
        <div className="eas-stockDetails"><strong>{fmt.format(p.quantity)} {p.unit}</strong>
-         {p.minimum>0?<span>Min. {fmt.format(p.minimum)} {p.unit}</span>:null}
-         {p.expiry&&p.dateType!=="Aucune"?<span>{p.dateType} · {p.expiry.split("-").reverse().join("/")}</span>:null}
+        <span>Seuil : {fmt.format(p.minimum)} {p.unit}</span>
+        {p.expiry&&p.dateType!=="Aucune"?<span>{p.dateType} : {p.expiry.split("-").reverse().join("/")}</span>:null}
+        {p.lot?<span>Lot : {p.lot}</span>:null}
+        <span>{p.storage}</span>{supp?<span>{supplierOf(supp).name}</span>:null}
        </div>
-       {w.low&&p.minimum>0?<div className="eas-stockLevel" role="progressbar"
-         aria-label={"Stock de "+p.name+" par rapport au seuil de réapprovisionnement"}
-         aria-valuemin={0} aria-valuemax={100}
-         aria-valuenow={Math.max(0,Math.min(100,Math.round(100*p.quantity/p.minimum)))}>
-         <span style={{width:Math.max(0,Math.min(100,(p.quantity/p.minimum)*100))+"%"}}/>
-       </div>:null}
+       {w.low && p.minimum > 0 ? (
+        <div className="eas-stockLevel" role="progressbar"
+          aria-label={"Niveau de "+p.name+" par rapport au seuil minimum"}
+          aria-valuemin={0} aria-valuemax={100}
+          aria-valuenow={Math.max(0,Math.min(100,Math.round(100*p.quantity/p.minimum)))}>
+          <span style={{width:Math.max(0,Math.min(100,p.quantity/p.minimum*100))+"%"}} />
+        </div>
+       ) : null}
        </div>
-       <div className="eas-cardActions"><button onClick={()=>editStock(row)}>Actualiser</button><button className="remove" onClick={()=>void removeRecord(row)} disabled={saving} aria-label={"Supprimer "+p.name} title="Supprimer">×</button></div>
+       <div className="eas-cardActions"><button onClick={()=>editStock(row)}>Actualiser</button><button className="remove" onClick={()=>void removeRecord(row)} disabled={saving}>Supprimer</button></div>
       </article>})}
-      {!stocks.length?<div className="eas-blank"><strong>Liste vide</strong><p>Ajoutez une première matière première.</p></div>:null}
+      {!stocks.length?<div className="eas-blank"><strong>Un stock lisible, sans tableur.</strong><p>Ajoutez votre première matière première et son niveau minimum.</p></div>:null}
      </div>
      <p className="eas-legalNote">Ce suivi manuel ne remplace ni un plan de maîtrise sanitaire, ni le contrôle des températures, ni le système réglementaire de traçabilité.</p>
     </>:null}
