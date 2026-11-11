@@ -276,7 +276,6 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
   <section className="ecf-shell" role="dialog" aria-modal="true" aria-labelledby="ecf-title">
    <header className="ecf-head"><div className="ecf-monogram" aria-hidden="true">E</div><div>
     <h2 id="ecf-title">Commercial</h2>
-    <p className="ernestoEditorialPanelSubtitle">Vos prix, vos ventes et vos approvisionnements.</p>
     </div><div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
       <button type="button" className="ecf-close" ref={closeRef} onClick={onClose} aria-label="Fermer Commercial">×</button></div>
    </header>
@@ -284,9 +283,9 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
     <button type="button" role="tab" aria-selected={tab==="cost"} className={tab==="cost"?"active":""}
      onClick={()=>setTab("cost")}>Coût & marge</button>
     <button type="button" role="tab" aria-selected={tab==="journal"} className={tab==="journal"?"active":""}
-     onClick={()=>setTab("journal")}>Journal des ventes & dépenses</button>
+     onClick={()=>setTab("journal")}>Journal</button>
     <button type="button" role="tab" aria-selected={tab==="stocks"} className={tab==="stocks"?"active":""}
-     onClick={()=>setTab("stocks")}>Stocks & fournisseurs</button>
+     onClick={()=>setTab("stocks")}>Stocks</button>
    </div>
    <div className="ecf-content">
     {error?<div className="ecf-error" role="alert">{error}</div>:null}
