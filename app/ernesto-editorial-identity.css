@@ -1,0 +1,573 @@
+/*
+ * Ernesto editorial identity · iteration after 31698f4
+ * Visual treatment only — the complete UI and data workflow remain unchanged.
+ *
+ * Type: Spectral (display), Manrope (controls and reading).
+ * Palette: warm paper, warm charcoal-blue, muted terracotta, restrained olive.
+ * Four home cards always remain a 2x2 grid.
+ */
+:root {
+  --ern-paper: #f7f3ec;
+  --ern-white: #fcfaf6;
+  --ern-ink: #243746;
+  --ern-dim: #6f7672;
+  --ern-line: #e2ded7;
+  --ern-accent: #b56e4d;
+  --ern-accent-dark: #915135;
+  --ern-slate: #354d5c;
+  --ern-editorial-display: var(--font-ernesto-editorial), Georgia, serif;
+  --ern-editorial-ui: var(--font-ernesto-ui), "Avenir Next", sans-serif;
+}
+
+.appRoot, .appRoot button, .appRoot input, .appRoot textarea, .appRoot select,
+.eas-layer, .ecf-layer, .ers-layer, .enote-layer,
+.eas-layer button, .ecf-layer button, .ers-layer button, .enote-layer button,
+.eas-layer input, .ecf-layer input, .ers-layer input, .enote-layer input,
+.eas-layer textarea, .ecf-layer textarea, .ers-layer textarea, .enote-layer textarea,
+.eas-layer select, .ecf-layer select, .ers-layer select, .enote-layer select {
+  font-family: var(--ern-editorial-ui);
+}
+.appRoot, .eas-layer, .ecf-layer, .ers-layer, .enote-layer {
+  color: var(--ern-ink);
+  -webkit-font-smoothing: antialiased;
+}
+.appRoot .workspace.ernestoHomeActive, .appRoot .appFrame {
+  background: var(--ern-paper);
+}
+
+/* Main page: open, editorial hierarchy without section numbering. */
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard {
+  max-width: 860px;
+  padding: clamp(22px, 3.4vw, 42px) clamp(10px, 2vw, 23px) 33px;
+}
+.appRoot .ernestoHomeIntro {
+  margin: 0 0 26px;
+}
+.appRoot .ernestoHomeIntro h1 {
+  font-family: var(--ern-editorial-display);
+  color: #263846;
+  font-weight: 500;
+  font-size: clamp(37px, 4.5vw, 53px);
+  letter-spacing: -.029em;
+  line-height: 1.1;
+  margin: 0;
+}
+.appRoot .ernestoHomeIntro .ernestoEditorialHomeSubtitle {
+  margin: 9px 0 0;
+  font-family: var(--ern-editorial-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #71766f;
+  max-width: 600px;
+}
+
+/* Four cards: same destinations, clearer typography, fewer AI-dashboard cues. */
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCards {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: stretch !important;
+  gap: 14px !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: 48px minmax(0, 1fr) !important;
+  align-items: start !important;
+  align-content: center !important;
+  gap: 14px !important;
+  min-width: 0 !important;
+  min-height: 150px !important;
+  padding: 23px 19px !important;
+  background: #fcfaf6 !important;
+  border: 1px solid #dfdad2 !important;
+  border-radius: 13px !important;
+  box-shadow: 0 5px 13px rgba(57, 49, 42, .045), 0 1px 1px rgba(57, 49, 42, .02) !important;
+  transform: none !important;
+  transition: border-color .17s ease, box-shadow .17s ease, transform .17s ease !important;
+  text-align: left !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
+  border-color: #c6b6a8 !important;
+  background: #fffdf8 !important;
+  box-shadow: 0 9px 22px rgba(57, 49, 42, .075) !important;
+  transform: translateY(-2px) !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:focus-visible {
+  outline: 2px solid #ab6e4e !important;
+  outline-offset: 3px !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon {
+  display: grid !important;
+  place-items: center !important;
+  width: 45px !important;
+  height: 45px !important;
+  flex: none !important;
+  border-radius: 11px !important;
+  border: 1px solid rgba(59, 65, 59, .075) !important;
+  background: #e8edf0 !important;
+  color: #3b5d6a !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon svg {
+  width: 22px !important;
+  height: 22px !important;
+  stroke-width: 1.75;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--recipes .ernestoHomeCardIcon {
+  background: #f2e8df !important;
+  color: #a3664d !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--commercial .ernestoHomeCardIcon {
+  background: #e8e5de !important;
+  color: #615b4b !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--carnet .ernestoHomeCardIcon {
+  background: #e9ede2 !important;
+  color: #6a7654 !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody,
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--carnet .ernestoHomeCardBody {
+  display: flex !important;
+  flex-direction: column !important;
+  align-self: center !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+  gap: 7px !important;
+  padding: 0 15px 0 0 !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody strong {
+  font-family: var(--ern-editorial-display) !important;
+  font-size: clamp(21px, 2.1vw, 26px) !important;
+  font-weight: 500 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -.015em !important;
+  color: #283c4a !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody .ernestoEditorialCardSubtitle,
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--carnet .ernestoHomeCardBody small {
+  display: block !important;
+  font-family: var(--ern-editorial-ui) !important;
+  font-size: 12px !important;
+  line-height: 1.42 !important;
+  font-weight: 470 !important;
+  letter-spacing: 0 !important;
+  color: #757971 !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardArrow {
+  position: absolute !important;
+  top: 16px !important;
+  right: 15px !important;
+  margin: 0 !important;
+  font-size: 18px !important;
+  color: #a2684b !important;
+  line-height: 1;
+}
+.appRoot .ernestoHomeRecent {
+  margin-top: 35px;
+}
+.appRoot .ernestoHomeRecentHeading h2 {
+  font-family: var(--ern-editorial-display);
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #293d48;
+  letter-spacing: -.018em;
+}
+.appRoot .ernestoHomeRecentHeading button {
+  font-size: 13px;
+  font-weight: 590;
+  color: #985e43;
+}
+.appRoot .ernestoHomeDossierList {
+  background: #fcfaf6;
+  border: 1px solid #e2ded7;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(53, 45, 34, .022);
+}
+.appRoot .ernestoHomeDossier {
+  padding: 13px 14px;
+  border-bottom-color: #eee9e1;
+}
+.appRoot .ernestoHomeDossierName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #31434b;
+}
+.appRoot .ernestoHomeDossierMeta {
+  font-size: 12px;
+  color: #777d77;
+}
+.appRoot .ernestoHomeDossier:hover {
+  background: #f8f3eb;
+}
+.appRoot .ernestoHomeDossierGo {
+  color: #a36e51;
+}
+
+/* Primary navigation: practical labels and warm paper backgrounds. */
+.appRoot .ernestoToolsRail {
+  background: #f2eee6;
+  border: 1px solid #e6e0d6;
+  box-shadow: none;
+  border-radius: 13px;
+}
+.appRoot .ernestoBrandHomeMark {
+  background: #475b62;
+}
+.appRoot .ernestoBrandHome strong {
+  font-size: 14px;
+  color: #344c56;
+}
+.appRoot .ernestoToolLink {
+  font-size: 13px;
+  font-weight: 580;
+  color: #57616a;
+  -webkit-text-fill-color: #57616a;
+}
+.appRoot .ernestoToolLink:hover {
+  background: #e9e3d9;
+}
+.appRoot .ernestoToolLink.is-current {
+  background: #e7ddd2;
+  border-color: #e7ddd2;
+  color: #6c4937;
+  -webkit-text-fill-color: #6c4937;
+  font-weight: 690;
+}
+.appRoot .ernestoToolLink.is-current svg {
+  stroke: #945e46;
+}
+.appRoot .ernestoGlobalHome,
+.ernestoOverlayHome {
+  border-color: #ddd6cc;
+  background: #fcfaf6;
+  color: #5d5954;
+  -webkit-text-fill-color: #5d5954;
+  font-size: 13px;
+  font-weight: 600;
+}
+.appRoot .ernestoGlobalHome:hover,
+.ernestoOverlayHome:hover {
+  background: #f0e9df;
+}
+
+/* All working spaces: serif titles, readable human-sized subtitles and fields. */
+.eas-layer, .ecf-layer, .ers-layer, .enote-layer {
+  background: rgba(37, 42, 44, .45);
+}
+.eas-shell, .ecf-shell, .ers-shell, .enote-shell {
+  background: #f8f5ee;
+  border: 1px solid #e4ded5;
+  box-shadow: 0 22px 67px rgba(32, 37, 38, .17);
+  border-radius: 15px;
+}
+.eas-header, .ecf-head, .ers-topbar, .enote-header {
+  background: #f8f5ee;
+  border-color: #e6dfd5;
+}
+.eas-logo, .ecf-monogram, .ers-brandMark, .enote-mark {
+  background: #485b60;
+  box-shadow: none;
+  border-radius: 10px;
+}
+.eas-heading h2, .ecf-head h2, .ers-brand h2, .enote-heading h2 {
+  font-family: var(--ern-editorial-display);
+  font-size: clamp(27px, 2.8vw, 32px);
+  font-weight: 500;
+  letter-spacing: -.018em;
+  line-height: 1.1;
+  color: #283b46;
+}
+.ernestoEditorialPanelSubtitle,
+.enote-heading p {
+  display: block;
+  margin: 6px 0 0 !important;
+  font-family: var(--ern-editorial-ui);
+  font-size: 12px !important;
+  line-height: 1.42 !important;
+  font-weight: 500;
+  letter-spacing: 0 !important;
+  color: #777a73 !important;
+}
+.ers-brand .ers-eyebrow {
+  display: none !important;
+}
+.ers-brand .ers-year {
+  font-size: 12px;
+  font-weight: 540;
+  color: #7b7772;
+}
+.eas-tabs, .ecf-tabs {
+  background: #f8f5ee;
+  border-color: #e4ded6;
+}
+.eas-tabs button, .ecf-tabs button {
+  font-size: 13px;
+  font-weight: 570;
+  color: #6c7474;
+}
+.eas-tabs button.active, .ecf-tabs button.active {
+  color: #4c4945;
+  font-weight: 700;
+}
+.eas-tabs button.active:after, .ecf-tabs button.active:after {
+  background: #b56e4d;
+}
+.eas-sectionTitle h3, .ecf-sectionTitle h3,
+.ers-titleRow h3, .enote-form h3, .enote-history h3 {
+  font-family: var(--ern-editorial-display);
+  font-size: clamp(22px, 2.2vw, 28px);
+  font-weight: 500;
+  letter-spacing: -.014em;
+  line-height: 1.2;
+  color: #2c3d48;
+}
+.eas-card, .ecf-card, .eas-form, .ecf-form,
+.enote-form, .enote-entry {
+  background: #fcfaf6;
+  border-color: #e4ded7;
+  box-shadow: 0 3px 11px rgba(52, 43, 34, .035);
+  border-radius: 11px;
+}
+.eas-valueSummary>div, .ecf-ledgerTotals>div {
+  background: #fcfaf6;
+  border-color: #e5dfd7;
+  box-shadow: 0 3px 10px rgba(52, 43, 34, .032);
+}
+.eas-valueSummary small, .ecf-ledgerTotals small,
+.ecf-kpis small, .ecf-priceHead, .ers-infoLine>span {
+  font-family: var(--ern-editorial-ui);
+  font-size: 12px;
+  font-weight: 580;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #69716f;
+}
+.eas-valueSummary strong, .ecf-ledgerTotals strong {
+  font-family: var(--ern-editorial-display);
+  font-size: 28px;
+  font-weight: 500;
+  color: #3d5360;
+}
+.eas-card h4 {
+  font-size: 15px;
+  color: #344b55;
+  font-weight: 670;
+}
+.ecf-kpis strong {
+  font-size: 20px;
+  font-weight: 650;
+  color: #3d5360;
+}
+.eas-field>span, .ecf-field>span, .enote-field>span,
+.ers-fieldLabel, .ers-askLabel {
+  font-size: 13px;
+  color: #535f64;
+  font-weight: 610;
+  letter-spacing: 0;
+}
+.eas-field>input, .eas-field>select, .eas-number input,
+.ecf-field>input, .ecf-field select, .ecf-number input,
+.enote-field input, .enote-field textarea {
+  font-family: var(--ern-editorial-ui);
+  font-size: 14px;
+  color: #293f4a;
+  border-color: #ddd7ce;
+  background: #fffdf8;
+}
+.ecf-batch, .ers-formulaState {
+  font-size: 12px;
+  color: #717870;
+}
+.ecf-hint, .eas-legalNote, .enote-intro {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #717670;
+}
+.eas-primary, .ecf-primary, .enote-save {
+  background: #364e59 !important;
+  border-color: #364e59 !important;
+  color: #fff !important;
+  border-radius: 8px;
+  font-weight: 680;
+}
+.eas-primary:hover, .ecf-primary:hover, .enote-save:hover {
+  background: #283e49 !important;
+}
+.ecf-sourceChoice button.active {
+  background: #f3e7dc;
+  border-color: #d7bba8;
+  color: #8a533a;
+}
+.ers-library {
+  background: #f2eee7;
+  border-color: #e5dfd5;
+}
+.ers-libraryIntro span, .ers-super, .ers-blockTitle>span, .ers-bake>span {
+  color: #81756a;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 540;
+}
+.ers-libraryIntro strong,
+.ers-selectRecipe strong {
+  font-size: 14px;
+  color: #3f5058;
+  font-weight: 650;
+}
+.ers-selectRecipe>span:last-child, .ers-libraryFoot {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #747a73;
+}
+.ers-chip.is-active {
+  background: #4e5e62;
+  border-color: #4e5e62;
+}
+.ers-recipeRow.is-selected {
+  background: #fcfaf6;
+  border-color: #ded6cc;
+}
+.ers-titleRow p {
+  color: #787b72;
+  font-size: 14px;
+}
+.ers-blockTitle strong {
+  font-family: var(--ern-editorial-display);
+  font-size: 23px;
+  font-weight: 500;
+  color: #2c414a;
+}
+.ers-variantSwitch {
+  background: #eee8df;
+}
+.ers-variantSwitch button.is-active {
+  background: #fffdf8;
+  color: #5b544f;
+}
+.ers-total {
+  background: #eee5db;
+  color: #705444;
+}
+.ers-original {
+  background: #e7ebde;
+  color: #56664c;
+}
+.ers-personal {
+  background: #f2e4d7;
+  color: #87593e;
+}
+.ers-inputWrap input {
+  border-color: #ded7cd;
+  background: #fffdf8;
+  outline-color: #b56e4d;
+}
+.enote-shell { background: #f8f5ee; }
+.enote-mark { background: #4c6269; }
+.enote-header p { color: #72766e; }
+.enote-entry h4 {
+  font-size: 16px;
+  font-weight: 660;
+  color: #334952;
+}
+.enote-entry time { color: #7c7c73; }
+.enote-entryActions button { font-size: 13px; }
+.enote-entryActions .enote-use[aria-pressed="true"] { color: #61734f; }
+.ecf-trendLegend i, .ecf-trendPair .income { background: #546b76; }
+.ecf-trendLegend span:last-child i, .ecf-trendPair .outgoing { background: #ba7957; }
+.eas-stockLevel>span { background: #b77b58; }
+
+:is(.appRoot, .eas-layer, .ecf-layer, .ers-layer, .enote-layer)
+:is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid #a86549;
+  outline-offset: 3px;
+}
+
+@media(max-width: 860px) {
+  .appRoot .ernestoToolsRail { background: #f8f5ee !important; }
+  .appRoot .ernestoToolLink.is-current {
+    background: #eee1d6 !important;
+    border-color: #e6d4c4 !important;
+    color: #704b39 !important;
+    -webkit-text-fill-color: #704b39 !important;
+  }
+  .appRoot .ernestoToolLink.is-current svg { stroke: #9d6047 !important; }
+  .eas-shell, .ecf-shell, .ers-shell, .enote-shell {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+@media(max-width: 570px) {
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard {
+    padding: 20px 8px 27px;
+  }
+  .appRoot .ernestoHomeIntro { margin-bottom: 20px; }
+  .appRoot .ernestoHomeIntro h1 { font-size: 38px; }
+  .appRoot .ernestoHomeIntro .ernestoEditorialHomeSubtitle {
+    font-size: 13px;
+    margin-top: 7px;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 9px !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    min-height: 178px !important;
+    padding: 15px 12px !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon {
+    width: 37px !important;
+    height: 37px !important;
+    flex: 0 0 37px !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody,
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--carnet .ernestoHomeCardBody {
+    padding: 0 7px 0 0 !important;
+    align-self: stretch !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody strong {
+    font-size: 20px !important;
+    line-height: 1.08 !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody .ernestoEditorialCardSubtitle,
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--carnet .ernestoHomeCardBody small {
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardArrow {
+    top: 10px !important;
+    right: 10px !important;
+    font-size: 16px !important;
+  }
+  .appRoot .ernestoHomeRecentHeading h2 { font-size: 23px; }
+  .eas-heading h2, .ecf-head h2, .ers-brand h2, .enote-heading h2 {
+    font-size: 25px;
+  }
+  .ernestoEditorialPanelSubtitle, .enote-heading p {
+    font-size: 11px !important;
+  }
+  .ers-year { display: none; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard {
+    transition: none !important;
+  }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
+    transform: none !important;
+  }
+}
