@@ -18,7 +18,8 @@ assert.match(notes, /setExperienceDate\(todayLocalISO\(\)\)/, "Default new obser
 assert.match(notes, /Autorisée pour les réponses/, "Consent is not evidence of actual note usage");
 
 // Contextual help must cover the workspaces and each commercial sub-section.
-const topics = read("app/ErnestoSectionHelp.tsx");
+const topics = read("app/ernestoHelpTopics.ts");
+const helpComponent = read("app/ErnestoSectionHelp.tsx");
 const helpPage = read("app/aide/page.tsx");
 const recipeStudio = read("app/ErnestoRecipeStudio.tsx");
 const commercial = read("app/ErnestoCommercialStudio.tsx");
@@ -36,8 +37,21 @@ assert.ok(recipeStudio.includes('<ErnestoSectionHelp topic="recipes"/>'), "Recip
 assert.ok(commercial.includes('<ErnestoSectionHelp topic={tab==="journal"?"journal":"cost"}/>'), "Cost and journal need help");
 assert.ok(activity.includes('<ErnestoSectionHelp topic={section==="stock"?"stock":"suppliers"}/>'), "Stock and suppliers need separate help");
 assert.ok(notes.includes('<ErnestoSectionHelp topic="carnet"/>'), "Carnet needs in-place help");
-assert.match(topics, /target="_blank" rel="noopener noreferrer"/, "Help index must not interrupt forms");
+assert.match(helpComponent, /target="_blank" rel="noopener noreferrer"/, "Help index must not interrupt forms");
+assert.match(helpComponent, /"use client";/, "Interactive help must be a client component");
+assert.match(helpComponent, /showModal\(\)/, "Help must use the browser top layer");
+assert.match(helpComponent, /<dialog/, "Help must use an accessible native dialog");
+assert.match(helpComponent, /aria-labelledby=\{titleId\}/, "Dialog must have an accessible heading");
+assert.match(helpComponent, /aria-label="Fermer l'aide"/, "Help needs a reachable close button");
+assert.match(helpComponent, /onClose=\{\(\) => triggerRef.current/, "Return keyboard focus to trigger");
+assert.doesNotMatch(helpComponent, /<details/, "Old clipped popover must not remain");
+assert.match(helpPage, /from "\.\.\/ernestoHelpTopics"/, "Server-side help page imports data, not client component");
 assert.match(layout, /ernesto-help-polish.css/, "Include shared help CSS");
 assert.match(visual, /prefers-reduced-motion/, "Respect reduced motion");
+assert.match(visual, /\.ernestoHelpDialog\s*\{/, "Help dialog has standalone viewport layout");
+assert.match(visual, /max-height:\s*min\(82dvh,\s*640px\)/, "Mobile help sheet must respect viewport height");
+assert.match(visual, /safe-area-inset-bottom/, "Mobile help must clear the iOS safe area");
+assert.match(visual, /overflow-y:\s*auto/, "Mobile help content must scroll within sheet");
+assert.doesNotMatch(visual, /\.ernestoHelpPanel/, "Old absolutely positioned panel CSS must be removed");
 
 console.log("Ernesto UI contracts verified.");
