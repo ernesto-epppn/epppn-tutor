@@ -13,7 +13,7 @@ type Stock = {
   expiry:string; dateType:"DLC"|"DDM"|"Aucune"; lot:string; storage:string;
   supplierId:string; price:number; notes:string;
 };
-type Props = { open:boolean; onClose:()=>void; onHome:()=>void; accountId?:string; supabase:SupabaseClient };
+type Props = { open:boolean; onClose:()=>void; onHome:()=>void; accountId?:string; supabase:SupabaseClient; embedded?:boolean };
 
 const ACTIVITY_LABELS:Record<ActivityKind,string> = {
   pizzeria:"Pizzeria", ambulant:"Camion / ambulant", boulangerie:"Panification",
@@ -132,7 +132,7 @@ function NumberField({label,value,onChange,min=0,suffix}:{
   }} />{suffix?<small>{suffix}</small>:null}</div></label>;
 }
 
-export default function ErnestoActivityStudio({open,onClose,onHome,accountId,supabase}:Props){
+export default function ErnestoActivityStudio({open,onClose,onHome,accountId,supabase,embedded=false}:Props){
  const [section,setSection]=useState<Section>("stock");
  const [records,setRecords]=useState<Row[]>([]);
  const [loading,setLoading]=useState(false);
@@ -170,7 +170,7 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
  },[open,accountId,supabase,refresh]);
 
  useEffect(()=>{
-  if(!open)return;
+  if(!open||embedded)return;
   const focused=document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const previous=document.body.style.overflow;
   document.body.style.overflow="hidden";
@@ -178,7 +178,7 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
   document.addEventListener("keydown",onKey);
   const timer=window.setTimeout(()=>closeRef.current?.focus(),40);
   return ()=>{document.body.style.overflow=previous;document.removeEventListener("keydown",onKey);window.clearTimeout(timer);focused?.focus();};
- },[open,onClose]);
+ },[open,onClose,embedded]);
 
  const suppliers=useMemo(()=>records.filter(r=>r.kind==="supplier"),[records]);
  const stocks=useMemo(()=>records.filter(r=>r.kind==="stock"),[records]);
@@ -252,14 +252,16 @@ export default function ErnestoActivityStudio({open,onClose,onHome,accountId,sup
  function newSupplier(){setSupplier(SUPPLIER_EMPTY);setEditingId(null);setShowForm(true);setSection("suppliers");setError("");}
  function newStock(){setStock(STOCK_EMPTY);setEditingId(null);setShowForm(true);setSection("stock");setError("");}
 
- return <div className="eas-layer" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
-  <section className="eas-shell" role="dialog" aria-modal="true" aria-labelledby="eas-title">
-   <header className="eas-header">
+ return <div className={embedded?"eas-layer eas-embedded":"eas-layer"} role={embedded?"group":"presentation"}
+   onMouseDown={e=>{if(!embedded&&e.target===e.currentTarget)onClose();}}>
+  <section className="eas-shell" role={embedded?undefined:"dialog"}
+   aria-modal={embedded?undefined:true} aria-labelledby={embedded?undefined:"eas-title"}>
+   {!embedded ? <header className="eas-header">
     <div className="eas-logo" aria-hidden="true">E</div>
     <div className="eas-heading"><h2 id="eas-title">Stocks</h2></div>
     <div className="ernestoOverlayNav"><button type="button" className="ernestoOverlayHome" onClick={onHome}>⌂ Accueil</button>
       <button ref={closeRef} className="eas-close" type="button" onClick={onClose} aria-label="Fermer Stocks">×</button></div>
-   </header>
+   </header> : null}
 
    <div className="eas-tabs" role="tablist" aria-label="Gestion des stocks">
     {([["stock","Mes stocks"],["suppliers","Fournisseurs"]] as [Section,string][]).map(([id,label])=>
