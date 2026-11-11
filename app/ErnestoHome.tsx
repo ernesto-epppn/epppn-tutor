@@ -47,7 +47,6 @@ export default function ErnestoHome({
 
   return <section className="ernestoHomeDashboard" aria-labelledby="ernesto-home-title">
     <header className="ernestoHomeIntro">
-      <span className="ernestoHomeLead">ERNESTO · EPPPN</span>
       <h1 id="ernesto-home-title">Mon espace</h1>
     </header>
 
@@ -65,8 +64,8 @@ export default function ErnestoHome({
 
     {recent.length ? <section className="ernestoHomeRecent" aria-label="Reprendre un dossier">
       <div className="ernestoHomeRecentHeading">
-        <div><h2>Reprendre un dossier</h2></div>
-        <button type="button" onClick={onAllDossiers}>Tous les dossiers <span aria-hidden="true">↗</span></button>
+        <div><h2>Dossiers récents</h2></div>
+        <button type="button" onClick={onAllDossiers}>Voir tous</button>
       </div>
       <div className="ernestoHomeDossierList">
         {recent.map(p => <button type="button" key={p.id} onClick={() => onSelectDossier(p.id)}
@@ -81,6 +80,5 @@ export default function ErnestoHome({
       <p>Vos derniers dossiers apparaîtront ici lorsque vous aurez commencé à utiliser le tuteur.</p>
     </div>}
 
-    <footer className="ernestoHomeFoot">Ernesto · EPPPN</footer>
   </section>;
 }
