@@ -1,0 +1,159 @@
+/* Ernesto — atelier edition: a restrained editorial treatment.
+   Applied last. Functional recipe, stock and financial calculations are unchanged. */
+.appRoot{--atelier-ink:#30372f;--atelier-muted:#7b8074;--atelier-rule:#dedfd7;--atelier-accent:#636b55}
+.appRoot .ernestoHomeDashboard{max-width:780px;padding:clamp(26px,4vw,49px) 15px 25px;color:var(--atelier-ink)}
+.appRoot .ernestoHomeIntro{margin:0 0 29px}
+.appRoot .ernestoHomeLead{color:var(--atelier-muted);font-size:10px;letter-spacing:.1em;font-weight:550}
+.appRoot .ernestoHomeIntro h1{font-family:"Iowan Old Style","Baskerville","Palatino Linotype",Georgia,serif;font-size:clamp(35px,4vw,51px);font-weight:500;letter-spacing:-.045em;line-height:1.13;color:var(--atelier-ink);margin:10px 0 0}
+.appRoot .ernestoHomeCards{display:block;background:transparent;border-top:1px solid #bfc3b8}
+.appRoot .ernestoHomeCard,.appRoot .ernestoHomeCard--chat,.appRoot .ernestoHomeCard--recipes,.appRoot .ernestoHomeCard--stocks,.appRoot .ernestoHomeCard--commercial{
+ display:flex;flex-direction:row;align-items:center;min-height:77px;width:100%;border:0;
+ border-bottom:1px solid var(--atelier-rule);border-radius:0;background:transparent;box-shadow:none;
+ padding:15px 7px;gap:12px;transition:background .13s ease;transform:none}
+.appRoot .ernestoHomeCard:hover,.appRoot .ernestoHomeCard:focus-visible{background:#f1f1eb;border-color:var(--atelier-rule);transform:none}
+.appRoot .ernestoHomeCardBody{display:block;padding:0}
+.appRoot .ernestoHomeCardBody strong{font-size:clamp(16px,1.6vw,19px);font-weight:590;letter-spacing:-.015em;color:#313a31}
+.appRoot .ernestoHomeCardArrow{position:static;margin-left:auto;font-size:22px;color:#858c7f}
+.appRoot .ernestoHomeRecent{margin-top:41px}
+.appRoot .ernestoHomeRecentHeading h2{font-size:15px;font-weight:630;color:var(--atelier-ink)}
+.appRoot .ernestoHomeRecentHeading button{font-weight:550;color:var(--atelier-muted)}
+.appRoot .ernestoHomeDossierList{border:0;border-top:1px solid var(--atelier-rule);border-radius:0;background:transparent}
+.appRoot .ernestoHomeDossier{border-color:var(--atelier-rule);background:transparent;padding:10px 7px}
+.appRoot .ernestoHomeDossier:hover{background:#f1f1eb}
+.appRoot .ernestoHomeDossierName{font-weight:590;color:var(--atelier-ink)}
+.appRoot .ernestoHomeEmpty p{color:var(--atelier-muted)}
+/* Sidebar remains recognizably Ernesto but loses soft dashboard cards. */
+.appRoot .ernestoToolsRail{border:0;border-right:1px solid #dfe1d8;border-radius:0;box-shadow:none;background:transparent;padding:15px 12px 12px 8px}
+.appRoot .ernestoToolsMenu{gap:2px}
+.appRoot .ernestoToolLink,.appRoot .ernestoToolLink.is-current{
+ min-height:43px;border:0;border-radius:7px;background:transparent;box-shadow:none;
+ color:#626a60;-webkit-text-fill-color:#626a60;font-weight:565;font-size:12px}
+.appRoot .ernestoToolLink:hover{background:#f0f1eb}
+.appRoot .ernestoToolLink.is-current{background:#ecf0e7;color:#404d3e;-webkit-text-fill-color:#404d3e;font-weight:680}
+.appRoot .ernestoToolLink svg{stroke:#808b78;width:18px;height:18px}
+.appRoot .ernestoBrandHomeMark{background:#626b58}
+.appRoot .ernestoBrandHome strong{color:#485745}
+.appRoot .ernestoGlobalTopbar{background:transparent}
+.appRoot .ernestoGlobalHome{background:transparent;border-color:#dce0d4;color:#607256;-webkit-text-fill-color:#607256}
+
+/* Stocks and Commercial: an understated professional working notebook. */
+.eas-layer,.ecf-layer{background:rgba(36,40,35,.38)}
+.eas-shell,.ecf-shell{background:#f9f8f4;color:var(--atelier-ink,#30372f);border:1px solid #e0e1d9;border-radius:13px;box-shadow:0 16px 51px rgba(24,31,25,.15)}
+.eas-shell{width:min(900px,100%)}
+.ecf-shell{width:min(1000px,100%)}
+.eas-header,.ecf-head{background:#f9f8f4;min-height:73px;padding:12px 22px;border-color:#e2e3db}
+.eas-logo,.ecf-monogram{width:36px;height:36px;border-radius:7px;background:#676e5a;font-size:23px}
+.eas-heading>span,.ecf-head small{font-size:9px;font-weight:550;letter-spacing:.07em;color:#898f82}
+.eas-heading h2,.ecf-head h2{font-family:"Iowan Old Style","Baskerville","Palatino Linotype",Georgia,serif;color:#303830;font-size:28px;font-weight:500;letter-spacing:-.03em}
+.eas-body,.ecf-content{max-width:940px;margin-inline:auto;padding:22px 25px 45px}
+.eas-tabs,.ecf-tabs{background:transparent;border-color:#e2e3db;gap:26px;padding-inline:25px}
+.eas-tabs button,.ecf-tabs button{font-weight:560;color:#83897f;font-size:12px}
+.eas-tabs button.active,.ecf-tabs button.active{font-weight:680;color:#404b40}
+.eas-tabs button.active:after,.ecf-tabs button.active:after{background:#727c65}
+.ernestoOverlayHome{background:transparent;border-color:#dce1d7;color:#536a4c}
+.ernestoOverlayHome:hover{background:#edf0e8}
+.eas-sectionTitle,.ecf-sectionTitle{margin:4px 0 16px}
+.eas-sectionTitle h3,.ecf-sectionTitle h3{font-size:19px;font-weight:630;letter-spacing:-.014em;color:#3d453b}
+.eas-primary,.ecf-primary{background:#475448!important;border-color:#475448!important;color:#fff!important;border-radius:7px!important;font-weight:650!important;box-shadow:none!important}
+.eas-primary:hover,.ecf-primary:hover{background:#39463a!important}
+.eas-form,.ecf-form{background:#fdfdf9;border:1px solid #dfe2d9;border-radius:9px;box-shadow:none}
+.eas-form h4,.ecf-formTitle strong{font-size:14px;font-weight:640}
+.eas-field>span,.ecf-field>span{font-size:11px;font-weight:570;color:#6d766a}
+.eas-field>input,.eas-field>select,.eas-number input,.ecf-field select,.ecf-field>input{border-radius:6px;border-color:#dfe2d9;min-height:42px}
+.eas-advanced,.ecf-optional{border:0;border-top:1px solid #dedfd8;border-radius:0;background:transparent;margin-top:14px}
+.eas-advanced>summary,.ecf-optional>summary{list-style:none;padding:13px 0;font-size:12px;font-weight:600;color:#65745b;background:transparent;cursor:pointer}
+.eas-advanced>summary::-webkit-details-marker,.ecf-optional>summary::-webkit-details-marker{display:none}
+.eas-advanced[open] .eas-formGrid{border:0;padding:12px 0 0}
+.ecf-optional[open] .ecf-optionalBody{padding:12px 0 0}
+.eas-valueSummary{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:transparent;margin:4px 0 16px;padding:8px 0 12px;border-bottom:1px solid #e0e1d9;color:#747e70;font-size:12px}
+.eas-valueSummary>span{font-size:12px}
+.eas-valueSummary>strong{font-size:11px;color:#995b3e;font-weight:690}
+.eas-valueDetails{margin-left:auto;font-size:11px;color:#7e8878}
+.eas-valueDetails>summary{cursor:pointer}
+.eas-valueDetails>span{display:block;padding-top:6px}
+.eas-cardList{gap:0;border-top:1px solid #e0e1d9}
+.eas-card{border:0;border-bottom:1px solid #e0e1d9;border-radius:0;background:transparent;box-shadow:none;padding:14px 5px}
+.eas-card h4{font-size:13px;font-weight:650;color:#3a4539}
+.eas-card p,.eas-card small{font-size:11px;color:#878f83}
+.eas-cardActions button{border:0;background:transparent;color:#61765a;font-size:11px}
+.eas-cardActions button.remove{color:#a76e59;font-size:18px}
+.eas-stockDetails{gap:7px 14px;margin-top:6px}
+.eas-stockDetails strong{font-size:13px;color:#435e40}
+.eas-state{border-radius:0!important;padding:0!important;background:transparent!important}
+.eas-blank{border-radius:8px;background:transparent}
+.eas-blank strong{font-size:13px;font-weight:620}
+.eas-legalNote{border:0;padding:0;color:#929a8c;font-size:10px}
+/* Commercial: quiet cost editor and clearly labelled margin. */
+.ecf-costGrid{grid-template-columns:minmax(0,1.1fr) minmax(260px,.9fr);gap:17px}
+.ecf-card{border:1px solid #e2e4da;border-radius:10px;background:#fdfdf9;padding:18px;box-shadow:none}
+.ecf-batch{background:transparent;padding:7px 0;margin:9px 0 3px;border:0;color:#818c7e}
+.ecf-blockLabel{font-weight:620;letter-spacing:.07em;color:#7b8678}
+.ecf-optional>summary{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.ecf-optional>summary span{font-size:10px;font-weight:570;color:#959b90}
+.ecf-optionalBody .ecf-priceHead{margin:4px 0 0}
+.ecf-optionalCosts .ecf-inputColumns{margin:0;padding:0;border:0;gap:11px}
+.ecf-monthlyField{margin-top:15px}
+.ecf-marginHero{display:grid;gap:5px;border-top:1px solid #dde3d7;border-bottom:1px solid #dde3d7;padding:19px 0;margin:5px 0 2px}
+.ecf-marginHero>span{font-size:11px;color:#788574}
+.ecf-marginHero strong{font-family:"Iowan Old Style","Baskerville",Georgia,serif;font-size:37px;font-weight:500;line-height:1.05;color:#3c563e}
+.ecf-marginHero strong.negative{color:#a96248}
+.ecf-marginHero small{font-size:11px;color:#828e7d}
+.ecf-costLine{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #e9ebe4;padding:9px 0;font-size:11px;color:#788478}
+.ecf-costLine strong{font-size:12px;color:#465849;font-weight:690;white-space:nowrap}
+.ecf-ledgerTotals{gap:0;border:1px solid #e0e2d8;border-radius:9px;overflow:hidden;background:#fdfdf9}
+.ecf-ledgerTotals>div{background:transparent;border:0;border-right:1px solid #e6e8e0;border-radius:0;padding:14px 15px}
+.ecf-ledgerTotals>div:last-child{border-right:0}
+.ecf-ledgerTotals small{font-size:10px;letter-spacing:0;color:#828a80;font-weight:570}
+.ecf-ledgerTotals strong{font-size:21px;font-weight:690;color:#415545}
+.ecf-journalBar button{background:#f6f8f2;border-color:#e0e5da;border-radius:7px;color:#536a4e}
+.ecf-ledgerRow{border-color:#e2e4dd}
+.ecf-ledgerRow>strong.positive{color:#5e7955}
+.ecf-rowsHead{border-color:#e0e2d9}
+.ecf-rowsHead button{background:transparent}
+/* Small, task-oriented data visualizations. No graphs without data. */
+.ecf-trend{border:1px solid #e0e3d9;border-radius:9px;background:#fdfdf9;margin:17px 0 22px;padding:15px 16px 12px}
+.ecf-trendHead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}
+.ecf-trendHead strong{font-size:12px;font-weight:620;color:#39463b}
+.ecf-trendLegend{display:flex;gap:12px;flex-wrap:wrap;color:#848d82;font-size:10px}
+.ecf-trendLegend span{display:inline-flex;align-items:center;gap:5px}
+.ecf-trendLegend i{display:inline-block;width:8px;height:8px;border-radius:1px;background:#6e8264}
+.ecf-trendLegend span:last-child i{background:#bfaa91}
+.ecf-trendBars{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;min-height:116px;align-items:end}
+.ecf-trendMonth{display:grid;grid-template-rows:92px auto;gap:6px;min-width:0;text-align:center}
+.ecf-trendPair{display:flex;justify-content:center;gap:4px;align-items:flex-end;min-height:0}
+.ecf-trendPair span{width:min(24px,42%);border-radius:3px 3px 0 0;min-height:0}
+.ecf-trendPair .income{background:#6e8264}
+.ecf-trendPair .outgoing{background:#bfaa91}
+.ecf-trendMonth>small{font-size:9px;color:#899185;white-space:nowrap}
+.eas-stockLevel{height:3px;width:100%;max-width:145px;border-radius:4px;background:#ecece5;overflow:hidden;margin-top:8px}
+.eas-stockLevel>span{display:block;height:100%;border-radius:4px;background:#a97a57}
+@media(max-width:850px){
+ .ecf-costGrid{grid-template-columns:minmax(0,1fr)}
+ .ecf-ledgerTotals strong{font-size:18px}
+}
+@media(max-width:740px){
+ .appRoot .ernestoToolsRail{border:0!important;border-top:1px solid #e1e6dc!important;background:rgba(250,250,247,.98)!important}
+ .appRoot .ernestoHomeDashboard{padding:20px 11px 30px}
+ .appRoot .ernestoHomeIntro h1{font-size:39px}
+ .appRoot .ernestoHomeCard{min-height:69px;flex-direction:row;align-items:center;padding:12px 5px}
+ .appRoot .ernestoHomeCardBody strong{font-size:16px}
+ .appRoot .ernestoHomeCardArrow{position:static;font-size:19px;margin-left:auto}
+ .appRoot .ernestoHomeRecent{margin-top:28px}
+ .eas-layer,.ecf-layer{background:#f9f8f4;padding:0}
+ .eas-shell,.ecf-shell{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0;box-shadow:none}
+ .eas-body,.ecf-content{padding:15px 14px 60px}
+ .eas-header,.ecf-head{padding:11px 13px}
+ .eas-tabs,.ecf-tabs{padding-inline:14px}
+ .ecf-trend{padding:12px 10px;margin:13px 0}
+ .ecf-trendBars{gap:5px}
+ .ecf-trendMonth{grid-template-rows:81px auto}
+ .ecf-trendPair{gap:3px}
+ .ecf-ledgerTotals>div{padding:11px 8px}
+}
+@media(max-width:430px){
+ .appRoot .ernestoHomeIntro h1{font-size:36px}
+ .appRoot .ernestoHomeCard{min-height:65px}
+ .ecf-ledgerTotals strong{font-size:15px}
+ .ecf-trendLegend{gap:6px}
+}
+@media(prefers-reduced-motion:reduce){.appRoot .ernestoHomeCard{transition:none}}
