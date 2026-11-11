@@ -276,6 +276,25 @@
   .appRoot .ernestoToolsRail .ernestoToolLink:active {
     background: #e4e9e5 !important;
   }
+  .appRoot .ernestoToolsRail .ernestoToolLink {
+    position: relative;
+  }
+  .appRoot .ernestoToolsRail .ernestoToolLink.is-current::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: calc(50% - 7px);
+    width: 14px;
+    height: 2px;
+    border-radius: 2px;
+    background: #a7795e;
+  }
+  .ecf-tabs button.active::after,
+  .eas-tabs button.active::after {
+    background: #a7795e !important;
+    animation: ernestoTabInk .18s ease-out both;
+    transform-origin: left center;
+  }
   .appRoot .ernestoHomeDashboard .ernestoHomeCard {
     -webkit-tap-highlight-color: transparent;
   }
@@ -347,12 +366,16 @@
   .enote-header { gap: 7px; }
   .enote-scroll { padding-bottom: max(70px, env(safe-area-inset-bottom)); }
 }
+@keyframes ernestoTabInk {
+  from { transform: scaleX(.65); opacity: .7; }
+  to { transform: scaleX(1); opacity: 1; }
+}
 @keyframes ernestoHelpUp {
   from { opacity: .92; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 @media(prefers-reduced-motion: reduce) {
-  .ernestoHelpDialog[open] { animation: none; }
+  .ernestoHelpDialog[open], .ecf-tabs button.active::after, .eas-tabs button.active::after { animation: none; }
   .ernestoHelpTrigger { transition: none; }
   .appRoot .ernestoToolsRail .ernestoToolLink { transition: none !important; }
   .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:active {
