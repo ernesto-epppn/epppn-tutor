@@ -453,3 +453,174 @@
 @media(prefers-reduced-motion:reduce) {
   .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard { transition: none !important; }
 }
+
+/* Tutor: remove the remaining gradient chat cards and multi-coloured
+   'answer-section' treatments, without suppressing information or actions. */
+.appRoot .composer {
+  background: rgba(247,247,244,.96);
+  border-top: 1px solid #e1e6e3;
+  backdrop-filter: blur(8px);
+}
+.appRoot .composerBox {
+  background: #fff;
+  border: 1px solid #d8dfdc;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(25,38,44,.055);
+}
+.appRoot .chatTextarea {
+  color: var(--ern-ink);
+  -webkit-text-fill-color: var(--ern-ink);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.appRoot .toolBtn {
+  background: #fff;
+  border-color: #dbe2df;
+  color: var(--ern-ink);
+  -webkit-text-fill-color: var(--ern-ink);
+  box-shadow: none;
+}
+.appRoot .sendBtn {
+  background: #31566a;
+  border-radius: 8px;
+  box-shadow: none;
+  font-weight: 650;
+}
+.appRoot .sendBtn:hover:not(:disabled) { background: #244859; }
+.appRoot .bubble.user {
+  background: #eef2f3;
+  border: 1px solid #e2e9eb;
+  border-radius: 12px 12px 3px 12px;
+  box-shadow: none;
+  color: var(--ern-ink);
+}
+.appRoot .bubble.ernesto,
+.appRoot .bubble.ernesto.v13color {
+  background: #fff;
+  background-image: none;
+  border: 1px solid #e1e6e4;
+  border-left: 3px solid #9db1b8;
+  border-radius: 9px;
+  box-shadow: none;
+  animation: none;
+}
+.appRoot .answerPara {
+  color: var(--ern-ink);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.appRoot .answerHeading {
+  color: #304856;
+  font-size: 15px;
+  font-weight: 685;
+  letter-spacing: -.013em;
+}
+.appRoot .sectionShell {
+  border: 1px solid #e0e5e2;
+  border-radius: 8px;
+  box-shadow: none;
+  background: #fff;
+  background-image: none;
+}
+.appRoot .sectionHeader,
+.appRoot .sectionHeader.hAnswer,
+.appRoot .sectionHeader.hSynth,
+.appRoot .sectionHeader.hCheck,
+.appRoot .sectionHeader.hRecap,
+.appRoot .sectionHeader.hQues {
+  background: #f2f5f4;
+  border-bottom: 1px solid #e2e7e5;
+  color: #33474f;
+  -webkit-text-fill-color: #33474f;
+  font-size: 13px;
+  font-weight: 670;
+  letter-spacing: 0;
+}
+.appRoot .sectionBody {
+  border-top: 0;
+  background: #fff;
+  color: var(--ern-ink);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.appRoot .quickCard,
+.appRoot .quickCard.v13chip {
+  background: #fff;
+  background-image: none;
+  border: 1px solid #dce3e0;
+  border-radius: 8px;
+  box-shadow: none;
+}
+.appRoot .quickCard:hover,
+.appRoot .quickCard.v13chip:hover {
+  transform: none;
+  border-color: #afc1c8;
+  box-shadow: 0 2px 8px rgba(25,38,44,.045);
+}
+.appRoot .quickCard.selected,
+.appRoot .quickCard.v13chip.selected {
+  background: #31566a;
+  border-color: #31566a;
+  color: #fff;
+}
+.appRoot .quickCard.v13chip .quickText { font-size: 13px; font-weight: 530; }
+.appRoot .answerActions button,
+.appRoot .answerEditActions button {
+  font-size: 12px;
+  font-weight: 565;
+  color: #465a64;
+  -webkit-text-fill-color: #465a64;
+  border: 1px solid #dee4e1;
+  background: #fff;
+  border-radius: 7px;
+  box-shadow: none;
+}
+.appRoot .answerActions button:hover,
+.appRoot .answerEditActions button:hover { background: #f0f4f3; }
+.appRoot .ernestoDossierTop.activeProjectStrip {
+  background: #fff;
+  background-image: none;
+  border: 1px solid #e1e6e3;
+  border-radius: 9px;
+  box-shadow: none;
+}
+.appRoot .ernestoDossierTopKicker {
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0;
+  color: #69767b;
+}
+.appRoot .ernestoDossierTopName { font-weight: 650; color: var(--ern-ink); }
+.appRoot .composerFooter {
+  font-size: 11px;
+  color: #68737a;
+  background: transparent;
+  border-radius: 0;
+  opacity: 1;
+}
+.appRoot .projectRail {
+  border: 1px solid #e0e5e2;
+  border-radius: 10px;
+  background: #fff;
+  background-image: none;
+  box-shadow: none;
+}
+@media(max-width:860px) {
+  .appRoot .bubble.ernesto,
+  .appRoot .bubble.ernesto.v13color {
+    background: transparent;
+    border: 0;
+    border-left: 2px solid #a6bac1;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .appRoot .bubble.user {
+    border: 0;
+    background: #eef2f3;
+    border-radius: 13px 13px 3px 13px;
+  }
+  .appRoot .composerBox {
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(25,38,44,.06);
+  }
+}
