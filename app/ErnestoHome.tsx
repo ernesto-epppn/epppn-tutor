@@ -13,17 +13,17 @@ type Props = {
   dossiers: RecentDossier[];
   onTutor: () => void;
   onRecipes: () => void;
-  onStocks: () => void;
+  onCarnet: () => void;
   onCommercial: () => void;
   onSelectDossier: (id: string) => void;
   onAllDossiers: () => void;
 };
 
-function MiniIcon({ name }: { name: "chat" | "recipes" | "stocks" | "commercial" }) {
+function MiniIcon({ name }: { name: "chat" | "recipes" | "carnet" | "commercial" }) {
   const path = {
     chat: <><path d="M4 5h16v12H9l-5 3V5z"/><path d="M8 9h8M8 13h5"/></>,
     recipes: <><path d="M3 5c3-1 6-1 9 1v13c-3-2-6-2-9-1z"/><path d="M12 6c3-2 6-2 9-1v13c-3-1-6-1-9 1z"/></>,
-    stocks: <><path d="M4 7h16v13H4zM4 11h16M9 7V4h6v3"/></>,
+    carnet: <><path d="M5 3h13v18H5zM9 7h6M9 11h6M9 15h4"/><path d="m16 19 5-5"/></>,
     commercial: <><path d="M4 19V5m0 14h17M8 15l4-5 3 2 5-7"/></>,
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
@@ -31,13 +31,13 @@ function MiniIcon({ name }: { name: "chat" | "recipes" | "stocks" | "commercial"
 }
 
 export default function ErnestoHome({
-  dossiers, onTutor, onRecipes, onStocks, onCommercial, onSelectDossier, onAllDossiers,
+  dossiers, onTutor, onRecipes, onCarnet, onCommercial, onSelectDossier, onAllDossiers,
 }: Props) {
   const actions = [
     { key: "chat" as const, title: "Tuteur Ernesto", action: onTutor },
     { key: "recipes" as const, title: "Le carnet des recettes", action: onRecipes },
-    { key: "stocks" as const, title: "Stocks", action: onStocks },
     { key: "commercial" as const, title: "Commercial", action: onCommercial },
+    { key: "carnet" as const, title: "Mon carnet", action: onCarnet },
   ];
 
   const recent = [...dossiers]
@@ -57,6 +57,7 @@ export default function ErnestoHome({
         <span className="ernestoHomeCardIcon"><MiniIcon name={action.key}/></span>
         <span className="ernestoHomeCardBody">
           <strong>{action.title}</strong>
+          {action.key==="carnet"?<small>Rapports d’expérience</small>:null}
         </span>
         <span className="ernestoHomeCardArrow" aria-hidden="true">↗</span>
       </button>)}
