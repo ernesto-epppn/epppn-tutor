@@ -28,6 +28,8 @@ import "./ernesto-workspace-navigation.css";
 import "./ernesto-home.css";
 import "./ernesto-data-visuals.css";
 import "./ernesto-visual-refinement.css";
+import "./ernesto-experience-carnet.css";
+import "./ernesto-workspace-extension.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
