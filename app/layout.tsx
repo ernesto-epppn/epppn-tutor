@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, IBM_Plex_Sans } from "next/font/google";
 import ErnestoAccountStorageGuard from "./ErnestoAccountStorageGuard";
 import ErnestoUiCleanup from "./ErnestoUiCleanup";
 import ErnestoV144Enhancer from "./ErnestoV144Enhancer";
@@ -33,22 +32,6 @@ import "./ernesto-workspace-extension.css";
 import "./ernesto-editorial-identity.css";
 import "./ernesto-help-polish.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const ibmPlex = IBM_Plex_Sans({
-  variable: "--font-ernesto-ui",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  display: "swap",
-});
 const approvedErnestoIcon = "/logo-ernesto-approved.png";
 
 export const viewport: Viewport = {
@@ -82,7 +65,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${ibmPlex.variable}`}>
+      <head>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+      </head>
+      <body>
         <ErnestoAccountStorageGuard />
         <ErnestoUiCleanup />
         <ErnestoV144Enhancer />
