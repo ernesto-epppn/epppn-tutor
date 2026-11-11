@@ -43,7 +43,11 @@ assert.match(helpComponent, /showModal\(\)/, "Help must use the browser top laye
 assert.match(helpComponent, /<dialog/, "Help must use an accessible native dialog");
 assert.match(helpComponent, /aria-labelledby=\{titleId\}/, "Dialog must have an accessible heading");
 assert.match(helpComponent, /aria-label="Fermer l'aide"/, "Help needs a reachable close button");
-assert.match(helpComponent, /onClose=\{\(\) => triggerRef.current/, "Return keyboard focus to trigger");
+assert.match(helpComponent, /onClose=\{onDialogClosed\}/, "Handle native dialog closure");
+assert.match(helpComponent, /triggerRef.current\?\.focus/, "Restore keyboard focus to trigger");
+assert.match(helpComponent, /createPortal\(/, "Help must render outside clipped workspace containers");
+assert.match(helpComponent, /document\.body/, "Portal target must be the document body");
+assert.match(helpComponent, /topic !== "home"/, "Home must omit the redundant all-help link");
 assert.doesNotMatch(helpComponent, /<details/, "Old clipped popover must not remain");
 assert.match(helpPage, /from "\.\.\/ernestoHelpTopics"/, "Server-side help page imports data, not client component");
 assert.match(layout, /ernesto-help-polish.css/, "Include shared help CSS");
