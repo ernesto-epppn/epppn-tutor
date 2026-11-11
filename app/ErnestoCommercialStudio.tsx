@@ -136,7 +136,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
   return ()=>{cancelled=true;};
  },[open,userId,accessToken,supabase,refresh]);
  useEffect(()=>{
-  if(!open||!accessToken||recipes.length===19)return;
+  if(!open||!accessToken||isCustom||recipes.length===19)return;
   let cancelled=false;
   setRecipeLoading(true);
   void fetch("/api/recettes",{headers:{Authorization:"Bearer "+accessToken},cache:"no-store"})
@@ -145,7 +145,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
    .catch(()=>{if(!cancelled)setError("Le carnet des recettes est momentanément indisponible.")})
    .finally(()=>{if(!cancelled)setRecipeLoading(false)});
   return ()=>{cancelled=true;};
- },[open,accessToken,recipes.length]);
+ },[open,accessToken,recipes.length,isCustom]);
  useEffect(()=>{
   if(!open)return;
   const focus=document.activeElement instanceof HTMLElement?document.activeElement:null;
@@ -191,6 +191,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
  const isTray=recipe?.mode==="plaques";
  const units=calc?(isTray?calc.trays:calc.pieces):1;
  const ingredientPerUnit=isCustom?cost.baseIngredientsPerUnit:(units>0?subtotal/units:0);
+ const costKnown=!isCustom||cost.baseIngredientsPerUnit>0;
  const extra=cost.toppingsPerUnit+cost.packagingPerUnit+cost.energyPerUnit+cost.laborPerUnit+cost.otherPerUnit;
  const totalPerUnit=ingredientPerUnit+extra;
  const selling=taxable(cost.sellingPriceTtc,cost.vatRate);
@@ -299,11 +300,11 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
        <section className="ecf-card">
         <div className="ecf-sourceChoice" role="group" aria-label="Origine du produit">
          <button type="button" className={isCustom?"active":""}
-          aria-pressed={isCustom} onClick={()=>setRecipeId(customProducts.length?safeText(customProducts[0].payload.recipeId):"custom:draft")}>
+          aria-pressed={isCustom} onClick={()=>{setError("");setRecipeId(customProducts.length?safeText(customProducts[0].payload.recipeId):"custom:draft");}}>
           Mon produit
          </button>
          <button type="button" className={!isCustom?"active":""}
-          aria-pressed={!isCustom} onClick={()=>setRecipeId(recipes[0]?.id||"classique-j1")}>
+          aria-pressed={!isCustom} onClick={()=>{setError("");setRecipeId(recipes[0]?.id||"classique-j1");}}>
           Recette EPPPN
          </button>
         </div>
@@ -356,16 +357,16 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
          <div><small>Coût matières / unité</small><strong>{EUR.format(ingredientPerUnit)}</strong></div>
          <div><small>Coût variable estimé / unité</small><strong>{EUR.format(totalPerUnit)}</strong></div>
          <div><small>Marge sur coûts variables / unité</small>
-          <strong className={margin!==null&&margin<0?"negative":""}>{margin===null?"TVA à préciser":EUR.format(margin)}</strong></div>
-         <div><small>Taux de marque (marge / prix HT)</small><strong>{marginRate===null?"—":P.format(marginRate)+" %"}</strong></div>
+          <strong className={margin!==null&&margin<0?"negative":""}>{!costKnown?"Coût à préciser":margin===null?"TVA à préciser":EUR.format(margin)}</strong></div>
+         <div><small>Taux de marque (marge / prix HT)</small><strong>{!costKnown||marginRate===null?"—":P.format(marginRate)+" %"}</strong></div>
         </div>
-        <div className="ecf-marginBar" aria-hidden="true"><span style={{width:(costRate===null?0:Math.min(100,Math.max(0,costRate)))+"%"}}/></div>
+        <div className="ecf-marginBar" aria-hidden="true"><span style={{width:(!costKnown||costRate===null?0:Math.min(100,Math.max(0,costRate)))+"%"}}/></div>
         <p className="ecf-hint">Marge = prix de vente HT − coût variable estimé. Ce n'est <strong>pas</strong> le bénéfice net : loyer, cotisations, charges fixes, amortissements et fiscalité restent à traiter séparément.</p>
         <div className="ecf-breakEven">
           <label className="ecf-field"><span>Charges fixes mensuelles estimées (optionnel)</span>
             <CostNumber value={cost.monthlyFixed} onChange={v=>patchCost({monthlyFixed:v})}/></label>
           {cost.monthlyFixed>0?<div><span>Ventes pour couvrir ces charges *</span>
-            <strong>{breakEven===null?"Marge positive et TVA nécessaires":N.format(breakEven)+" unités / mois"}</strong></div>:null}
+            <strong>{!costKnown||breakEven===null?"Marge positive et coûts renseignés nécessaires":N.format(breakEven)+" unités / mois"}</strong></div>:null}
           <small>* Estimation théorique si tous les articles vendus ont la même marge. Ne tient pas compte des variations de ventes, charges sociales ni de l'impôt.</small>
         </div>
         <button type="button" className="ecf-primary" disabled={working||(!isCustom&&!recipe)} onClick={()=>void storeCost()}>Enregistrer ce calcul</button>
