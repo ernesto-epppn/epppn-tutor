@@ -398,3 +398,161 @@
 @media(prefers-reduced-motion:reduce) {
   .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard { transition: none !important; }
 }
+
+/*
+ * Visual balance pass: depth and identity, without rebuilding the interface.
+ * Keep legible sizing, four-card layout and simplified copy from prior pass.
+ * Restrained navy + terracotta + a little harvest olive, not grey-on-grey.
+ */
+:root {
+  --ern-ink: #243848;
+  --ern-dim: #607078;
+  --ern-line: #dddeda;
+  --ern-paper: #fcfaf6;
+  --ern-white: #fffefc;
+  --ern-accent: #af6948;
+  --ern-accent-dark: #925339;
+  --ern-slate: #365b6f;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard {
+  color: var(--ern-ink);
+}
+.appRoot .ernestoHomeIntro h1 {
+  color: #263e50;
+  font-weight: 670;
+  letter-spacing: -.037em;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard {
+  background: #fffefc !important;
+  border: 1px solid #e0dfd9 !important;
+  box-shadow: 0 4px 16px rgba(39,53,62,.065), 0 1px 2px rgba(39,53,62,.035) !important;
+  transition: transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
+  background: #fffdfa !important;
+  border-color: #b9c8cf !important;
+  box-shadow: 0 9px 22px rgba(39,53,62,.11), 0 2px 4px rgba(39,53,62,.03) !important;
+  transform: translateY(-2px) !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody strong {
+  color: #243c4e !important;
+  font-weight: 680 !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardArrow {
+  color: #a97963;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon {
+  border: 0;
+  border-radius: 11px !important;
+  background: #e7eef3 !important;
+  color: #36617a !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--recipes .ernestoHomeCardIcon {
+  background: #f4ebde !important;
+  color: #946443 !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--stocks .ernestoHomeCardIcon {
+  background: #e9eee1 !important;
+  color: #5f7148 !important;
+}
+.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--commercial .ernestoHomeCardIcon {
+  background: #ede7e8 !important;
+  color: #8a5764 !important;
+}
+.appRoot .ernestoHomeRecentHeading h2 { color: #263e50; font-weight: 660; }
+.appRoot .ernestoHomeRecentHeading button { color: #365b6f; }
+.appRoot .ernestoHomeDossierList {
+  background: #fffefa;
+  border-color: #dfded7;
+  box-shadow: 0 3px 12px rgba(35,52,61,.04);
+}
+.appRoot .ernestoHomeDossier:hover { background: #f7f6f1; }
+.appRoot .ernestoHomeDossierGo { color: #ad7656; }
+.appRoot .ernestoToolsRail {
+  background: #f6f4ef;
+  border-color: #e3e0d8;
+}
+.appRoot .ernestoBrandHomeMark { background: #29495e; }
+.appRoot .ernestoBrandHome strong { color: #29495e; }
+.appRoot .ernestoBrandHome:hover { background: #eaece9; }
+.appRoot .ernestoToolLink.is-current {
+  background: #e6ecf0;
+  border-color: #d6e1e6;
+  color: #284f65;
+  -webkit-text-fill-color: #284f65;
+}
+.appRoot .ernestoToolLink.is-current svg { stroke: #365f75; }
+.appRoot .ernestoToolLink:hover { background: #ececea; }
+.appRoot .ernestoGlobalHome:hover,.ernestoOverlayHome:hover { background: #eaf0f2; }
+.appRoot .ernestoDossierBilan { color: #355870; -webkit-text-fill-color: #355870; }
+.eas-shell,.ecf-shell,.ers-shell {
+  background: #fbfaf7;
+  box-shadow: 0 19px 59px rgba(26,42,51,.22);
+}
+.eas-header,.ecf-head,.ers-topbar {
+  background: #faf8f3;
+  border-color: #e3e1db;
+}
+.eas-logo,.ecf-monogram,.ers-brandMark { background: #29495e; }
+.eas-heading h2,.ecf-head h2,.ers-brand h2 {
+  color: #263f50;
+  font-weight: 670;
+}
+.eas-tabs button.active,.ecf-tabs button.active { color: #294e66; }
+.eas-tabs button.active:after,.ecf-tabs button.active:after { background: #b77450; }
+.eas-sectionTitle h3,.ecf-sectionTitle h3 { color: #263e50; }
+.eas-card,.ecf-card,.eas-form,.ecf-form {
+  background: #fffefd;
+  border-color: #e2e1db;
+  box-shadow: 0 3px 13px rgba(34,48,60,.045);
+}
+.eas-card h4 { color: #284b5f; }
+.eas-stockDetails strong { color: #294b5c; }
+.eas-valueSummary>div,.ecf-ledgerTotals>div {
+  background: #fffefc;
+  border-color: #e2e0db;
+  box-shadow: 0 3px 12px rgba(34,48,60,.045);
+}
+.eas-valueSummary strong,.ecf-ledgerTotals strong,.ecf-kpis strong { color: #2c5267; }
+.eas-primary,.ecf-primary {
+  background: #2a5067 !important;
+  border-color: #2a5067 !important;
+}
+.eas-primary:hover,.ecf-primary:hover { background: #203f53 !important; }
+.eas-cardActions button,.ecf-rowsHead button { color: #365f78; }
+.eas-state.alert,.ecf-kpis .negative,.ecf-ledgerRow .negative { color: #ac6247; }
+.ecf-marginBar { background: #ebe8e1; }
+.ecf-marginBar span { background: #b57452; }
+.ecf-batch { background: #f2f0e9; }
+.ecf-journalBar button { background: #edf2f4; color: #294f66; border-color: #dbe4e8; }
+.ecf-journalBar button:last-child { background: #faf6f0; color: #8c6246; border-color: #eadfd5; }
+.ecf-trend { box-shadow: 0 3px 12px rgba(33,47,59,.045); }
+.ecf-trendLegend i,.ecf-trendPair .income { background: #416d82; }
+.ecf-trendLegend span:last-child i,.ecf-trendPair .outgoing { background: #d18d65; }
+.ecf-ledgerRow>strong.positive { color: #34718a; }
+.eas-stockLevel { background: #eeeae1; }
+.eas-stockLevel>span { background: #c5815d; }
+.ers-library { background: #f4f3ed; }
+.ers-chip.is-active { background: #294d64; border-color: #294d64; }
+.ers-recipeRow.is-selected {
+  border-color: #ccdae0;
+  background: #fffefc;
+  box-shadow: 0 4px 12px rgba(35,63,78,.055);
+}
+.ers-blockTitle>span,.ers-super,.ers-bake>span { color: #8a6851; }
+.ers-bakerHelp>summary { color: #365d72; }
+@media(max-width:860px) {
+  .appRoot .ernestoToolsRail { background: #fbfaf7 !important; }
+  .appRoot .ernestoToolLink.is-current {
+    background: #e5edf1 !important;
+    border-color: #cddce4 !important;
+    color: #294f65 !important;
+    -webkit-text-fill-color: #294f65 !important;
+  }
+  .appRoot .ernestoToolLink.is-current svg { stroke: #345f76 !important; }
+  .eas-shell,.ecf-shell,.ers-shell { box-shadow: none; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard { transition:none !important; }
+  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover { transform:none !important; }
+}
