@@ -1,0 +1,109 @@
+/* Small visual diagnostics for the original four-card Ernesto design.
+   No global theme or layout overrides. */
+
+/* Revenue and expense bars: displayed only with at least two months of data. */
+.ecf-trend {
+  margin: 17px 0 21px;
+  padding: 16px 17px 13px;
+  border: 1px solid #dfe7dc;
+  border-radius: 13px;
+  background: #fff;
+}
+.ecf-trendHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 15px;
+}
+.ecf-trendHead strong {
+  font-size: 13px;
+  font-weight: 730;
+  letter-spacing: -.01em;
+  color: #34473b;
+}
+.ecf-trendLegend {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  font-size: 10px;
+  color: #7d8b7b;
+}
+.ecf-trendLegend span { display: inline-flex; align-items: center; gap: 6px; }
+.ecf-trendLegend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: #688768;
+}
+.ecf-trendLegend span:last-child i { background: #cbad90; }
+.ecf-trendBars {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  min-height: 126px;
+  align-items: end;
+  padding-top: 5px;
+}
+.ecf-trendMonth {
+  display: grid;
+  grid-template-rows: 98px auto;
+  gap: 9px;
+  min-width: 0;
+  text-align: center;
+}
+.ecf-trendPair {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 5px;
+  width: 100%;
+  height: 98px;
+  border-bottom: 1px solid #e7ece5;
+}
+.ecf-trendPair span {
+  width: min(25px, 42%);
+  max-height: 100%;
+  border-radius: 4px 4px 0 0;
+  transition: height .2s ease, opacity .15s ease;
+  cursor: help;
+}
+.ecf-trendPair span:hover { opacity: .76; }
+.ecf-trendPair .income { background: #688768; }
+.ecf-trendPair .outgoing { background: #cbad90; }
+.ecf-trendMonth > small {
+  font-size: 10px;
+  color: #83917f;
+  white-space: nowrap;
+}
+
+/* A discreet indicator only when an ingredient has reached its reorder level. */
+.eas-stockLevel {
+  margin-top: 9px;
+  width: 100%;
+  max-width: 155px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #edf0e9;
+}
+.eas-stockLevel > span {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: #b98765;
+}
+
+@media(max-width:680px) {
+  .ecf-trend { padding: 13px 11px; margin: 14px 0 20px; }
+  .ecf-trendBars { gap: 6px; }
+  .ecf-trendMonth { grid-template-rows: 83px auto; gap: 7px; }
+  .ecf-trendPair { height: 83px; gap: 3px; }
+  .ecf-trendMonth > small { font-size: 9px; }
+  .ecf-trendLegend { gap: 10px; }
+}
+@media(prefers-reduced-motion: reduce) {
+  .ecf-trendPair span { transition: none; }
+}
