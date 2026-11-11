@@ -19,6 +19,17 @@ type Props = {
   onAllDossiers: () => void;
 };
 
+function MiniIcon({ name }: { name: "chat" | "recipes" | "stocks" | "commercial" }) {
+  const path = {
+    chat: <><path d="M4 5h16v12H9l-5 3V5z"/><path d="M8 9h8M8 13h5"/></>,
+    recipes: <><path d="M3 5c3-1 6-1 9 1v13c-3-2-6-2-9-1z"/><path d="M12 6c3-2 6-2 9-1v13c-3-1-6-1-9 1z"/></>,
+    stocks: <><path d="M4 7h16v13H4zM4 11h16M9 7V4h6v3"/></>,
+    commercial: <><path d="M4 19V5m0 14h17M8 15l4-5 3 2 5-7"/></>,
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+    strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{path[name]}</svg>;
+}
+
 export default function ErnestoHome({
   dossiers, onTutor, onRecipes, onStocks, onCommercial, onSelectDossier, onAllDossiers,
 }: Props) {
@@ -36,7 +47,7 @@ export default function ErnestoHome({
 
   return <section className="ernestoHomeDashboard" aria-labelledby="ernesto-home-title">
     <header className="ernestoHomeIntro">
-      <span className="ernestoHomeLead">ERNESTO  /  EPPPN</span>
+      <span className="ernestoHomeLead">ERNESTO · EPPPN</span>
       <h1 id="ernesto-home-title">Mon espace</h1>
     </header>
 
@@ -44,10 +55,11 @@ export default function ErnestoHome({
       {actions.map(action => <button type="button" key={action.key}
         className={`ernestoHomeCard ernestoHomeCard--${action.key}`}
         onClick={action.action}>
+        <span className="ernestoHomeCardIcon"><MiniIcon name={action.key}/></span>
         <span className="ernestoHomeCardBody">
           <strong>{action.title}</strong>
         </span>
-        <span className="ernestoHomeCardArrow" aria-hidden="true">→</span>
+        <span className="ernestoHomeCardArrow" aria-hidden="true">↗</span>
       </button>)}
     </div>
 
@@ -69,6 +81,6 @@ export default function ErnestoHome({
       <p>Vos derniers dossiers apparaîtront ici lorsque vous aurez commencé à utiliser le tuteur.</p>
     </div>}
 
-
+    <footer className="ernestoHomeFoot">Ernesto · EPPPN</footer>
   </section>;
 }
