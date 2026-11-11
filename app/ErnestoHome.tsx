@@ -76,9 +76,7 @@ export default function ErnestoHome({
           <span className="ernestoHomeDossierGo" aria-hidden="true">↗</span>
         </button>)}
       </div>
-    </section> : <div className="ernestoHomeEmpty">
-      <p>Vos derniers dossiers apparaîtront ici lorsque vous aurez commencé à utiliser le tuteur.</p>
-    </div>}
+    </section> : null}
 
   </section>;
 }
