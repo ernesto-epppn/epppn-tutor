@@ -90,6 +90,7 @@ type ChatMsg = {
   graph?: GraphJSON | null;
   flowchart?: ActionFlowchartData | null;
   rag?: { used?: number } | null;
+  personalNotes?: string[];
   mode?: string | null;
   sourceMention?: boolean;
 };
@@ -1027,6 +1028,9 @@ export default function Page() {
           rag: data?.rag ?? null,
           mode: data?.mode ?? speed,
           sourceMention: Boolean(data?.source_mention),
+          personalNotes: Array.isArray(data?.personal_notes_consulted)
+            ? data.personal_notes_consulted.filter((value:unknown)=>typeof value==="string").slice(0,3)
+            : [],
         },
       ]);
       setMessage("");
@@ -2854,7 +2858,16 @@ export default function Page() {
                       <button type="button" onClick={() => startEditAnswer(m)}>Modifier</button>
                       <button type="button" onClick={() => copyAnswer(m.text)}>Copier</button>
                       <button type="button" onClick={() => printAnswer(m.text)}>Imprimer</button>
+                      <button type="button" onClick={() => {
+                        setCarnetPrefill({text:m.text,key:Date.now()});
+                        setRecipeStudioOpen(false);
+                        setCommercialStudioOpen(false);
+                        setCarnetOpen(true);
+                      }}>Dans mon carnet</button>
                     </div>
+                    {m.personalNotes?.length ? <div className="enote-provenance">
+                      Carnet consulté : {m.personalNotes.join(" · ")}
+                    </div> : null}
                     {editingAnswerId === m.id ? (
                       <div className="answerEditBox">
                         <textarea
