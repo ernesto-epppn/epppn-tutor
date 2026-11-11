@@ -40,7 +40,7 @@ assert.ok(recipeStudio.includes('<ErnestoSectionHelp topic="recipes"/>'), "Recip
 assert.ok(commercial.includes('<ErnestoSectionHelp topic={tab==="journal"?"journal":"cost"}/>'), "Cost and journal need help");
 assert.ok(activity.includes('<ErnestoSectionHelp topic={section==="stock"?"stock":"suppliers"}/>'), "Stock and suppliers need separate help");
 assert.ok(notes.includes('<ErnestoSectionHelp topic="carnet"/>'), "Carnet needs in-place help");
-assert.match(helpComponent, /target="_blank" rel="noopener noreferrer"/, "Help index must not interrupt forms");
+assert.doesNotMatch(helpComponent, /Toutes les aides|href="\/aide"|target="_blank"/, "No all-help links in any contextual help dialog");
 assert.match(helpComponent, /"use client";/, "Interactive help must be a client component");
 assert.match(helpComponent, /showModal\(\)/, "Help must use the browser top layer");
 assert.match(helpComponent, /<dialog/, "Help must use an accessible native dialog");
@@ -50,7 +50,7 @@ assert.match(helpComponent, /onClose=\{onDialogClosed\}/, "Handle native dialog 
 assert.match(helpComponent, /triggerRef.current\?\.focus/, "Restore keyboard focus to trigger");
 assert.match(helpComponent, /createPortal\(/, "Help must render outside clipped workspace containers");
 assert.match(helpComponent, /document\.body/, "Portal target must be the document body");
-assert.match(helpComponent, /topic !== "home"/, "Home must omit the redundant all-help link");
+assert.doesNotMatch(helpComponent, /topic !== "home"/, "No special-case guide link remains");
 assert.doesNotMatch(helpComponent, /<details/, "Old clipped popover must not remain");
 assert.match(helpPage, /from "\.\.\/ernestoHelpTopics"/, "Server-side help page imports data, not client component");
 assert.match(layout, /ernesto-help-polish.css/, "Include shared help CSS");
