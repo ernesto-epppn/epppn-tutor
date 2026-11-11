@@ -167,7 +167,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
  const trend=useMemo(()=>{
   const [year,number]=month.split("-").map(Number);
   if(!Number.isFinite(year)||!Number.isFinite(number)||number<1||number>12)return [];
-  const tx=entries.map(r=>parseLedger(r)).filter(v=>/^\\d{4}-\\d{2}-\\d{2}$/.test(v.date));
+  const tx=entries.map(r=>parseLedger(r)).filter(v=>/^\d{4}-\d{2}-\d{2}$/.test(v.date));
   return Array.from({length:6},(_,offset)=>{
    const when=new Date(Date.UTC(year,number-1-(5-offset),1));
    const key=when.toISOString().slice(0,7);
