@@ -156,7 +156,6 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
         <div className="enote-mark" aria-hidden="true">✎</div>
         <div className="enote-heading">
           <h2 id="enote-title">Mon carnet</h2>
-          <p>Vos essais, vos résultats, vos observations.</p>
         </div>
         <div className="enote-nav">
           <button type="button" onClick={onHome}>Accueil</button>
@@ -164,9 +163,6 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
         </div>
       </header>
       <div className="enote-scroll">
-        <div className="enote-intro">
-          Gardez une trace de vos essais, ajustements et résultats. Vos notes restent personnelles.
-        </div>
         {error?<p className="enote-error" role="alert">{error}</p>:null}
         {notice?<p className="enote-notice" role="status">{notice}</p>:null}
         <form className="enote-form" onSubmit={e=>void save(e)}>
