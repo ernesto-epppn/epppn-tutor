@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Manrope } from "next/font/google";
+import { Geist, Geist_Mono, IBM_Plex_Sans } from "next/font/google";
 import ErnestoAccountStorageGuard from "./ErnestoAccountStorageGuard";
 import ErnestoUiCleanup from "./ErnestoUiCleanup";
 import ErnestoV144Enhancer from "./ErnestoV144Enhancer";
@@ -42,15 +42,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const manrope = Manrope({
+const ibmPlex = IBM_Plex_Sans({
   variable: "--font-ernesto-ui",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
   display: "swap",
 });
 const approvedErnestoIcon = "/logo-ernesto-approved.png";
 
 export const viewport: Viewport = {
-  themeColor: "#fffaf5",
+  themeColor: "#f7f7f4",
 };
 
 export const metadata: Metadata = {
@@ -80,7 +81,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${ibmPlex.variable}`}>
         <ErnestoAccountStorageGuard />
         <ErnestoUiCleanup />
         <ErnestoV144Enhancer />

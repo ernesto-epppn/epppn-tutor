@@ -22,6 +22,10 @@ type Props = {
   userId?: string;
   prefill?: Prefill;
 };
+const todayLocalISO = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+};
 const noteDate = (date: string) => {
   try {
     const parsed = /^\d{4}-\d{2}-\d{2}$/.test(date)
@@ -40,7 +44,7 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
   const [notice,setNotice]=useState("");
   const [title,setTitle]=useState("");
   const [body,setBody]=useState("");
-  const [experienceDate,setExperienceDate]=useState("");
+  const [experienceDate,setExperienceDate]=useState(todayLocalISO);
   const [useInAnswers,setUseInAnswers]=useState(true);
   const [editingId,setEditingId]=useState<string|null>(null);
   const [refresh,setRefresh]=useState(0);
@@ -93,7 +97,7 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
   if(!open)return null;
 
   function reset(){
-    setEditingId(null);setTitle("");setBody("");setExperienceDate("");setUseInAnswers(true);
+    setEditingId(null);setTitle("");setBody("");setExperienceDate(todayLocalISO());setUseInAnswers(true);
     setError("");setNotice("");
   }
   function edit(note:ExperienceNote){
@@ -216,8 +220,8 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
             <div className="enote-entryActions">
               <button type="button" className="enote-use" onClick={()=>void toggle(note)}
                 disabled={saving} aria-pressed={note.use_in_answers}
-                title={note.use_in_answers?"Ne plus utiliser dans les réponses":"Autoriser dans les réponses"}>
-                {note.use_in_answers?"✓ Utilisée par Ernesto":"Non utilisée par Ernesto"}
+                title={note.use_in_answers?"Exclure des réponses":"Autoriser dans les réponses"}>
+                {note.use_in_answers?"Autorisée pour les réponses":"Exclue des réponses"}
               </button>
               <button type="button" onClick={()=>edit(note)}>Modifier</button>
               <button type="button" className="enote-remove" onClick={()=>void remove(note)}
