@@ -35,7 +35,7 @@ export default function ErnestoHome({
 }: Props) {
   const actions = [
     { key: "chat" as const, title: "Tuteur Ernesto", action: onTutor },
-    { key: "recipes" as const, title: "Le carnet des recettes", action: onRecipes },
+    { key: "recipes" as const, title: "Recettes", action: onRecipes },
     { key: "commercial" as const, title: "Commercial", action: onCommercial },
     { key: "carnet" as const, title: "Mon carnet", action: onCarnet },
   ];
@@ -58,7 +58,6 @@ export default function ErnestoHome({
         <span className="ernestoHomeCardBody">
           <strong>{action.title}</strong>
         </span>
-        <span className="ernestoHomeCardArrow" aria-hidden="true">↗</span>
       </button>)}
     </div>
 
@@ -73,7 +72,6 @@ export default function ErnestoHome({
           <span className="ernestoHomeDossierDot" style={{background:p.color}}/>
           <span className="ernestoHomeDossierName">{p.title || "Dossier général"}</span>
           <span className="ernestoHomeDossierMeta">{p.count} message{p.count!==1?"s":""}</span>
-          <span className="ernestoHomeDossierGo" aria-hidden="true">↗</span>
         </button>)}
       </div>
     </section> : null}
