@@ -53,7 +53,7 @@ export default function ErnestoExperienceCarnet({open,onClose,onHome,supabase,us
         if(cancelled)return;
         if(loadError)setError("Impossible de charger vos notes.");
         else setNotes((data||[]) as ExperienceNote[]);
-      }).finally(()=>{if(!cancelled)setLoading(false);});
+      }).then(()=>{if(!cancelled)setLoading(false);});
     return ()=>{cancelled=true;};
   },[open,userId,supabase,refresh]);
 
