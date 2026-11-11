@@ -41,8 +41,8 @@
   margin: 0;
   font-family: var(--ern-editorial-ui);
   font-size: clamp(29px, 3.5vw, 37px);
-  font-weight: 700;
-  letter-spacing: -.036em;
+  font-weight: 600;
+  letter-spacing: -.024em;
   line-height: 1.2;
   color: var(--ern-ink);
 }
@@ -61,22 +61,22 @@
   align-items: center !important;
   position: relative !important;
   min-width: 0 !important;
-  min-height: 121px !important;
-  padding: 22px 18px !important;
-  gap: 14px !important;
+  min-height: 96px !important;
+  padding: 18px 17px !important;
+  gap: 12px !important;
   background: var(--ern-white) !important;
   color: var(--ern-ink) !important;
   border: 1px solid var(--ern-line) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 2px 8px rgba(21, 33, 39, .045) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
   transform: none !important;
   transition: background .14s ease,border-color .14s ease,box-shadow .14s ease !important;
   text-align: left !important;
 }
 .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard:hover {
   background: #fbfcfc !important;
-  border-color: #aebdc4 !important;
-  box-shadow: 0 5px 14px rgba(21, 33, 39, .09) !important;
+  border-color: #93a6ac !important;
+  box-shadow: none !important;
   transform: none !important;
 }
 .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon,
@@ -85,13 +85,13 @@
 .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--carnet .ernestoHomeCardIcon {
   display: grid !important;
   place-items: center !important;
-  width: 42px !important;
-  height: 42px !important;
-  flex: 0 0 42px !important;
-  background: #f2f4f4 !important;
-  color: #3f5965 !important;
-  border: 1px solid #e3e9e9 !important;
-  border-radius: 9px !important;
+  width: 27px !important;
+  height: 27px !important;
+  flex: 0 0 27px !important;
+  background: transparent !important;
+  color: #45565e !important;
+  border: 0 !important;
+  border-radius: 0 !important;
 }
 .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon svg {
   width: 22px !important;
@@ -111,20 +111,11 @@
 }
 .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody strong {
   font-family: var(--ern-editorial-ui) !important;
-  font-size: clamp(16px, 1.7vw, 19px) !important;
-  font-weight: 675 !important;
-  letter-spacing: -.02em !important;
+  font-size: clamp(15px, 1.55vw, 17px) !important;
+  font-weight: 600 !important;
+  letter-spacing: -.012em !important;
   line-height: 1.3 !important;
   color: var(--ern-ink) !important;
-}
-.appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardArrow {
-  position: absolute !important;
-  top: 14px !important;
-  right: 14px !important;
-  margin: 0 !important;
-  font-size: 17px !important;
-  line-height: 1 !important;
-  color: #84929a !important;
 }
 .appRoot .ernestoHomeRecent { margin-top: 32px; }
 .appRoot .ernestoHomeRecentHeading h2 {
@@ -153,7 +144,6 @@
 .appRoot .ernestoHomeDossierName { font-size: 13px; font-weight: 610; color: var(--ern-ink); }
 .appRoot .ernestoHomeDossierMeta { font-size: 12px; color: var(--ern-dim); }
 .appRoot .ernestoHomeDossier:hover { background: #f5f7f7; }
-.appRoot .ernestoHomeDossierGo { color: #84929a; }
 
 /* Working navigation. One meaningful active state rather than colour coding. */
 .appRoot .ernestoToolsRail {
@@ -250,8 +240,8 @@
 }
 .eas-card { padding: 15px; }
 .eas-card h4 { font-size: 14px; font-weight: 665; color: var(--ern-ink); }
-.eas-card p, .eas-card small { font-size: 12px; color: var(--ern-dim); }
-.eas-stockDetails { font-size: 12px; color: var(--ern-dim); }
+.eas-card p, .eas-card small { font-size: 13px; color: var(--ern-dim); }
+.eas-stockDetails { font-size: 13px; color: var(--ern-dim); }
 .eas-stockDetails strong { font-size: 14px; font-weight: 670; color: var(--ern-ink); }
 .eas-valueSummary>div, .ecf-ledgerTotals>div {
   background: #fff;
@@ -345,8 +335,8 @@
 }
 .ers-selectRecipe strong { font-size: 13px; font-weight: 650; color: var(--ern-ink); }
 .ers-selectRecipe>span:last-child { font-size: 12px; color: var(--ern-dim); }
-.ers-page { font-size: 12px; font-weight: 560; letter-spacing: 0; color: #647277; }
-.ers-libraryFoot { font-size: 12px; color: var(--ern-dim); }
+.ers-page { font-size: 13px; font-weight: 500; letter-spacing: 0; color: #647277; }
+.ers-libraryFoot { font-size: 13px; color: var(--ern-dim); }
 .ers-super, .ers-blockTitle>span {
   font-size: 12px;
   font-weight: 550;
@@ -414,18 +404,18 @@
     flex-direction: column !important;
     align-items: flex-start !important;
     justify-content: flex-start !important;
-    min-height: 127px !important;
-    padding: 15px 12px !important;
-    gap: 12px !important;
-    border-radius: 9px !important;
+    min-height: 110px !important;
+    padding: 14px 12px !important;
+    gap: 9px !important;
+    border-radius: 8px !important;
   }
   .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon {
-    width: 35px !important;
-    height: 35px !important;
-    flex: 0 0 35px !important;
+    width: 27px !important;
+    height: 27px !important;
+    flex: 0 0 27px !important;
   }
   .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardIcon svg {
-    width: 19px !important; height: 19px !important;
+    width: 21px !important; height: 21px !important;
   }
   .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody,
   .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCard--carnet .ernestoHomeCardBody {
@@ -435,13 +425,8 @@
   }
   .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardBody strong {
     font-size: 14px !important;
-    line-height: 1.25 !important;
-    letter-spacing: -.015em !important;
-  }
-  .appRoot .workspace.ernestoHomeActive .ernestoHomeDashboard .ernestoHomeCardArrow {
-    top: 11px !important;
-    right: 11px !important;
-    font-size: 15px !important;
+    line-height: 1.3 !important;
+    letter-spacing: -.008em !important;
   }
   .appRoot .ernestoHomeRecentHeading h2 { font-size: 16px; }
   .eas-heading h2, .ecf-head h2, .ers-brand h2, .enote-heading h2 { font-size: 23px; }
@@ -566,7 +551,7 @@
 .appRoot .quickCard.v13chip .quickText { font-size: 13px; font-weight: 530; }
 .appRoot .answerActions button,
 .appRoot .answerEditActions button {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 565;
   color: #465a64;
   -webkit-text-fill-color: #465a64;
@@ -585,14 +570,14 @@
   box-shadow: none;
 }
 .appRoot .ernestoDossierTopKicker {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
   letter-spacing: 0;
   color: #69767b;
 }
 .appRoot .ernestoDossierTopName { font-weight: 650; color: var(--ern-ink); }
 .appRoot .composerFooter {
-  font-size: 11px;
+  font-size: 12px;
   color: #68737a;
   background: transparent;
   border-radius: 0;
