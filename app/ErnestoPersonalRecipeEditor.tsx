@@ -2,7 +2,7 @@
 import { useEffect,useState } from "react";
 import type { Recipe,RecipeGroup } from "./recipeData";
 
-type Props={base?:Recipe;accessToken:string;onClose:()=>void;onSaved:(id:string)=>void};
+type Props={base?:Recipe;accessToken:string;scope?:"personal"|"official";onClose:()=>void;onSaved:(id:string)=>void};
 const defaults:Recipe={id:"",page:0,name:"Ma nouvelle pizza",subtitle:"Recette personnelle",
   group:"direct",kind:"pizza",mode:"pâtons",flour:"Farine de blé",water:60,bassinage:0,
   salt:2,yeast:0.4,levain:0,levainHydration:null,oil:0,potato:0,defaultPieces:8,pieceWeight:260,
@@ -11,17 +11,17 @@ const fields:[keyof Recipe,string][]=[
   ["water","Eau"],["bassinage","Bassinage"],["salt","Sel"],
   ["yeast","Levure"],["levain","Levain"],["oil","Huile"],["potato","Pommes de terre"]
 ];
-export default function ErnestoPersonalRecipeEditor({base,accessToken,onClose,onSaved}:Props){
+export default function ErnestoPersonalRecipeEditor({base,accessToken,scope="personal",onClose,onSaved}:Props){
   const [draft,setDraft]=useState<Recipe>(defaults);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   useEffect(()=>{
-    setDraft(base?{...base,id:base.id.startsWith("personal:")?base.id:"",
-      name:base.id.startsWith("personal:")?base.name:base.name+" · ma version",
-      subtitle:"Recette personnelle",page:0,sourceNotes:[],
+    setDraft(base?{...base,id:scope==="official"||base.id.startsWith("personal:")?base.id:"",
+      name:scope==="official"||base.id.startsWith("personal:")?base.name:base.name+" · ma version",
+      subtitle:scope==="official"?base.subtitle:"Recette personnelle",page:scope==="official"?base.page:0,sourceNotes:scope==="official"?base.sourceNotes:[],
       steps:base.steps.map(s=>({...s}))}:{...defaults});
     setError("");
-  },[base]);
+  },[base,scope]);
   function patch(value:Partial<Recipe>){setDraft(v=>({...v,...value}));setError("");}
   async function save(){
     if(!draft.name.trim()||!draft.flour.trim()||!draft.steps.some(s=>s.name&&s.detail)){setError("Complétez le nom, la farine et les étapes.");return;}
@@ -29,7 +29,7 @@ export default function ErnestoPersonalRecipeEditor({base,accessToken,onClose,on
     try{
       const res=await fetch("/api/recettes",{method:"POST",
         headers:{"Content-Type":"application/json",Authorization:"Bearer "+accessToken},
-        body:JSON.stringify({scope:"personal",id:draft.id,recipe:draft})});
+        body:JSON.stringify({scope,id:draft.id,recipe:draft})});
       const body=await res.json();
       if(!res.ok)throw Error("Recette non enregistrée : "+String(body.error||res.status));
       onSaved(body.recipe.id);
@@ -37,7 +37,7 @@ export default function ErnestoPersonalRecipeEditor({base,accessToken,onClose,on
     finally{setBusy(false);}
   }
   async function remove(){
-    if(!draft.id.startsWith("personal:")||!window.confirm("Supprimer ma recette ?"))return;
+    if(!draft.id||!window.confirm(scope==="official"?"Supprimer cette recette administrée (ou restaurer la version EPPPN initiale) ?":"Supprimer ma recette ?"))return;
     setBusy(true);
     try{
       const res=await fetch("/api/recettes?id="+encodeURIComponent(draft.id),{
@@ -48,7 +48,7 @@ export default function ErnestoPersonalRecipeEditor({base,accessToken,onClose,on
     finally{setBusy(false);}
   }
   return <section className="ers-personalEditor" aria-label="Éditeur de recette personnelle">
-    <div className="ers-personalHead"><strong>{draft.id?"Modifier ma recette":"Créer ma recette"}</strong>
+    <div className="ers-personalHead"><strong>{scope==="official"?(draft.id?"Modifier la recette":"Nouvelle recette officielle"):(draft.id?"Modifier ma recette":"Créer ma recette")}</strong>
       <button type="button" onClick={onClose}>Fermer ×</button></div>
     <div className="ers-personalGrid">
       <label>Nom<input maxLength={100} value={draft.name} onChange={e=>patch({name:e.target.value})}/></label>
@@ -81,10 +81,10 @@ export default function ErnestoPersonalRecipeEditor({base,accessToken,onClose,on
     </label>
     <div className="ers-personalActions">
       <button type="button" className="ers-savePersonal" disabled={busy} onClick={()=>void save()}>Enregistrer</button>
-      {draft.id.startsWith("personal:")?<button type="button" disabled={busy} onClick={()=>void remove()}>Supprimer</button>:null}
+      {draft.id&&(scope==="official"||draft.id.startsWith("personal:"))?<button type="button" disabled={busy} onClick={()=>void remove()}>Supprimer</button>:null}
       <button type="button" onClick={onClose}>Annuler</button>
     </div>
     {error?<p role="alert" className="ers-editorError">{error}</p>:null}
-    <p>Cette recette est privée, et ne modifie aucune fiche EPPPN.</p>
+    <p>{scope==="official"?"Publication pour les utilisateurs autorisés. La formule EPPPN originale reste disponible dans le code.":"Cette recette est privée, et ne modifie aucune fiche EPPPN."}</p>
   </section>;
 }
