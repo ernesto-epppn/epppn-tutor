@@ -5,14 +5,16 @@ import type {Recipe} from "./recipeData";
 import {calculateRecipe,recipeDefaults} from "./recipeMath";
 
 type Line={id:string;name:string;grams:number;priceKg:number|null;kind:"pate"|"garniture"};
+type Area="centre"|"quartier"|"peripherie"|"bourg"|"rural";
 type Costing={id:string;name:string;recipeId:string;lines:Line[];packagingHt:number;otherHt:number;
   laborHt:number;energyHt:number;sellingHt:number;monthlyFixedHt:number;monthlyVolume:number;
-  targetPct:number;segment:"simple"|"standard"|"speciale";version:2};
+  targetPct:number;segment:"simple"|"standard"|"speciale";area:Area;version:2};
 type RecordRow={id:string;kind:string;payload:Record<string,unknown>;updated_at:string};
 type Props={supabase:SupabaseClient;userId?:string;records:RecordRow[];recipes:Recipe[];onStored:()=>void};
 const money=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:2});
 const fmt=new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2});
-const MARKET_FR_HT=13.24/1.10; // GIRA Indice Pizza 2026, 13.24 EUR TTC, conversion illustrative at VAT 10%.
+const MARKET_FR_HT=13.24/1.10; // GIRA Indice Pizza 2026; repère national indicatif HT.
+const AREA_FACTOR:Record<Area,number>={centre:1.08,quartier:1.04,peripherie:1,bourg:0.97,rural:0.95};
 function number(value:unknown){const n=Number(value);return Number.isFinite(n)&&n>=0&&n<=1000000?n:0;}
 function initial(recipe?:Recipe):Costing{
  const id="pizza:"+crypto.randomUUID();
@@ -24,7 +26,7 @@ function initial(recipe?:Recipe):Costing{
       {id:"sauce",name:"Sauce tomate",grams:90,priceKg:null,kind:"garniture"},
       {id:"fromage",name:"Mozzarella",grams:80,priceKg:null,kind:"garniture"}];
  return {id,name:recipe?.name||"Ma pizza",recipeId:recipe?.id||"",lines,packagingHt:0,otherHt:0,laborHt:0,energyHt:0,
-  sellingHt:0,monthlyFixedHt:0,monthlyVolume:0,targetPct:28,segment:"standard",version:2};
+  sellingHt:0,monthlyFixedHt:0,monthlyVolume:0,targetPct:28,segment:"standard",area:"quartier",version:2};
 }
 function parseCost(payload:Record<string,unknown>):Costing|null{
  if(payload.version!==2||!Array.isArray(payload.lines)||typeof payload.id!=="string")return null;
@@ -36,7 +38,8 @@ function parseCost(payload:Record<string,unknown>):Costing|null{
   lines,packagingHt:number(payload.packagingHt),otherHt:number(payload.otherHt),laborHt:number(payload.laborHt),
   energyHt:number(payload.energyHt),sellingHt:number(payload.sellingHt),monthlyFixedHt:number(payload.monthlyFixedHt),
   monthlyVolume:number(payload.monthlyVolume),targetPct:number(payload.targetPct)||28,
-  segment:payload.segment==="simple"||payload.segment==="speciale"?payload.segment:"standard",version:2};
+  segment:payload.segment==="simple"||payload.segment==="speciale"?payload.segment:"standard",
+  area:(["centre","quartier","peripherie","bourg","rural"].includes(String(payload.area))?String(payload.area):"quartier") as Area,version:2};
 }
 function PriceField({value,onChange,unit="€",nullable=false}:{value:number|null;onChange:(n:number|null)=>void;unit?:string;nullable?:boolean}){
  return <span className="epcPrice"><input type="number" min="0" step="any" inputMode="decimal" value={value===null?"":value}
@@ -60,20 +63,14 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
  const unknown=activeCost.lines.filter(l=>l.grams>0&&l.priceKg===null);
  const ingredients=activeCost.lines.reduce((n,l)=>n+l.grams/1000*(l.priceKg||0),0);
  const packaging=activeCost.packagingHt;
- const totalVar=ingredients+packaging+activeCost.energyHt+activeCost.laborHt+activeCost.otherHt;
  const grossCost=ingredients+packaging;
  const gross=activeCost.sellingHt>0&&unknown.length===0?activeCost.sellingHt-grossCost:null;
  const grossPct=gross!==null?gross/activeCost.sellingHt*100:null;
- const contribution=activeCost.sellingHt>0&&unknown.length===0?activeCost.sellingHt-totalVar:null;
  const foodPct=activeCost.sellingHt>0&&unknown.length===0?ingredients/activeCost.sellingHt*100:null;
- const fixedPerUnit=activeCost.monthlyVolume>0?activeCost.monthlyFixedHt/activeCost.monthlyVolume:0;
- const minimum=totalVar+fixedPerUnit;
- const targetRatio=Math.max(.15,Math.min(.5,activeCost.targetPct/100));
- const segmentFactor=activeCost.segment==="simple"?.85:activeCost.segment==="speciale"?1.2:1;
- const marketGuide=MARKET_FR_HT*segmentFactor;
- const targetMaterials=ingredients/targetRatio;
- const targetVariable=totalVar/0.55;
- const recommended=Math.ceil(Math.max(minimum*1.08,targetMaterials,targetVariable,marketGuide)*2)/2;
+ // Ajustement géographique indicatif, et non une mesure des tarifs locaux.
+ const marketGuide=MARKET_FR_HT*AREA_FACTOR[activeCost.area];
+ const recommended=Math.ceil(Math.max(grossCost/0.38,marketGuide)*2)/2;
+ const suggestedMargin=Math.max(0,recommended-grossCost);
  function load(row:{cost:Costing}){setNewRecipe(row.cost.recipeId);setCost(row.cost);setAdvice(false);setError("");setNotice("");}
  function create(recipeId:string){
   const r=recipes.find(x=>x.id===recipeId);
@@ -138,9 +135,38 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
     <button className="epcAdd" type="button" onClick={addLine}>+ Ajouter un ingrédient</button>
     <div className="epcOther">
       <label>Emballage HT / pizza<PriceField value={packaging} onChange={v=>patch({packagingHt:v||0})}/></label>
-      <label>Énergie HT / pizza<PriceField value={activeCost.energyHt} onChange={v=>patch({energyHt:v||0})}/></label>
-      <label>Main-d'œuvre directe HT / pizza<PriceField value={activeCost.laborHt} onChange={v=>patch({laborHt:v||0})}/></label>
-      <label>Autres variables HT / pizza<PriceField value={activeCost.otherHt} onChange={v=>patch({otherHt:v||0})}/></label>
+    </div>
+    <div className="epcAdvice epcAdviceLeft">
+      <div className="epcAdviceHeader"><strong>Prix de vente conseillé</strong><span>Estimation HT selon le coût et l'environnement commercial.</span></div>
+      <label>Environnement de la pizzeria
+        <select value={activeCost.area} onChange={e=>patch({area:e.target.value as Area})}>
+          <option value="centre">Centre-ville / secteur très fréquenté</option>
+          <option value="quartier">Quartier urbain</option>
+          <option value="peripherie">Périphérie / commune voisine</option>
+          <option value="bourg">Petite ville / bourg</option>
+          <option value="rural">Commune rurale</option>
+        </select>
+      </label>
+      <button type="button" disabled={!ready} className="epcRecommend" onClick={()=>setAdvice(true)}>
+        <span>Calculer le prix conseillé</span><span aria-hidden="true">↗</span>
+      </button>
+      {advice&&ready?<div className="epcProposal" role="status">
+        <small>PRIX CONSEILLÉ · HT / PIZZA</small>
+        <div className="epcProposalAmount"><strong>{money.format(recommended)}</strong>
+          <button type="button" onClick={()=>patch({sellingHt:recommended})}>Appliquer ce prix</button>
+        </div>
+        <div className="epcMicroChart" role="img" aria-label={`Répartition estimée : ingrédients ${money.format(ingredients)}, emballage ${money.format(packaging)}, marge brute ${money.format(suggestedMargin)}`}>
+          <span className="epcMicroIngredients" style={{width:(ingredients/recommended*100)+"%"}}/>
+          <span className="epcMicroPackaging" style={{width:(packaging/recommended*100)+"%"}}/>
+          <span className="epcMicroMargin" style={{width:(suggestedMargin/recommended*100)+"%"}}/>
+        </div>
+        <div className="epcMicroLegend">
+          <span><i className="epcDot epcDotIngredients"/>Matières {money.format(ingredients)}</span>
+          <span><i className="epcDot epcDotPackaging"/>Emballage {money.format(packaging)}</span>
+          <span><i className="epcDot epcDotMargin"/>Marge brute {money.format(suggestedMargin)}</span>
+        </div>
+        <p>Repère indicatif fondé sur le coût direct, la moyenne nationale <a href="https://www.giraconseil.fr/newsletter-no43" target="_blank" rel="noopener noreferrer">GIRA 2026</a> et un ajustement modéré selon l'environnement choisi. Il ne remplace pas une comparaison des prix pratiqués à proximité.</p>
+      </div>:null}
     </div>
     <p className="epcMuted">Un prix vide signifie « non renseigné ». Saisissez 0 uniquement si le coût est réellement nul. Le calcul de la pâte inclut la farine.</p>
    </div>
@@ -149,37 +175,19 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
     <div className="epcMetrics">
       <div><span>Food cost matières HT</span><strong>{ready?money.format(ingredients):"Incomplet"}</strong></div>
       <div><span>Emballage HT</span><strong>{money.format(packaging)}</strong></div>
-      <div><span>Total variable HT</span><strong>{ready?money.format(totalVar):"Incomplet"}</strong></div>
+      <div><span>Coût direct HT (matières + emballage)</span><strong>{ready?money.format(grossCost):"Incomplet"}</strong></div>
       <div><span>Marge brute HT (vente − matières − emballage)</span><strong>{ready&&gross!==null?money.format(gross):"—"}</strong></div>
       <div><span>Taux de marge brute</span><strong>{ready&&grossPct!==null?fmt.format(grossPct)+" %":"—"}</strong></div>
       <div><span>Food cost / prix HT</span><strong>{ready&&foodPct!==null?fmt.format(foodPct)+" %":"—"}</strong></div>
-      <div><span>Marge contributive HT (après autres variables)</span><strong>{ready&&contribution!==null?money.format(contribution):"—"}</strong></div>
+
     </div>
-    <div className="epcOther">
-      <label>Charges fixes HT / mois (facultatif)<PriceField value={activeCost.monthlyFixedHt} onChange={v=>patch({monthlyFixedHt:v||0})}/></label>
-      <label>Pizzas / mois prévues<PriceField unit="pcs" value={activeCost.monthlyVolume} onChange={v=>patch({monthlyVolume:v||0})}/></label>
-    </div>
-    <div className="epcFloor"><span>Prix plancher HT estimé / pizza</span>
-      <strong>{ready?money.format(minimum):"—"}</strong>
-      <small>Coûts variables + part des charges fixes, si volume mensuel renseigné. Sans bénéfice.</small>
-    </div>
-    <div className="epcAdvice">
-      <label>Food cost cible <PriceField value={activeCost.targetPct} unit="%" onChange={v=>patch({targetPct:Math.min(50,Math.max(15,v||28))})}/></label>
-      <label>Positionnement<select value={activeCost.segment} onChange={e=>patch({segment:e.target.value as Costing["segment"]})}>
-        <option value="simple">Simple</option><option value="standard">Standard</option><option value="speciale">Spéciale / premium</option>
-      </select></label>
-      <button type="button" disabled={!ready} className="epcRecommend" onClick={()=>setAdvice(true)}>Conseiller un prix de vente HT</button>
-      {advice&&ready?<div className="epcProposal" role="status">
-        <small>PRIX CONSEILLÉ · HT</small><strong>{money.format(recommended)}</strong>
-        <button type="button" onClick={()=>patch({sellingHt:recommended})}>Utiliser ce prix</button>
-        <p>Calcul : coût matière cible {fmt.format(activeCost.targetPct)} %, couverture des coûts variables et repère national indicatif France.
-        Moyenne Indice Pizza GIRA 2026 : {money.format(MARKET_FR_HT)} HT (conversion indicative du prix TTC de 13,24 € avec TVA 10 %).
-        Ajustement par positionnement, non par relevé local. À vérifier face aux pizzerias voisines. Sources : <a href="https://www.giraconseil.fr/newsletter-no43" target="_blank" rel="noopener noreferrer">GIRA 2026</a> et <a href="https://www.metro.fr/conseil-service/conseil/rentabilite-restaurant" target="_blank" rel="noopener noreferrer">METRO (ratio matière)</a>.</p>
-      </div>:null}
+    <div className="epcFloor"><span>Coût direct HT / pizza</span>
+      <strong>{ready?money.format(grossCost):"—"}</strong>
+      <small>Matières et emballage uniquement. Les autres charges ne sont pas déduites de la marge brute.</small>
     </div>
     <button className="epcSave" type="button" disabled={busy||!ready} onClick={()=>void save()}>Enregistrer cette pizza</button>
     {saved.some(x=>x.cost.id===activeCost.id)?<button className="epcDelete" type="button" disabled={busy} onClick={()=>void remove()}>Supprimer la fiche</button>:null}
-    <p className="epcMuted">La marge brute n'est pas un bénéfice net. Le prix proposé est un outil d'aide à la décision, pas une garantie de rentabilité.</p>
+    <p className="epcMuted">La marge brute n'est pas un bénéfice net : les frais fixes et autres dépenses restent à couvrir.</p>
    </div>
   </div>
  </div>;

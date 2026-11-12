@@ -214,7 +214,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
         ? safeValues.trays+" plaque(s) · "+safeValues.trayWidth+" × "+safeValues.trayHeight+" cm"
         : safeValues.pieces+" pâtons · "+safeValues.pieceWeight+" g",
       "",
-      ...safeAmount.quantities.map(i=>i.label+": "+formatDualQuantity(i.grams)+" · "+i.percent+" %"+(i.approximate?" (≈)":"")),
+      ...safeAmount.quantities.map(i=>i.label+": "+formatGrams(i.grams)+" · "+i.percent+" %"+(i.approximate?" (≈)":"")),
       "",
       "Total : "+formatDualQuantity(safeAmount.dough),
       "Hydratation ajoutée : "+fmt.format(safeAmount.nominalHydration)+" %"+(safeAmount.effectiveHydration===null?" (hydratation du levain non précisée)":"" ),
@@ -372,7 +372,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
                 {safeAmount.quantities.map((i,index)=><div className={"ers-ingredient"+(index===0?" main":"")} key={i.key}>
                   <span>{i.label}{i.approximate ? <small>≈ selon farine</small>:null}</span>
                   <span className="ers-percentage">{fmt.format(i.percent)} %</span>
-                  <div className="ers-quantity"><strong>{gram(i.grams)}</strong><small>{formatKilograms(i.grams)}</small></div>
+                  <div className="ers-quantity"><strong title={i.grams>0&&i.grams<0.5?`Dose exacte : ${i.grams} g`:undefined}>{gram(i.grams)}</strong>{i.grams>=1000?<small>{formatKilograms(i.grams)}</small>:null}</div>
                 </div>)}
               </div>
 

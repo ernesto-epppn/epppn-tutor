@@ -41,3 +41,29 @@
 .epcError{background:#faeeea;color:#a44a35}.epcNotice{background:#edf5e9;color:#416d46}
 @media(max-width:850px){.epcGrid{grid-template-columns:1fr}}
 @media(max-width:680px){.epcChoose{grid-template-columns:1fr}.epcCard{padding:11px}.epcTableHeading,.epcLine{grid-template-columns:minmax(85px,1.4fr) 65px 75px 62px 16px;gap:3px}.epcLine>input{font-size:11px;padding:5px}.epcPrice{padding:2px}.epcPrice input{font-size:11px}.epcPrice small{font-size:8px}.epcLine strong{font-size:10px}.epcOther{grid-template-columns:1fr 1fr}.epcTop h3{font-size:19px}}
+
+/* Conseil de prix : action à gauche, hiérarchie calme et mini-graphique lisible. */
+.epcAdviceLeft{margin-top:18px;padding:16px;border:1px solid #dce7df;border-radius:13px;background:#f8faf8}
+.epcAdviceHeader{display:grid;gap:4px;margin-bottom:2px}
+.epcAdviceHeader strong{font-size:15px;color:#24423d;letter-spacing:-.02em}
+.epcAdviceHeader span{font-size:11px;font-weight:450;color:#738379;line-height:1.45}
+.epcAdviceLeft>label{font-size:11px}
+.epcAdviceLeft select{background:#fff}
+.epcAdviceLeft .epcRecommend{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;background:#234e49;border-radius:11px;font-size:13px;padding:12px 15px;min-height:46px;transition:background .15s ease}
+.epcAdviceLeft .epcRecommend:not(:disabled):hover{background:#163e39}
+.epcAdviceLeft .epcRecommend span:last-child{font-size:18px;font-weight:450;line-height:1}
+.epcAdviceLeft .epcProposal{padding:14px;background:#fff;border-color:#dce7df}
+.epcProposalAmount{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:9px}
+.epcProposalAmount strong{font-size:clamp(26px,3vw,35px);letter-spacing:-.045em;color:#244e43;font-variant-numeric:tabular-nums}
+.epcProposalAmount button{background:#e8f0ec;border:1px solid #cdded5;color:#2a5347;font-size:11px;font-weight:750;min-height:34px;cursor:pointer}
+.epcMicroChart{height:11px;border-radius:999px;display:flex;overflow:hidden;background:#e5eae5;margin-top:5px}
+.epcMicroChart span{display:block;min-width:0;transition:width .2s ease}
+.epcMicroIngredients{background:#4c796f}
+.epcMicroPackaging{background:#d8a46a}
+.epcMicroMargin{background:#cddfd3}
+.epcMicroLegend{display:flex;flex-wrap:wrap;gap:6px 12px}
+.epcMicroLegend>span{display:inline-flex;gap:5px;align-items:center;font-size:10px;color:#5d7569;white-space:nowrap}
+.epcDot{display:inline-block;width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.epcDotIngredients{background:#4c796f}.epcDotPackaging{background:#d8a46a}.epcDotMargin{background:#cddfd3}
+@media(max-width:680px){.epcAdviceLeft{padding:13px}.epcProposalAmount strong{font-size:29px}.epcMicroLegend>span{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.epcAdviceLeft .epcRecommend,.epcMicroChart span{transition:none}}

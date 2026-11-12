@@ -78,6 +78,8 @@ assert.equal(recipeIsModified(starterExample,recipeDefaults(starterExample)),fal
 // Unit display stays legible for bulk flour and tiny yeast quantities.
 assert.ok(formatKilograms(1250).includes("1,25"), "1 250 g = 1,25 kg");
 assert.ok(formatKilograms(0.5).includes("0,0005"), "0,5 g = 0,0005 kg");
-assert.ok(formatGrams(0.125).includes("0,125"), "Small quantities retain milligram resolution");
+assert.equal(formatGrams(0.125), "< 1 g", "Subgram doses are not displayed as zero after whole-gram rounding");
+assert.equal(formatGrams(12.6), "13 g", "Recipe gram amounts display as integers");
+assert.equal(formatGrams(0), "0 g", "Truly zero quantities remain zero");
 assert.ok(formatDualQuantity(2500).includes("kg") && formatDualQuantity(2500).includes("g"));
 console.log("EPPPN: 19 source formulas, baker's percentages, mass conservation, starter hydration and trays OK");
