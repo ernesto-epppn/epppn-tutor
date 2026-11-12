@@ -153,10 +153,10 @@ export function recipeContextForTutor(recipe: Recipe, settings: RecipeSettings):
   const calculation=calculateRecipe(recipe,settings);
   const s=calculation.settings;
   const same= !recipeIsModified(recipe,s);
-  const amounts=calculation.quantities.map(i=>i.label+": "+i.grams.toFixed(1)+" g ("+i.percent+" % farine)").join("; ");
+  const amounts=calculation.quantities.map(i=>i.label+": "+(i.grams>=1?Math.round(i.grams):Math.round(i.grams*100)/100)+" g ("+i.percent+" % farine)").join("; ");
   return [
     "Contexte de recette EPPPN transmis par l'utilisateur (calcul arithmétique déterministe).",
-    "Source : Fiches recettes EPPPN 2025, fiche page "+recipe.page+", document de connaissance n°5.",
+    recipe.id.startsWith("personal:")?"Source : formulation personnelle, non officielle EPPPN.":"Source : Fiches recettes EPPPN 2025, fiche page "+recipe.page+", document de connaissance n°5.",
     "Recette : "+recipe.name+" — "+recipe.subtitle+".",
     "Formule : "+(same?"taux documentaires inchangés":"VARIANTE PERSONNELLE des taux de la fiche originale")+".",
     "Cible : "+(recipe.mode==="plaques"
