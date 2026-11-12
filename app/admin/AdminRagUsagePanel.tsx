@@ -13,6 +13,7 @@ type RagSource = {
 
 type RagEvent = {
   id: number;
+  user_id?: string | null;
   user_email?: string | null;
   project_title?: string | null;
   question: string;
@@ -68,6 +69,8 @@ export default function AdminRagUsagePanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [onlyWithoutRag, setOnlyWithoutRag] = useState(false);
+  const [search,setSearch] = useState("");
+  const [byUser,setByUser] = useState(true);
 
   async function load() {
     if (!supabase) return;
@@ -97,7 +100,15 @@ export default function AdminRagUsagePanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const visible = onlyWithoutRag ? events.filter((event) => Number(event.rag_used || 0) === 0) : events;
+  const visible=events.filter(e=>(!onlyWithoutRag||Number(e.rag_used||0)===0)&&
+    (!search.trim()||[e.user_email,e.question,e.project_title].join(" ").toLowerCase().includes(search.toLowerCase().trim())));
+  const groups=new Map<string,{key:string;label:string;events:RagEvent[]}>();
+  for(const event of visible){
+    const key=byUser?(event.user_id||event.user_email||"non-identifié"):"Réponses récentes";
+    if(!groups.has(key))groups.set(key,{key,label:byUser?(event.user_email||"Utilisateur non identifié"):"Réponses récentes",events:[]});
+    groups.get(key)?.events.push(event);
+  }
+  const grouped=[...groups.values()].sort((a,b)=>b.events.length-a.events.length);
 
   return (
     <section className="ragAuditShell">
@@ -128,11 +139,13 @@ export default function AdminRagUsagePanel() {
             <input type="checkbox" checked={onlyWithoutRag} onChange={(event) => setOnlyWithoutRag(event.target.checked)} />
             Montrer uniquement les réponses sans passage EPPPN retrouvé
           </label>
-          <span>{visible.length} réponses affichées</span>
+          <label className="ragFilter"><input type="search" placeholder="Utilisateur ou question…" value={search} onChange={e=>setSearch(e.target.value)} /></label>
+          <label className="ragGroupToggle"><input type="checkbox" checked={byUser} onChange={e=>setByUser(e.target.checked)} /> Grouper par utilisateur</label>
+          <span>{visible.length} réponses · {grouped.length} groupe(s)</span>
         </div>
 
         <div className="ragEventList">
-          {visible.map((event) => {
+          {grouped.map((group) => <details className="ragUserGroup" key={group.key}><summary><strong>{group.label}</strong><span>{group.events.length} réponses · {group.events.filter(e=>Number(e.rag_used||0)===0).length} sans RAG</span></summary><div className="ragUserEvents">{group.events.map((event) => {
             const sources = Array.isArray(event.sources) ? event.sources : [];
             const bestClass = scoreClass(event.top_similarity);
             return (
@@ -169,7 +182,7 @@ export default function AdminRagUsagePanel() {
                 )}
               </article>
             );
-          })}
+          })}</div></details>)}
           {!loading && !visible.length ? <div className="ragEmpty">Les données apparaîtront à partir des prochaines réponses Ernesto.</div> : null}
         </div>
 
@@ -194,13 +207,20 @@ function Metric({ label, value }: { label: string; value: string | number }) {
 
 const ragCss = `
   .ragAuditShell{background:#f6f7f4;padding:0 clamp(18px,4vw,58px) 70px;font-family:var(--font-geist-sans),system-ui,sans-serif;color:#172132}
-  .ragAuditCard{max-width:1380px;margin:0 auto;background:#fff;border:1px solid #e3e7df;border-radius:21px;box-shadow:0 10px 32px rgba(23,33,50,.045);padding:22px}
-  .ragAuditHead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.ragEyebrow{font-size:11px;font-weight:900;letter-spacing:.11em;text-transform:uppercase;color:#6f7d3c}.ragAuditHead h2{margin:5px 0 6px;font-size:25px;letter-spacing:-.035em}.ragAuditHead p{margin:0;max-width:820px;color:#64748b;line-height:1.55;font-size:14px}
+  .ragAuditCard{max-width:980px;margin:0 auto;background:#fff;border:1px solid #e3e7df;border-radius:21px;box-shadow:0 10px 32px rgba(23,33,50,.045);padding:22px}
+  .ragAuditHead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.ragEyebrow{font-size:11px;font-weight:900;letter-spacing:.11em;text-transform:uppercase;color:#6f7d3c}.ragAuditHead h2{margin:5px 0 6px;font-size:21px;letter-spacing:-.035em}.ragAuditHead p{margin:0;max-width:820px;color:#64748b;line-height:1.55;font-size:14px}
   .ragRefresh{border:1px solid #d9dfd5;background:#fff;color:#435331;border-radius:12px;padding:10px 14px;font-weight:850;cursor:pointer}.ragRefresh:disabled{opacity:.5;cursor:not-allowed}.ragNotice{margin-top:14px;padding:11px 13px;border-radius:12px;background:#fff1f2;color:#9f1239;border:1px solid #fecdd3;font-size:13px}
-  .ragMetrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:18px}.ragMetric{border:1px solid #e5e9e2;border-radius:15px;padding:14px;background:#fafbf9}.ragMetric span{display:block;color:#778275;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.05em}.ragMetric strong{display:block;margin-top:6px;font-size:23px;letter-spacing:-.035em}
+  .ragMetrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.ragMetric{border:1px solid #e5e9e2;border-radius:15px;padding:10px;background:#fafbf9}.ragMetric span{display:block;color:#778275;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.05em}.ragMetric strong{display:block;margin-top:6px;font-size:19px;letter-spacing:-.035em}
   .ragAuditToolbar{margin-top:17px;padding:11px 12px;border:1px solid #e5e9e2;border-radius:13px;background:#fafbf9;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;color:#586357;font-size:12px}.ragAuditToolbar label{display:flex;align-items:center;gap:8px;font-weight:750}.ragAuditToolbar input{accent-color:#6f7d3c}
   .ragEventList{display:grid;gap:10px;margin-top:12px}.ragEvent{border:1px solid #e6e9e4;border-radius:16px;padding:15px;background:#fff}.ragEventMeta{display:flex;gap:7px;flex-wrap:wrap}.ragEventMeta span{font-size:10px;font-weight:800;color:#6b756a;background:#f4f6f2;border-radius:999px;padding:4px 7px}.ragQuestion{font-weight:850;font-size:14px;line-height:1.45;margin-top:10px}.ragResultRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}.ragUsed,.ragScore{font-size:11px;font-weight:850;padding:6px 8px;border-radius:999px}.ragUsed.yes{background:#eef4e8;color:#435331}.ragUsed.no{background:#f6f6f6;color:#697068}.ragScore.strong{background:#edf5e8;color:#435331}.ragScore.medium{background:#fff7df;color:#8a6518}.ragScore.weak{background:#fff0ea;color:#9a543b}.ragScore.none{background:#f5f5f5;color:#7b817b}
   .ragSources{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:11px}.ragSource{border-left:3px solid #6f7d3c;background:#f8faf6;border-radius:9px;padding:9px 10px;display:grid;gap:2px}.ragSource strong{font-size:12px}.ragSource span,.ragSource small{font-size:10px;color:#697368}.ragNoSource{margin-top:10px;color:#7b817b;font-size:11px;font-style:italic}.ragEmpty{padding:24px;border:1px dashed #d6dcd2;border-radius:14px;color:#7a8477;text-align:center;font-size:13px}
   .ragTopDocs{margin-top:18px;padding-top:15px;border-top:1px solid #e7ebe4}.ragTopDocsTitle{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#707a6e}.ragTopDocs>div{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}.ragTopDocs span{font-size:11px;background:#f4f6f2;color:#53604f;padding:6px 9px;border-radius:999px;font-weight:750}
+
+  .ragFilter input{min-width:170px;min-height:32px;border:1px solid #dfe5da;border-radius:8px;background:#fff;padding:6px 8px;font-size:12px}
+  .ragGroupToggle{white-space:nowrap}
+  .ragUserGroup{border:1px solid #dfe7da;border-radius:12px;background:#fff;overflow:hidden}
+  .ragUserGroup summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;font-size:12px;color:#375139;background:#f7faf5}
+  .ragUserGroup summary span{color:#6e7b6f;font-size:11px;font-weight:650}
+  .ragUserEvents{display:grid;gap:6px;padding:9px}.ragUserEvents .ragEvent{border-radius:9px;padding:11px}
   @media(max-width:860px){.ragAuditShell{padding:0 12px 50px}.ragAuditCard{padding:16px;border-radius:18px}.ragAuditHead{display:grid}.ragMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ragSources{grid-template-columns:1fr}}
 `;
