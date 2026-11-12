@@ -70,7 +70,7 @@ function sanitizeRecipe(raw:unknown,id:string):Recipe|null {
     levainHydration:o.levainHydration===null?null:Number(o.levainHydration),
     oil:Number(o.oil),potato:Number(o.potato),
     fermentation:text(o.fermentation,180)||"À préciser",steps,
-    sourceNotes:[],caution:text(o.caution,500),bake:text(o.bake,180),
+    sourceNotes:Array.isArray(o.sourceNotes)?o.sourceNotes.slice(0,15).map(x=>text(x,500)):[],caution:text(o.caution,500),bake:text(o.bake,180),
     targetDoughTemp:text(o.targetDoughTemp,80),
     flourNote:text(o.flourNote,200),sourceHydration:text(o.sourceHydration,60),
     defaultPieces:optionalPositive("defaultPieces",10000),
@@ -91,8 +91,8 @@ export async function GET(req:Request){
   if(error)return respond({error:"recipe_storage_failed"},500);
   const rows=(data||[]) as RecipeRow[];
   const overrides=new Map(rows.filter(r=>r.scope==="official").map(r=>[r.id,r.payload]));
-  const official=EPPPN_RECIPES.map(r=>overrides.get(r.id)||r);
-  const added=rows.filter(r=>r.scope==="official"&&!EPPPN_RECIPES.some(b=>b.id===r.id)).map(r=>r.payload);
+  const official=EPPPN_RECIPES.map(r=>overrides.has(r.id)?{...overrides.get(r.id)!,managed:true}:r);
+  const added=rows.filter(r=>r.scope==="official"&&!EPPPN_RECIPES.some(b=>b.id===r.id)).map(r=>({...r.payload,managed:true}));
   const personal=rows.filter(r=>r.scope==="personal"&&r.owner_id===auth.user.id).map(r=>r.payload);
   return respond({
     version:"EPPPN 2025",source_document_id:5,count:EPPPN_RECIPE_COUNT,
