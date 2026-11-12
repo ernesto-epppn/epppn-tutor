@@ -118,7 +118,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
       <option value="">Nouvelle fiche</option>{saved.map(x=><option key={x.cost.id} value={x.cost.id}>{x.cost.name}</option>)}
     </select></label>
    <label>Partir d'une pâte<select value={newRecipe} onChange={e=>create(e.target.value)}>
-      <option value="">Pizza personnalisée</option>{recipes.map(r=><option key={r.id} value={r.id}>{r.name} · {r.subtitle}</option>)}
+      <option value="">Pizza personnalisée</option>{recipes.filter(r=>r.mode==="pâtons").map(r=><option key={r.id} value={r.id}>{r.name} · {r.subtitle}</option>)}
     </select></label>
   </div>
   {error?<div className="epcError" role="alert">{error}</div>:null}
