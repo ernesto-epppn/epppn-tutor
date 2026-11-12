@@ -9,6 +9,7 @@ export type RecipeMode = "pâtons" | "plaques";
 export type RecipeStep = { name: string; detail: string };
 export type Recipe = {
   id: string;
+  managed?: boolean;
   page: number;
   name: string;
   subtitle?: string;
