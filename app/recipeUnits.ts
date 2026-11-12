@@ -18,7 +18,7 @@ export function formatKilograms(valueInGrams: number): string {
   const magnitude = Math.abs(rounded);
   const digits = magnitude >= 100 ? 3 : magnitude >= 10 ? 4 : magnitude >= 1 ? 5 : 6;
   return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: digits, minimumFractionDigits: 0 })
-    .format(valueInGrams / 1000) + " kg";
+    .format(rounded / 1000) + " kg";
 }
 
 export function formatDualQuantity(valueInGrams: number): string {
