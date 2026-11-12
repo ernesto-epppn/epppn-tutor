@@ -74,7 +74,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
  const targetMaterials=ingredients/targetRatio;
  const targetVariable=totalVar/0.55;
  const recommended=Math.ceil(Math.max(minimum*1.08,targetMaterials,targetVariable,marketGuide)*2)/2;
- function load(row:{cost:Costing}){setCost(row.cost);setAdvice(false);setError("");setNotice("");}
+ function load(row:{cost:Costing}){setNewRecipe(row.cost.recipeId);setCost(row.cost);setAdvice(false);setError("");setNotice("");}
  function create(recipeId:string){
   const r=recipes.find(x=>x.id===recipeId);
   setCost(initial(r));setNewRecipe(recipeId);setAdvice(false);setError("");setNotice("");
@@ -174,7 +174,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
         <button type="button" onClick={()=>patch({sellingHt:recommended})}>Utiliser ce prix</button>
         <p>Calcul : coût matière cible {fmt.format(activeCost.targetPct)} %, couverture des coûts variables et repère national indicatif France.
         Moyenne Indice Pizza GIRA 2026 : {money.format(MARKET_FR_HT)} HT (conversion indicative du prix TTC de 13,24 € avec TVA 10 %).
-        Ajustement par positionnement, non par relevé local. À vérifier face aux pizzerias voisines.</p>
+        Ajustement par positionnement, non par relevé local. À vérifier face aux pizzerias voisines. Sources : <a href="https://www.giraconseil.fr/newsletter-no43" target="_blank" rel="noopener noreferrer">GIRA 2026</a> et <a href="https://www.metro.fr/conseil-service/conseil/rentabilite-restaurant" target="_blank" rel="noopener noreferrer">METRO (ratio matière)</a>.</p>
       </div>:null}
     </div>
     <button className="epcSave" type="button" disabled={busy||!ready} onClick={()=>void save()}>Enregistrer cette pizza</button>
