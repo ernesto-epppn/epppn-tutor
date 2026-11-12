@@ -1,0 +1,43 @@
+
+.epc{color:#243a31}
+.epcTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px}
+.epcTop h3{margin:0;font-size:23px;letter-spacing:-.03em}.epcTop p{font-size:12px;color:#718073;margin:5px 0}
+.epcTop button{border:0;padding:10px 14px;color:#fff;background:#26384d;border-radius:10px;font-weight:750;font-size:12px}
+.epcChoose{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:15px}
+.epcChoose label,.epcName,.epcOther label,.epcSummary>label,.epcAdvice label{display:grid;gap:6px;font-weight:750;font-size:11px;color:#556c5d}
+.epcChoose select,.epcName input,.epcAdvice select{min-width:0;width:100%;padding:9px;border:1px solid #d8e2d5;border-radius:9px;background:#fff;color:#2a3a2d;font-size:12px;min-height:39px}
+.epcGrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(285px,.9fr);gap:14px;align-items:start}
+.epcCard{border:1px solid #e0e8dc;border-radius:15px;background:#fff;padding:17px;min-width:0}
+.epcName{margin-bottom:12px}
+.epcTableHeading,.epcLine{display:grid;grid-template-columns:minmax(105px,1.6fr) minmax(65px,.75fr) minmax(82px,1fr) 76px 20px;gap:6px;align-items:center}
+.epcTableHeading{font-size:10px;font-weight:850;color:#718271;padding:8px 0;border-bottom:1px solid #e8eee5}
+.epcLine{padding:7px 0;border-bottom:1px solid #eef2eb}
+.epcLine>input{min-width:0;border:1px solid #dbe4d7;border-radius:7px;padding:7px;font-size:12px;background:#fff;color:#263a2b}
+.epcLine strong{text-align:right;font-size:11px;font-variant-numeric:tabular-nums}
+.epcLine>button{border:0;background:transparent;color:#9a7669;font-size:18px;padding:2px;cursor:pointer}
+.epcPrice{display:flex;align-items:center;gap:3px;min-width:0;border:1px solid #dbe4d7;border-radius:7px;padding:3px 5px;background:#fff}
+.epcPrice input{min-width:0;width:100%;border:0;outline:0;max-width:100%;font-size:12px;background:#fff;color:#263a2b;padding:4px 1px;appearance:textfield}
+.epcPrice input::-webkit-inner-spin-button{appearance:none}
+.epcPrice small{font-size:9px;color:#819083;white-space:nowrap}
+.epcAdd{padding:9px 0;border:0;background:transparent;color:#365941;font-size:11px;font-weight:800}
+.epcOther{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #ebeee9}
+.epcMuted{font-size:11px;color:#728074;line-height:1.55;margin:9px 0}
+.epcSummary{display:grid;gap:12px}
+.epcMetrics{display:grid;gap:0}
+.epcMetrics>div{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid #edf0e9;padding:9px 0}
+.epcMetrics span{font-size:11px;color:#647365;max-width:65%}.epcMetrics strong{font-size:14px;text-align:right;color:#2e4a37;font-variant-numeric:tabular-nums}
+.epcFloor{display:grid;gap:5px;background:#f3f6f0;border-radius:10px;padding:12px}
+.epcFloor span{font-size:11px;color:#5d705c;font-weight:780}.epcFloor strong{font-size:22px;color:#2e4e39}
+.epcFloor small{font-size:10px;color:#7b877a;line-height:1.55}
+.epcAdvice{display:grid;gap:10px;border-top:1px solid #e8eee6;padding-top:14px}
+.epcRecommend,.epcSave{width:100%;padding:12px;border-radius:9px;background:#26384d;color:#fff!important;border:0;font-size:12px;font-weight:800;cursor:pointer}
+.epcRecommend:disabled,.epcSave:disabled{opacity:.45;cursor:default}
+.epcProposal{background:#eef5ed;border:1px solid #cedecc;border-radius:11px;padding:12px;display:grid;gap:8px}
+.epcProposal small{color:#547256;font-size:10px;font-weight:850}.epcProposal>strong{font-size:28px;color:#254a33}
+.epcProposal button{border:1px solid #b5cbbb;border-radius:8px;padding:9px;background:#fff;color:#355f44}
+.epcProposal p{font-size:10px;color:#5e7262;line-height:1.6;margin:0}
+.epcDelete{border:0;background:transparent;color:#a05f55;text-decoration:underline;font-size:11px}
+.epcError,.epcNotice{padding:10px 12px;border-radius:9px;margin:10px 0;font-size:12px}
+.epcError{background:#faeeea;color:#a44a35}.epcNotice{background:#edf5e9;color:#416d46}
+@media(max-width:850px){.epcGrid{grid-template-columns:1fr}}
+@media(max-width:680px){.epcChoose{grid-template-columns:1fr}.epcCard{padding:11px}.epcTableHeading,.epcLine{grid-template-columns:minmax(85px,1.4fr) 65px 75px 62px 16px;gap:3px}.epcLine>input{font-size:11px;padding:5px}.epcPrice{padding:2px}.epcPrice input{font-size:11px}.epcPrice small{font-size:8px}.epcLine strong{font-size:10px}.epcOther{grid-template-columns:1fr 1fr}.epcTop h3{font-size:19px}}
