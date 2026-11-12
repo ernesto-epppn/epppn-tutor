@@ -61,7 +61,7 @@ export async function GET(req: Request) {
   const [latestResult, periodResult] = await Promise.all([
     auth.supabase
       .from("ernesto_rag_usage_events")
-      .select("id,user_email,project_title,question,response_index,mode,rag_used,top_similarity,sources,created_at")
+      .select("id,user_id,user_email,project_title,question,response_index,mode,rag_used,top_similarity,sources,created_at")
       .order("created_at", { ascending: false })
       .limit(120),
     auth.supabase

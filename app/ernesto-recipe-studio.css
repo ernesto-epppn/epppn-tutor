@@ -279,3 +279,37 @@ body:has(.ers-layer){overflow:hidden}
  .appRoot .ers-mobileQuick{max-width:47%;font-size:9px}
  .appRoot .ers-mobileQuick svg{width:15px;min-width:15px}
 }
+
+
+/* Private recipe editor — compact, consistent with Ernesto */
+.ers-createPersonal{margin:8px 0 10px;width:100%;min-height:36px;border:1px solid #c9d4c4;background:#f2f6ef;color:#34523b;border-radius:9px;font-size:12px;font-weight:750;cursor:pointer}
+.ers-recipeManage{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.ers-recipeManage button{border:1px solid #d8dfd5;background:#fff;padding:8px 10px;border-radius:8px;color:#43634b;font-size:11px;font-weight:750;cursor:pointer}
+.ers-personalEditor{padding:16px;margin-bottom:22px;background:#f8faf7;border:1px solid #d9e3d6;border-radius:14px}
+.ers-personalHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.ers-personalHead strong{font-size:17px;color:#2d4331}
+.ers-personalHead button,.ers-personalActions button{cursor:pointer;border:1px solid #ccd8ca;padding:8px 12px;border-radius:9px;background:#fff;color:#3a5940}
+.ers-personalGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ers-personalGrid label,.ers-stepEditor{display:grid;gap:4px;font-size:11px;font-weight:750;color:#506452;min-width:0}
+.ers-personalGrid input,.ers-personalGrid select,.ers-stepEditor textarea{width:100%;min-width:0;min-height:38px;padding:8px 9px;border:1px solid #d2ddd0;border-radius:8px;background:#fff;color:#25362a;font-size:13px}
+.ers-stepEditor{margin-top:12px}.ers-stepEditor textarea{min-height:90px;resize:vertical}
+.ers-personalActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ers-personalActions .ers-savePersonal{background:#26384d;color:#fff;border-color:#26384d}
+.ers-personalEditor>p{font-size:11px;color:#657564;margin:12px 0 0}.ers-editorError{color:#b34e38!important}
+@media(max-width:700px){.ers-personalGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:410px){.ers-personalGrid{grid-template-columns:1fr}}
+
+
+.adminRecipes{max-width:1320px;margin:0 auto 40px;padding:16px clamp(14px,4vw,58px);color:#24382c}
+.adminRecipesHead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 14px}
+.adminRecipes h2{font-size:22px;margin:0}.adminRecipesHead p{font-size:12px;color:#657466;margin:5px 0}
+.adminRecipesHead button{padding:10px 14px;border:0;border-radius:9px;background:#243b34;color:#fff;cursor:pointer;font-weight:750}
+.adminRecipesLayout{display:grid;grid-template-columns:minmax(200px,300px) minmax(0,1fr);gap:14px}
+.adminRecipes aside{border:1px solid #dce5db;border-radius:13px;background:#fff;overflow:auto;max-height:65vh;padding:10px}
+.adminRecipes aside input{width:100%;padding:10px;border:1px solid #dbe5d7;border-radius:8px;margin-bottom:9px}
+.adminRecipes aside button{display:grid;gap:4px;text-align:left;width:100%;padding:10px;border:0;border-bottom:1px solid #edf0ec;background:transparent;color:#304337;cursor:pointer}
+.adminRecipes aside button.active,.adminRecipes aside button:hover{background:#f1f5ef;border-radius:8px}
+.adminRecipes aside button strong{font-size:12px}.adminRecipes aside button span{font-size:10px;color:#768274}
+.adminRecipesEdit{border-radius:13px;padding:15px;border:1px solid #e0e7db;background:#fff;min-height:220px}
+.adminRecipesEdit>p{font-size:13px;color:#607364;max-width:540px}
+@media(max-width:720px){.adminRecipesLayout{grid-template-columns:1fr}.adminRecipes aside{max-height:220px}.adminRecipesHead{align-items:flex-start;flex-wrap:wrap}.adminRecipesEdit{padding:9px}}

@@ -6,6 +6,7 @@ import type { Recipe } from "./recipeData";
 import { calculateRecipe, recipeDefaults } from "./recipeMath";
 import ErnestoActivityStudio from "./ErnestoActivityStudio";
 import ErnestoSectionHelp from "./ErnestoSectionHelp";
+import ErnestoPizzaCosting from "./ErnestoPizzaCosting";
 
 type RecordRow = { id:string; kind:string; payload:Record<string,unknown>; updated_at:string };
 type LedgerKind = "vente" | "depense";
@@ -137,7 +138,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
   return ()=>{cancelled=true;};
  },[open,userId,accessToken,supabase,refresh]);
  useEffect(()=>{
-  if(!open||!accessToken||isCustom||recipes.length===19)return;
+  if(!open||!accessToken)return;
   let cancelled=false;
   setRecipeLoading(true);
   void fetch("/api/recettes",{headers:{Authorization:"Bearer "+accessToken},cache:"no-store"})
@@ -146,7 +147,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
    .catch(()=>{if(!cancelled)setError("Le carnet des recettes est momentanément indisponible.")})
    .finally(()=>{if(!cancelled)setRecipeLoading(false)});
   return ()=>{cancelled=true;};
- },[open,accessToken,recipes.length,isCustom]);
+ },[open,accessToken]);
  useEffect(()=>{
   if(!open)return;
   const focus=document.activeElement instanceof HTMLElement?document.activeElement:null;
@@ -296,86 +297,7 @@ export default function ErnestoCommercialStudio({open,onClose,onHome,supabase,us
     {loading?<div className="ecf-muted">Chargement de vos données…</div>:null}
     {tab==="stocks" ? <ErnestoActivityStudio open={true} embedded={true}
        onClose={()=>setTab("cost")} onHome={onHome} accountId={userId} supabase={supabase}/> : null}
-    {tab==="cost" ? <>
-      <div className="ecf-sectionTitle"><h3>Coûts et marges</h3>
-      </div>
-      <div className="ecf-costGrid">
-       <section className="ecf-card">
-        <div className="ecf-sourceChoice" role="group" aria-label="Origine du produit">
-         <button type="button" className={isCustom?"active":""}
-          aria-pressed={isCustom} onClick={()=>{setError("");setRecipeId(customProducts.length?safeText(customProducts[0].payload.recipeId):"custom:draft");}}>
-          Mon produit
-         </button>
-         <button type="button" className={!isCustom?"active":""}
-          aria-pressed={!isCustom} onClick={()=>{setError("");setRecipeId(recipes[0]?.id||"classique-j1");}}>
-          Recette EPPPN
-         </button>
-        </div>
-        {isCustom ? <>
-          {customProducts.length>0?<label className="ecf-field"><span>Mes produits enregistrés</span>
-           <select value={recipeId} onChange={e=>setRecipeId(e.target.value)}>
-            <option value="custom:draft">+ Nouveau produit</option>
-            {customProducts.map(row=><option key={row.id} value={safeText(row.payload.recipeId)}>
-             {safeText(row.payload.productName,120)||"Produit sans nom"}</option>)}
-           </select>
-          </label>:null}
-          <label className="ecf-field"><span>Produit ou pizza</span>
-           <input maxLength={120} value={cost.productName} onChange={e=>patchCost({productName:e.target.value})}
-             placeholder="Ex. Pizza Margherita, focaccia maison…"/>
-          </label>
-          <label className="ecf-field"><span>Coût des ingrédients HT / unité</span>
-           <CostNumber value={cost.baseIngredientsPerUnit} onChange={v=>patchCost({baseIngredientsPerUnit:v})}/>
-          </label>
-          <p className="ecf-hint">Saisissez votre coût réel de pâte et d'ingrédients par unité. Les autres coûts ci-dessous s'ajoutent à ce montant : ne comptez pas deux fois une garniture déjà incluse.</p>
-         </> : <>
-          <label className="ecf-field"><span>Recette EPPPN</span>
-           <select value={recipeId} onChange={e=>setRecipeId(e.target.value)}>
-            {!recipes.length?<option value={recipeId}>Chargement du carnet…</option>:null}
-            {recipes.map(r=><option value={r.id} key={r.id}>{r.name} · {r.subtitle}</option>)}
-           </select>
-          </label>
-          {!recipe?<p className="ecf-muted">{recipeLoading?"Chargement des recettes…":"Recettes indisponibles."}</p>:<>
-           <p className="ecf-batch">{isTray?calc?.trays+" plaque(s)":calc?.pieces+" pâtons"} · {N.format(calc?.dough||0)} g de pâte</p>
-           <div className="ecf-priceHead"><span>Ingrédient</span><span>Dans la formule</span><span>Prix d'achat HT / kg</span></div>
-           {ingredients.map(i=><div key={i.key} className="ecf-ingredientRow">
-            <span>{i.label}</span><small>{N.format(i.grams)} g</small>
-            <CostNumber value={cost.prices[i.key]||0} unit="€/kg" onChange={v=>patchCost({prices:{...formulaPrices,[i.key]:v}})}/>
-           </div>)}
-          </>}
-          <p className="ecf-hint">Les ingrédients sans prix renseigné diminuent artificiellement le coût calculé. Vérifiez vos prix d'achat HT/kg.</p>
-         </>}
-        <div className="ecf-inputColumns">
-         {([["toppingsPerUnit","Garniture"],["packagingPerUnit","Emballage"],["energyPerUnit","Énergie"],["laborPerUnit","Main-d’œuvre directe"],["otherPerUnit","Autres coûts variables"]] as [keyof CostSettings,string][]).map(([k,label])=>
-          <label className="ecf-field" key={k}><span>{label} · €/unité</span>
-           <CostNumber value={Number(cost[k])||0} onChange={v=>patchCost({[k]:v})}/></label>
-         )}
-        </div>
-       </section>
-       <section className="ecf-card ecf-result">
-        <div className="ecf-blockLabel">VOTRE PRIX DE VENTE</div>
-        <label className="ecf-field"><span>Prix affiché TTC / {isTray?"plaque":"unité"}</span>
-         <CostNumber value={cost.sellingPriceTtc} onChange={v=>patchCost({sellingPriceTtc:v})}/></label>
-        <label className="ecf-field"><span>TVA applicable au produit (à vérifier)</span><VatSelect value={cost.vatRate} onChange={v=>patchCost({vatRate:v})}/></label>
-        <div className="ecf-kpis">
-         <div><small>Coût matières / unité</small><strong>{EUR.format(ingredientPerUnit)}</strong></div>
-         <div><small>Coût variable estimé / unité</small><strong>{EUR.format(totalPerUnit)}</strong></div>
-         <div><small>Marge sur coûts variables / unité</small>
-          <strong className={margin!==null&&margin<0?"negative":""}>{!costKnown?"Coût à préciser":margin===null?"TVA à préciser":EUR.format(margin)}</strong></div>
-         <div><small>Taux de marque (marge / prix HT)</small><strong>{!costKnown||marginRate===null?"—":P.format(marginRate)+" %"}</strong></div>
-        </div>
-        <div className="ecf-marginBar" aria-hidden="true"><span style={{width:(!costKnown||costRate===null?0:Math.min(100,Math.max(0,costRate)))+"%"}}/></div>
-        <p className="ecf-hint">Marge = prix de vente HT − coût variable estimé. Ce n'est <strong>pas</strong> le bénéfice net : loyer, cotisations, charges fixes, amortissements et fiscalité restent à traiter séparément.</p>
-        <div className="ecf-breakEven">
-          <label className="ecf-field"><span>Charges fixes mensuelles estimées (optionnel)</span>
-            <CostNumber value={cost.monthlyFixed} onChange={v=>patchCost({monthlyFixed:v})}/></label>
-          {cost.monthlyFixed>0?<div><span>Ventes pour couvrir ces charges *</span>
-            <strong>{!costKnown||breakEven===null?"Marge positive et coûts renseignés nécessaires":N.format(breakEven)+" unités / mois"}</strong></div>:null}
-          <small>* Estimation théorique si tous les articles vendus ont la même marge. Ne tient pas compte des variations de ventes, charges sociales ni de l'impôt.</small>
-        </div>
-        <button type="button" className="ecf-primary" disabled={working||(!isCustom&&!recipe)} onClick={()=>void storeCost()}>Enregistrer ce calcul</button>
-       </section>
-      </div>
-    </> : <>
+    {tab==="cost" ? <ErnestoPizzaCosting supabase={supabase} userId={userId} records={rows} recipes={recipes} onStored={()=>setRefresh(n=>n+1)}/> : <>
      <div className="ecf-sectionTitle"><h3>Opérations du mois</h3></div>
      <div className="ecf-journalBar"><label>Choisir le mois <input type="month" value={month} onChange={e=>setMonth(e.target.value)}/></label>
        <div><button type="button" onClick={()=>newRow("vente")}>+ Encaissement</button>

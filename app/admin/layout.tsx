@@ -7,18 +7,20 @@ import AdminLargePdfPanelV5 from "./AdminLargePdfPanelV5";
 import AdminPilotConsole from "./AdminPilotConsole";
 import AdminRagUsagePanel from "./AdminRagUsagePanel";
 import AdminRolesPanel from "./AdminRolesPanel";
+import AdminRecipePanel from "./AdminRecipePanel";
 
-type AdminSection = "pilot" | "management" | "knowledge" | "roles";
+type AdminSection = "pilot" | "management" | "knowledge" | "recipes" | "roles";
 
 const ADMIN_SECTIONS: Array<{ key: AdminSection; label: string; note: string }> = [
   { key: "pilot", label: "Pilotage", note: "Santé, stagiaires, qualité et coûts" },
   { key: "management", label: "Utilisateurs", note: "Accréditer par email, suspendre ou prolonger les accès" },
   { key: "knowledge", label: "Connaissances EPPPN", note: "PDF, RAG et diagnostic documentaire" },
+  { key: "recipes", label: "Recettes", note: "Créer et modifier les recettes" },
   { key: "roles", label: "Rôles", note: "Utilisateur, formateur, administrateur" },
 ];
 
 function isAdminSection(value: unknown): value is AdminSection {
-  return value === "pilot" || value === "management" || value === "knowledge" || value === "roles";
+  return value === "pilot" || value === "management" || value === "knowledge" || value === "recipes" || value === "roles";
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -178,6 +180,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className={section === "knowledge" ? "adminPane active" : "adminPane"} aria-hidden={section !== "knowledge"}>
           <AdminLargePdfPanelV5 />
           <AdminRagUsagePanel />
+        </div>
+
+        <div className={section === "recipes" ? "adminPane active" : "adminPane"} aria-hidden={section !== "recipes"}>
+          <AdminRecipePanel />
         </div>
 
         <div className={section === "roles" ? "adminPane active" : "adminPane"} aria-hidden={section !== "roles"}>

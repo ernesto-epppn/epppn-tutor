@@ -8,16 +8,17 @@ const gramsFormatter = [
 export function formatGrams(value: number): string {
   if (!Number.isFinite(value)) return "—";
   const magnitude = Math.abs(value);
-  const places = magnitude >= 10 ? 0 : magnitude >= 1 ? 1 : 2;
+  const places = magnitude >= 1 ? 0 : 2;
   return gramsFormatter[places].format(value) + " g";
 }
 
 export function formatKilograms(valueInGrams: number): string {
   if (!Number.isFinite(valueInGrams)) return "—";
-  const magnitude = Math.abs(valueInGrams);
+  const rounded = Math.abs(valueInGrams) >= 1 ? Math.round(valueInGrams) : valueInGrams;
+  const magnitude = Math.abs(rounded);
   const digits = magnitude >= 100 ? 3 : magnitude >= 10 ? 4 : magnitude >= 1 ? 5 : 6;
   return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: digits, minimumFractionDigits: 0 })
-    .format(valueInGrams / 1000) + " kg";
+    .format(rounded / 1000) + " kg";
 }
 
 export function formatDualQuantity(valueInGrams: number): string {

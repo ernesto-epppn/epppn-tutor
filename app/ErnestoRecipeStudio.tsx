@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import ErnestoSectionHelp from "./ErnestoSectionHelp";
+import ErnestoPersonalRecipeEditor from "./ErnestoPersonalRecipeEditor";
 import type { Recipe, RecipeGroup } from "./recipeData";
 import { formatGrams, formatKilograms, formatDualQuantity } from "./recipeUnits";
 import {
@@ -87,6 +88,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
   const [question,setQuestion]=useState("");
   const [showAdjust,setShowAdjust]=useState(false);
   const [notice,setNotice]=useState("");
+  const [editBase,setEditBase]=useState<Recipe|null|undefined>(undefined);
   const [hydratedKey,setHydratedKey]=useState<string | null>(null);
   const closeRef=useRef<HTMLButtonElement>(null);
   const tutorRef=useRef<HTMLDivElement>(null);
@@ -94,7 +96,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
   const storageKey = accountId ? KEY+accountId : "";
 
   useEffect(()=>{
-    if(!open || !accessToken || recipes.length===19){return;}
+    if(!open || !accessToken){return;}
     let cancelled=false;
     setCatalogLoading(true);
     setCatalogError("");
@@ -107,7 +109,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
       .then(async r=>{
         const data=await r.json().catch(()=>({}));
         if(!r.ok) throw new Error(data.error==="invalid_session" ? "Session expirée. Reconnectez-vous." : "Catalogue EPPPN indisponible.");
-        if(!Array.isArray(data.recipes) || data.recipes.length!==19) throw new Error("Catalogue incomplet : contrôle EPPPN requis.");
+        if(!Array.isArray(data.recipes) || data.count!==19 || data.recipes.length<19) throw new Error("Catalogue incomplet : contrôle EPPPN requis.");
         return data.recipes as Recipe[];
       })
       .then(data=>{if(!cancelled)setRecipes(data);})
@@ -263,7 +265,8 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
 
       <div className="ers-layout">
         <aside className="ers-library" aria-label="Bibliothèque de recettes">
-          <div className="ers-libraryIntro"><strong>{recipes.length} recettes EPPPN</strong></div>
+          <div className="ers-libraryIntro"><strong>19 fiches EPPPN · {recipes.filter(r=>r.id.startsWith("personal:")).length} personnelles</strong></div>
+          <button className="ers-createPersonal" type="button" onClick={()=>setEditBase(null)}>+ Nouvelle recette</button>
           <label className="ers-search"><span aria-hidden="true">⌕</span><input
             type="search" placeholder="Chercher une recette…" value={search} onChange={e=>setSearch(e.target.value)}
           /></label>
@@ -278,7 +281,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
           <div className="ers-recipeList">
             {filtered.map(r=><div key={r.id} className={"ers-recipeRow"+(r.id===safeRecipe.id?" is-selected":"")}>
               <button className="ers-selectRecipe" onClick={()=>choose(r.id)} type="button" aria-current={r.id===safeRecipe.id?"true":undefined}>
-                <span className="ers-page">P. {String(r.page).padStart(2,"0")}</span>
+                <span className="ers-page">{r.id.startsWith("personal:")?"PERSO":r.id.startsWith("admin:")?"ATELIER":"P. "+String(r.page).padStart(2,"0")}</span>
                 <strong>{r.name}</strong>
                 <span>{r.subtitle}</span>
               </button>
@@ -293,6 +296,9 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
         </aside>
 
         <div className="ers-content">
+          {editBase!==undefined&&accessToken?<ErnestoPersonalRecipeEditor base={editBase||undefined}
+            accessToken={accessToken} onClose={()=>setEditBase(undefined)}
+            onSaved={id=>{setSelectedId(id);setEditBase(undefined);setReloadCatalog(n=>n+1);setNotice("Recette personnelle mise à jour.");}}/>:null}
           <div className="ers-mobileChoose">
             <label>Choisir une recette
               <select value={selectedId} onChange={e=>choose(e.target.value)}>
@@ -303,15 +309,16 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
 
           <div className="ers-titleRow">
             <div>
-              <div className="ers-super">Fiche n° {String(safeRecipe.page).padStart(2,"0")} <span>·</span> {GROUP_LABELS[safeRecipe.group]}</div>
+              <div className="ers-super">{safeRecipe.id.startsWith("personal:")?"Ma recette":safeRecipe.id.startsWith("admin:")?"Recette atelier":"Fiche n° "+String(safeRecipe.page).padStart(2,"0")} <span>·</span> {GROUP_LABELS[safeRecipe.group]}</div>
               <h3>{safeRecipe.name}</h3>
               <p>{safeRecipe.subtitle}</p>
+              <div className="ers-recipeManage"><button type="button" onClick={()=>setEditBase({...safeRecipe,id:""})}>Dupliquer et personnaliser</button>{safeRecipe.id.startsWith("personal:")?<button type="button" onClick={()=>setEditBase(safeRecipe)}>Modifier</button>:null}</div>
               <button type="button" className="ers-jumpTutor"
                 onClick={()=>tutorRef.current?.scrollIntoView({behavior:"smooth",block:"center"})}>
                 ✳ Une question ? Parler à Ernesto ↗
               </button>
             </div>
-            <div className="ers-formulaState"><span className={modified?"ers-personal":"ers-original"}>{modified?"Ma variante":"Formule EPPPN"}</span><span>Page {safeRecipe.page} / 21</span></div>
+            <div className="ers-formulaState"><span className={modified||safeRecipe.id.startsWith("personal:")?"ers-personal":"ers-original"}>{safeRecipe.id.startsWith("personal:")?"Ma recette":safeRecipe.managed?"Version atelier":modified?"Ma variante":"Formule EPPPN"}</span>{safeRecipe.page>0?<span>Page {safeRecipe.page} / 21</span>:null}</div>
           </div>
 
           <div className="ers-infoLine"><span>FARINE</span><strong>{safeRecipe.flour}</strong></div>
@@ -430,7 +437,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
               </div>
             </aside>
           </div>
-          <div className="ers-bottomNotes">Fiches recettes EPPPN 2025 · Source p. {safeRecipe.page} · Calcul en pourcentages boulangers, sans génération IA. {storageKey?"Vos préférences restent sur cet appareil.":""}</div>
+          <div className="ers-bottomNotes">{safeRecipe.id.startsWith("personal:")?"Recette personnelle":safeRecipe.managed?"Version atelier, éditée par administration":"Fiches recettes EPPPN 2025 · Source p. "+safeRecipe.page} · Calcul en pourcentages boulangers, sans génération IA. {storageKey?"Vos préférences restent sur cet appareil.":""}</div>
         </div>
       </div>
     </section>
