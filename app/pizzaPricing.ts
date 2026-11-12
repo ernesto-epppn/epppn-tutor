@@ -3,15 +3,15 @@
  *
  * Le repère national sert de contribution commerciale de base, jamais de
  * prix plancher. Chaque euro supplémentaire de matières + emballage
- * augmente de 1,50 euro le prix conseillé avant l'arrondi au demi-euro.
+ * augmente de 2 euros le prix conseillé avant l'arrondi au demi-euro.
  * Les coefficients géographiques sont hypothétiques : aucun relevé local.
  */
 export type PizzaArea="centre"|"quartier"|"peripherie"|"bourg"|"rural";
 
 export const PIZZA_REFERENCE_TTC=13.24; // Indice Pizza GIRA 2026
 export const PIZZA_REFERENCE_VAT=0.10; // Conversion indicative TTC → HT
-export const PIZZA_COST_COEFFICIENT=1.5;
-export const PIZZA_REFERENCE_SHARE=0.50;
+export const PIZZA_COST_COEFFICIENT=2;
+export const PIZZA_REFERENCE_SHARE=0.60;
 export const PIZZA_ROUNDING_STEP=0.5;
 export const PIZZA_AREA_FACTOR:Record<PizzaArea,number>={
   centre:1.08,quartier:1.04,peripherie:1,bourg:0.97,rural:0.95,
