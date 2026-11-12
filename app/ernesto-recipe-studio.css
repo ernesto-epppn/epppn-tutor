@@ -279,3 +279,22 @@ body:has(.ers-layer){overflow:hidden}
  .appRoot .ers-mobileQuick{max-width:47%;font-size:9px}
  .appRoot .ers-mobileQuick svg{width:15px;min-width:15px}
 }
+
+
+/* Private recipe editor — compact, consistent with Ernesto */
+.ers-createPersonal{margin:8px 0 10px;width:100%;min-height:36px;border:1px solid #c9d4c4;background:#f2f6ef;color:#34523b;border-radius:9px;font-size:12px;font-weight:750;cursor:pointer}
+.ers-recipeManage{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.ers-recipeManage button{border:1px solid #d8dfd5;background:#fff;padding:8px 10px;border-radius:8px;color:#43634b;font-size:11px;font-weight:750;cursor:pointer}
+.ers-personalEditor{padding:16px;margin-bottom:22px;background:#f8faf7;border:1px solid #d9e3d6;border-radius:14px}
+.ers-personalHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.ers-personalHead strong{font-size:17px;color:#2d4331}
+.ers-personalHead button,.ers-personalActions button{cursor:pointer;border:1px solid #ccd8ca;padding:8px 12px;border-radius:9px;background:#fff;color:#3a5940}
+.ers-personalGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ers-personalGrid label,.ers-stepEditor{display:grid;gap:4px;font-size:11px;font-weight:750;color:#506452;min-width:0}
+.ers-personalGrid input,.ers-personalGrid select,.ers-stepEditor textarea{width:100%;min-width:0;min-height:38px;padding:8px 9px;border:1px solid #d2ddd0;border-radius:8px;background:#fff;color:#25362a;font-size:13px}
+.ers-stepEditor{margin-top:12px}.ers-stepEditor textarea{min-height:90px;resize:vertical}
+.ers-personalActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ers-personalActions .ers-savePersonal{background:#26384d;color:#fff;border-color:#26384d}
+.ers-personalEditor>p{font-size:11px;color:#657564;margin:12px 0 0}.ers-editorError{color:#b34e38!important}
+@media(max-width:700px){.ers-personalGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:410px){.ers-personalGrid{grid-template-columns:1fr}}
