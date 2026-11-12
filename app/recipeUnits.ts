@@ -1,15 +1,11 @@
-/* Unités pratiques, sans perte des petites doses de levure ou de sel. */
-const gramsFormatter = [
-  new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }),
-  new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }),
-  new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 3 }),
-];
+/* Affichage des pesées en grammes entiers ; la précision des calculs est conservée. */
+const gramsFormatter = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
 
 export function formatGrams(value: number): string {
   if (!Number.isFinite(value)) return "—";
-  const magnitude = Math.abs(value);
-  const places = magnitude >= 1 ? 0 : 2;
-  return gramsFormatter[places].format(value) + " g";
+  // Ne pas afficher 0 g lorsqu'une petite dose (p. ex. levure) est nécessaire.
+  if (value > 0 && value < 0.5) return "< 1 g";
+  return gramsFormatter.format(Math.round(value)) + " g";
 }
 
 export function formatKilograms(valueInGrams: number): string {
