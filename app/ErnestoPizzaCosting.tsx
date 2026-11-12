@@ -54,21 +54,22 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
  const [newRecipe,setNewRecipe]=useState("");
  useEffect(()=>{if(!cost)setCost(initial());},[cost]);
  if(!cost)return null;
+ const activeCost:Costing=cost;
  const patch=(next:Partial<Costing>)=>{setCost(v=>v?{...v,...next}:v);setAdvice(false);setNotice("");};
- const patchLine=(id:string,next:Partial<Line>)=>patch({lines:cost.lines.map(l=>l.id===id?{...l,...next}:l)});
- const unknown=cost.lines.filter(l=>l.grams>0&&l.priceKg===null);
- const ingredients=cost.lines.reduce((n,l)=>n+l.grams/1000*(l.priceKg||0),0);
- const packaging=cost.packagingHt;
- const totalVar=ingredients+packaging+cost.energyHt+cost.laborHt+cost.otherHt;
+ const patchLine=(id:string,next:Partial<Line>)=>patch({lines:activeCost.lines.map(l=>l.id===id?{...l,...next}:l)});
+ const unknown=activeCost.lines.filter(l=>l.grams>0&&l.priceKg===null);
+ const ingredients=activeCost.lines.reduce((n,l)=>n+l.grams/1000*(l.priceKg||0),0);
+ const packaging=activeCost.packagingHt;
+ const totalVar=ingredients+packaging+activeCost.energyHt+activeCost.laborHt+activeCost.otherHt;
  const grossCost=ingredients+packaging;
- const gross=cost.sellingHt>0&&unknown.length===0?cost.sellingHt-grossCost:null;
- const grossPct=gross!==null?gross/cost.sellingHt*100:null;
- const contribution=cost.sellingHt>0&&unknown.length===0?cost.sellingHt-totalVar:null;
- const foodPct=cost.sellingHt>0&&unknown.length===0?ingredients/cost.sellingHt*100:null;
- const fixedPerUnit=cost.monthlyVolume>0?cost.monthlyFixedHt/cost.monthlyVolume:0;
+ const gross=activeCost.sellingHt>0&&unknown.length===0?activeCost.sellingHt-grossCost:null;
+ const grossPct=gross!==null?gross/activeCost.sellingHt*100:null;
+ const contribution=activeCost.sellingHt>0&&unknown.length===0?activeCost.sellingHt-totalVar:null;
+ const foodPct=activeCost.sellingHt>0&&unknown.length===0?ingredients/activeCost.sellingHt*100:null;
+ const fixedPerUnit=activeCost.monthlyVolume>0?activeCost.monthlyFixedHt/activeCost.monthlyVolume:0;
  const minimum=totalVar+fixedPerUnit;
- const targetRatio=Math.max(.15,Math.min(.5,cost.targetPct/100));
- const segmentFactor=cost.segment==="simple"?.85:cost.segment==="speciale"?1.2:1;
+ const targetRatio=Math.max(.15,Math.min(.5,activeCost.targetPct/100));
+ const segmentFactor=activeCost.segment==="simple"?.85:activeCost.segment==="speciale"?1.2:1;
  const marketGuide=MARKET_FR_HT*segmentFactor;
  const targetMaterials=ingredients/targetRatio;
  const targetVariable=totalVar/0.55;
@@ -83,11 +84,11 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
  }
  async function save(){
   if(!userId)return;
-  if(!cost.name.trim()||!cost.lines.length||unknown.length||cost.lines.some(l=>!l.name.trim())){setError("Renseignez le nom, les ingrédients et chaque prix HT/kg (0 autorisé pour l'eau).");return;}
+  if(!activeCost.name.trim()||!activeCost.lines.length||unknown.length||activeCost.lines.some(l=>!l.name.trim())){setError("Renseignez le nom, les ingrédients et chaque prix HT/kg (0 autorisé pour l'eau).");return;}
   setBusy(true);setError("");setNotice("");
   try{
-   const item=saved.find(x=>x.cost.id===cost.id);
-   const payload={...cost,name:cost.name.slice(0,120),lines:cost.lines.map(l=>({...l,name:l.name.slice(0,100)}))};
+   const item=saved.find(x=>x.cost.id===activeCost.id);
+   const payload={...cost,name:activeCost.name.slice(0,120),lines:activeCost.lines.map(l=>({...l,name:l.name.slice(0,100)}))};
    const db=supabase.from("ernesto_activity_records");
    const query=item?db.update({payload,updated_at:new Date().toISOString()}).eq("id",item.row.id).eq("user_id",userId):
      db.insert({user_id:userId,kind:"costing",payload});
@@ -98,21 +99,21 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
   finally{setBusy(false);}
  }
  async function remove(){
-  const item=saved.find(x=>x.cost.id===cost.id);
+  const item=saved.find(x=>x.cost.id===activeCost.id);
   if(!item||!userId||!window.confirm("Supprimer cette fiche de coût ?"))return;
   setBusy(true);
   const {error:err}=await supabase.from("ernesto_activity_records").delete().eq("id",item.row.id).eq("user_id",userId);
   setBusy(false);
   if(err)setError("Suppression impossible.");else{setCost(initial());setNotice("Fiche supprimée.");onStored();}
  }
- const ready=unknown.length===0&&cost.lines.some(l=>l.grams>0)&&ingredients>0;
+ const ready=unknown.length===0&&activeCost.lines.some(l=>l.grams>0)&&ingredients>0;
  return <div className="epc">
   <div className="epcTop">
    <div><h3>Food cost · par pizza</h3><p>Coûts, emballage, marge et prix de vente : tous les montants sont HT.</p></div>
    <button type="button" onClick={()=>create("")}>+ Nouvelle pizza</button>
   </div>
   <div className="epcChoose">
-   <label>Mes fiches enregistrées<select value={saved.some(x=>x.cost.id===cost.id)?cost.id:""}
+   <label>Mes fiches enregistrées<select value={saved.some(x=>x.cost.id===activeCost.id)?activeCost.id:""}
       onChange={e=>{const item=saved.find(x=>x.cost.id===e.target.value);if(item)load(item);}}>
       <option value="">Nouvelle fiche</option>{saved.map(x=><option key={x.cost.id} value={x.cost.id}>{x.cost.name}</option>)}
     </select></label>
@@ -124,27 +125,27 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
   {notice?<div className="epcNotice" role="status">{notice}</div>:null}
   <div className="epcGrid">
    <div className="epcCard">
-    <label className="epcName">Nom de la pizza<input maxLength={120} value={cost.name} onChange={e=>patch({name:e.target.value})}/></label>
-    {cost.recipeId?<p className="epcMuted">Pâte de départ : {recipes.find(r=>r.id===cost.recipeId)?.name||"recette personnelle"} · quantités ramenées à une unité, modifiables.</p>:null}
+    <label className="epcName">Nom de la pizza<input maxLength={120} value={activeCost.name} onChange={e=>patch({name:e.target.value})}/></label>
+    {activeCost.recipeId?<p className="epcMuted">Pâte de départ : {recipes.find(r=>r.id===activeCost.recipeId)?.name||"recette personnelle"} · quantités ramenées à une unité, modifiables.</p>:null}
     <div className="epcTableHeading"><span>Ingrédient</span><span>Quantité g</span><span>Prix HT/kg</span><span>Coût HT</span><span/></div>
-    {cost.lines.map(l=><div className="epcLine" key={l.id}>
+    {activeCost.lines.map(l=><div className="epcLine" key={l.id}>
       <input aria-label="Ingrédient" value={l.name} maxLength={100} onChange={e=>patchLine(l.id,{name:e.target.value})}/>
       <PriceField unit="g" value={l.grams} onChange={v=>patchLine(l.id,{grams:v||0})}/>
       <PriceField unit="€/kg" nullable value={l.priceKg} onChange={v=>patchLine(l.id,{priceKg:v})}/>
       <strong>{l.priceKg===null?"—":money.format(l.grams*l.priceKg/1000)}</strong>
-      <button type="button" aria-label={"Retirer "+l.name} onClick={()=>patch({lines:cost.lines.filter(x=>x.id!==l.id)})}>×</button>
+      <button type="button" aria-label={"Retirer "+l.name} onClick={()=>patch({lines:activeCost.lines.filter(x=>x.id!==l.id)})}>×</button>
     </div>)}
     <button className="epcAdd" type="button" onClick={addLine}>+ Ajouter un ingrédient</button>
     <div className="epcOther">
       <label>Emballage HT / pizza<PriceField value={packaging} onChange={v=>patch({packagingHt:v||0})}/></label>
-      <label>Énergie HT / pizza<PriceField value={cost.energyHt} onChange={v=>patch({energyHt:v||0})}/></label>
-      <label>Main-d'œuvre directe HT / pizza<PriceField value={cost.laborHt} onChange={v=>patch({laborHt:v||0})}/></label>
-      <label>Autres variables HT / pizza<PriceField value={cost.otherHt} onChange={v=>patch({otherHt:v||0})}/></label>
+      <label>Énergie HT / pizza<PriceField value={activeCost.energyHt} onChange={v=>patch({energyHt:v||0})}/></label>
+      <label>Main-d'œuvre directe HT / pizza<PriceField value={activeCost.laborHt} onChange={v=>patch({laborHt:v||0})}/></label>
+      <label>Autres variables HT / pizza<PriceField value={activeCost.otherHt} onChange={v=>patch({otherHt:v||0})}/></label>
     </div>
     <p className="epcMuted">Un prix vide signifie « non renseigné ». Saisissez 0 uniquement si le coût est réellement nul. Le calcul de la pâte inclut la farine.</p>
    </div>
    <div className="epcCard epcSummary">
-    <label>Prix de vente actuel HT / pizza<PriceField value={cost.sellingHt} onChange={v=>patch({sellingHt:v||0})}/></label>
+    <label>Prix de vente actuel HT / pizza<PriceField value={activeCost.sellingHt} onChange={v=>patch({sellingHt:v||0})}/></label>
     <div className="epcMetrics">
       <div><span>Food cost matières HT</span><strong>{ready?money.format(ingredients):"Incomplet"}</strong></div>
       <div><span>Emballage HT</span><strong>{money.format(packaging)}</strong></div>
@@ -155,29 +156,29 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
       <div><span>Marge contributive HT (après autres variables)</span><strong>{ready&&contribution!==null?money.format(contribution):"—"}</strong></div>
     </div>
     <div className="epcOther">
-      <label>Charges fixes HT / mois (facultatif)<PriceField value={cost.monthlyFixedHt} onChange={v=>patch({monthlyFixedHt:v||0})}/></label>
-      <label>Pizzas / mois prévues<PriceField unit="pcs" value={cost.monthlyVolume} onChange={v=>patch({monthlyVolume:v||0})}/></label>
+      <label>Charges fixes HT / mois (facultatif)<PriceField value={activeCost.monthlyFixedHt} onChange={v=>patch({monthlyFixedHt:v||0})}/></label>
+      <label>Pizzas / mois prévues<PriceField unit="pcs" value={activeCost.monthlyVolume} onChange={v=>patch({monthlyVolume:v||0})}/></label>
     </div>
     <div className="epcFloor"><span>Prix plancher HT estimé / pizza</span>
       <strong>{ready?money.format(minimum):"—"}</strong>
       <small>Coûts variables + part des charges fixes, si volume mensuel renseigné. Sans bénéfice.</small>
     </div>
     <div className="epcAdvice">
-      <label>Food cost cible <PriceField value={cost.targetPct} unit="%" onChange={v=>patch({targetPct:Math.min(50,Math.max(15,v||28))})}/></label>
-      <label>Positionnement<select value={cost.segment} onChange={e=>patch({segment:e.target.value as Costing["segment"]})}>
+      <label>Food cost cible <PriceField value={activeCost.targetPct} unit="%" onChange={v=>patch({targetPct:Math.min(50,Math.max(15,v||28))})}/></label>
+      <label>Positionnement<select value={activeCost.segment} onChange={e=>patch({segment:e.target.value as Costing["segment"]})}>
         <option value="simple">Simple</option><option value="standard">Standard</option><option value="speciale">Spéciale / premium</option>
       </select></label>
       <button type="button" disabled={!ready} className="epcRecommend" onClick={()=>setAdvice(true)}>Conseiller un prix de vente HT</button>
       {advice&&ready?<div className="epcProposal" role="status">
         <small>PRIX CONSEILLÉ · HT</small><strong>{money.format(recommended)}</strong>
         <button type="button" onClick={()=>patch({sellingHt:recommended})}>Utiliser ce prix</button>
-        <p>Calcul : coût matière cible {fmt.format(cost.targetPct)} %, couverture des coûts variables et repère national indicatif France.
+        <p>Calcul : coût matière cible {fmt.format(activeCost.targetPct)} %, couverture des coûts variables et repère national indicatif France.
         Moyenne Indice Pizza GIRA 2026 : {money.format(MARKET_FR_HT)} HT (conversion indicative du prix TTC de 13,24 € avec TVA 10 %).
         Ajustement par positionnement, non par relevé local. À vérifier face aux pizzerias voisines.</p>
       </div>:null}
     </div>
     <button className="epcSave" type="button" disabled={busy||!ready} onClick={()=>void save()}>Enregistrer cette pizza</button>
-    {saved.some(x=>x.cost.id===cost.id)?<button className="epcDelete" type="button" disabled={busy} onClick={()=>void remove()}>Supprimer la fiche</button>:null}
+    {saved.some(x=>x.cost.id===activeCost.id)?<button className="epcDelete" type="button" disabled={busy} onClick={()=>void remove()}>Supprimer la fiche</button>:null}
     <p className="epcMuted">La marge brute n'est pas un bénéfice net. Le prix proposé est un outil d'aide à la décision, pas une garantie de rentabilité.</p>
    </div>
   </div>
