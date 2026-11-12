@@ -312,7 +312,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
               <div className="ers-super">{safeRecipe.id.startsWith("personal:")?"Ma recette":safeRecipe.id.startsWith("admin:")?"Recette atelier":"Fiche n° "+String(safeRecipe.page).padStart(2,"0")} <span>·</span> {GROUP_LABELS[safeRecipe.group]}</div>
               <h3>{safeRecipe.name}</h3>
               <p>{safeRecipe.subtitle}</p>
-              <div className="ers-recipeManage"><button type="button" onClick={()=>setEditBase(safeRecipe)}>Dupliquer et personnaliser</button>{safeRecipe.id.startsWith("personal:")?<button type="button" onClick={()=>setEditBase(safeRecipe)}>Modifier</button>:null}</div>
+              <div className="ers-recipeManage"><button type="button" onClick={()=>setEditBase({...safeRecipe,id:""})}>Dupliquer et personnaliser</button>{safeRecipe.id.startsWith("personal:")?<button type="button" onClick={()=>setEditBase(safeRecipe)}>Modifier</button>:null}</div>
               <button type="button" className="ers-jumpTutor"
                 onClick={()=>tutorRef.current?.scrollIntoView({behavior:"smooth",block:"center"})}>
                 ✳ Une question ? Parler à Ernesto ↗
