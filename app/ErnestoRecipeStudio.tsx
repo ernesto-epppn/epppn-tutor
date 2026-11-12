@@ -318,7 +318,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
                 ✳ Une question ? Parler à Ernesto ↗
               </button>
             </div>
-            <div className="ers-formulaState"><span className={modified||safeRecipe.id.startsWith("personal:")?"ers-personal":"ers-original"}>{safeRecipe.id.startsWith("personal:")?"Ma recette":modified?"Ma variante":"Formule EPPPN"}</span>{safeRecipe.page>0?<span>Page {safeRecipe.page} / 21</span>:null}</div>
+            <div className="ers-formulaState"><span className={modified||safeRecipe.id.startsWith("personal:")?"ers-personal":"ers-original"}>{safeRecipe.id.startsWith("personal:")?"Ma recette":safeRecipe.managed?"Version atelier":modified?"Ma variante":"Formule EPPPN"}</span>{safeRecipe.page>0?<span>Page {safeRecipe.page} / 21</span>:null}</div>
           </div>
 
           <div className="ers-infoLine"><span>FARINE</span><strong>{safeRecipe.flour}</strong></div>
@@ -437,7 +437,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
               </div>
             </aside>
           </div>
-          <div className="ers-bottomNotes">{safeRecipe.id.startsWith("personal:")?"Recette personnelle":"Fiches recettes EPPPN 2025 · Source p. "+safeRecipe.page} · Calcul en pourcentages boulangers, sans génération IA. {storageKey?"Vos préférences restent sur cet appareil.":""}</div>
+          <div className="ers-bottomNotes">{safeRecipe.id.startsWith("personal:")?"Recette personnelle":safeRecipe.managed?"Version atelier, éditée par administration":"Fiches recettes EPPPN 2025 · Source p. "+safeRecipe.page} · Calcul en pourcentages boulangers, sans génération IA. {storageKey?"Vos préférences restent sur cet appareil.":""}</div>
         </div>
       </div>
     </section>
