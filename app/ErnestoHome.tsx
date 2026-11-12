@@ -1,6 +1,7 @@
 "use client";
 
 import ErnestoSectionHelp from "./ErnestoSectionHelp";
+import ErnestoAppGuide from "./ErnestoAppGuide";
 
 type RecentDossier = {
   id: string;
@@ -63,6 +64,7 @@ export default function ErnestoHome({
         </span>
       </button>)}
     </div>
+    <ErnestoAppGuide/>
 
     {recent.length ? <section className="ernestoHomeRecent" aria-label="Reprendre un dossier">
       <div className="ernestoHomeRecentHeading">
