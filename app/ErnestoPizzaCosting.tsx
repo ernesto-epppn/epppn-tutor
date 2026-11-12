@@ -160,6 +160,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
           <div><span>Coût direct × {fmt.format(PIZZA_COST_COEFFICIENT)}</span><b>{money.format(pricing.costPartHt)}</b></div>
           <div><span>Base commerciale de la zone</span><b>{money.format(pricing.areaReferenceHt)}</b></div>
           <div className="epcPriceMethodTotal"><span>Total avant arrondi</span><b>{money.format(pricing.unroundedHt)}</b></div>
+          <div><span>Part des coûts directs au prix conseillé</span><b>{fmt.format(grossCost/recommended*100)} %</b></div>
           <small>Base = {fmt.format(PIZZA_REFERENCE_SHARE*100)} % du repère national HT ajusté selon l'environnement. Chaque 1 € supplémentaire de matières et d'emballage ajoute {money.format(PIZZA_COST_COEFFICIENT)} avant l'arrondi supérieur à 0,50 €.</small>
         </div>
         <div className="epcMicroChart" role="img" aria-label={`Répartition estimée : ingrédients ${money.format(ingredients)}, emballage ${money.format(packaging)}, marge brute ${money.format(suggestedMargin)}`}>
