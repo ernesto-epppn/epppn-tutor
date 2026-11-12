@@ -67,3 +67,11 @@
 .epcDotIngredients{background:#4c796f}.epcDotPackaging{background:#d8a46a}.epcDotMargin{background:#cddfd3}
 @media(max-width:680px){.epcAdviceLeft{padding:13px}.epcProposalAmount strong{font-size:29px}.epcMicroLegend>span{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.epcAdviceLeft .epcRecommend,.epcMicroChart span{transition:none}}
+
+/* Une formule lisible, sans élément de tableau de bord superflu. */
+.epcPriceMethod{border:1px solid #e5ece7;border-radius:9px;padding:10px 11px;display:grid;gap:7px;background:#fafcfb}
+.epcPriceMethod>strong{font-size:11px;font-weight:800;color:#315247;margin-bottom:2px}
+.epcPriceMethod>div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;color:#667b6e;font-size:10px}
+.epcPriceMethod b{font-variant-numeric:tabular-nums;color:#37584c;font-weight:800;font-size:11px;white-space:nowrap}
+.epcPriceMethod .epcPriceMethodTotal{padding-top:7px;border-top:1px solid #e5ece7;color:#385647;font-weight:700}
+.epcPriceMethod small{font-size:10px;line-height:1.55;color:#829084;font-weight:400}
