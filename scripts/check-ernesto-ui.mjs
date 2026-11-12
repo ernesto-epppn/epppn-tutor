@@ -61,4 +61,30 @@ assert.match(visual, /safe-area-inset-bottom/, "Mobile help must clear the iOS s
 assert.match(visual, /overflow-y:\s*auto/, "Mobile help content must scroll within sheet");
 assert.doesNotMatch(visual, /\.ernestoHelpPanel/, "Old absolutely positioned panel CSS must be removed");
 
+// Recipe provenance is retained internally but the redundant source banners are not shown.
+assert.doesNotMatch(recipeStudio, /Une formule d'origine, des variantes contrôlées\.|Source : <strong>|CUISSON · SOURCE|Source p\./, "No redundant source labels in the recipes interface");
+assert.match(recipeStudio, /<aside className="ers-protocol" aria-label="Protocole de préparation et cuisson">/, "Recipe steps must be in a dedicated right-side protocol region");
+assert.match(recipeStudio, /<strong>Protocole<\/strong>/, "Protocol has an unambiguous heading");
+const recipeLayout=read("app/ernesto-recipe-layout.css");
+assert.match(recipeLayout, /\.ers-work\{display:grid;grid-template-columns:/, "Recipe split view must be explicit");
+assert.match(recipeLayout, /\.ers-protocol\{[^}]*display:flex;flex-direction:column;/, "Right protocol has its own visual panel");
+assert.match(recipeLayout, /@media\(max-width:740px\)/, "Recipes need a dedicated compact/mobile layout");
+assert.match(layout, /ernesto-recipe-layout\.css/, "Refined recipe layout must be loaded");
+
+// Installation shortcut is a secondary home action, preserving the four-workspace grid.
+const appGuide=read("app/ErnestoAppGuide.tsx");
+const guideStyle=read("app/ernesto-app-guide.css");
+assert.match(home, /<ErnestoAppGuide\/>/, "Home provides an Ernesto App guide entry");
+assert.match(appGuide, /<dialog/, "Installation instructions must open in a real dialog");
+assert.match(appGuide, /showModal\(\)/, "Guide uses the browser top layer");
+assert.match(appGuide, /createPortal\(/, "Guide stays outside overflow-clipped workspace containers");
+assert.match(appGuide, /<button[^>]*role="tab"/s, "Guide includes phone tabs");
+for(const label of ["iPhone","Android","Safari","Chrome","Sur l’écran d’accueil","Installer et créer un raccourci"]){
+  assert.ok(appGuide.includes(label), "Installation guide missing "+label);
+}
+assert.match(guideStyle, /max-height:100dvh/, "Mobile guide must fit the viewport");
+assert.match(guideStyle, /safe-area-inset-bottom/, "Mobile dialog needs bottom safe-area space");
+assert.match(layout, /ernesto-app-guide\.css/, "Include installation guide CSS");
+assert.ok(layout.indexOf('ernesto-recipe-layout.css')>layout.indexOf('ernesto-editorial-identity.css'), "Recipe layout must override the editorial theme when needed");
+
 console.log("Ernesto UI contracts verified.");
