@@ -80,7 +80,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
   setCost(initial(r));setNewRecipe(recipeId);setAdvice(false);setError("");setNotice("");
  }
  function addLine(){
-  patch({lines:[...cost.lines,{id:crypto.randomUUID(),name:"",grams:0,priceKg:null,kind:"garniture"}]});
+  patch({lines:[...activeCost.lines,{id:crypto.randomUUID(),name:"",grams:0,priceKg:null,kind:"garniture"}]});
  }
  async function save(){
   if(!userId)return;
@@ -88,7 +88,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
   setBusy(true);setError("");setNotice("");
   try{
    const item=saved.find(x=>x.cost.id===activeCost.id);
-   const payload={...cost,name:activeCost.name.slice(0,120),lines:activeCost.lines.map(l=>({...l,name:l.name.slice(0,100)}))};
+   const payload={...activeCost,name:activeCost.name.slice(0,120),lines:activeCost.lines.map(l=>({...l,name:l.name.slice(0,100)}))};
    const db=supabase.from("ernesto_activity_records");
    const query=item?db.update({payload,updated_at:new Date().toISOString()}).eq("id",item.row.id).eq("user_id",userId):
      db.insert({user_id:userId,kind:"costing",payload});
