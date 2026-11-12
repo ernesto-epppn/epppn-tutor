@@ -1,0 +1,53 @@
+/* Home-screen guide: single low-noise entry, compact accessible dialog. */
+.ernestoAppEntry{box-sizing:border-box;display:flex;align-items:center;gap:13px;width:100%;min-height:69px;margin-top:15px;padding:13px 16px;border:1px solid #dbe1dd;border-radius:9px;background:#f7f8f6;color:#233b40;text-align:left;cursor:pointer;box-shadow:none;transition:background .16s ease,border-color .16s ease}
+.ernestoAppEntry:hover{background:#eef2ef;border-color:#aebbb5}
+.ernestoAppEntry:focus-visible{outline:2px solid #355b59;outline-offset:3px}
+.ernestoAppEntryIcon{display:grid;place-items:center;flex:0 0 31px;width:31px;height:38px;color:#385953}
+.ernestoAppEntryIcon svg{width:23px;height:26px}
+.ernestoAppEntryText{display:grid;gap:3px;min-width:0}
+.ernestoAppEntryText strong{font-size:15px;font-weight:680;letter-spacing:-.014em;color:#253f3b}
+.ernestoAppEntryText small{font-size:12px;line-height:1.4;color:#657771}
+.ernestoAppEntryAction{display:inline-flex;align-items:center;gap:9px;margin-left:auto;font-size:11px;font-weight:710;white-space:nowrap;color:#476659}
+.ernestoAppEntryAction span{font-size:16px;font-weight:400}
+.ernestoAppDialog,.ernestoAppDialog *{box-sizing:border-box}
+.ernestoAppDialog{width:min(548px,calc(100vw - 32px));max-height:min(86dvh,710px);margin:auto;padding:0;border:1px solid #d9dfdc;border-radius:15px;background:#fff;color:#2c3f40;box-shadow:0 20px 65px rgba(21,33,32,.18);font-family:var(--font-ernesto-ui),"IBM Plex Sans",system-ui,sans-serif}
+.ernestoAppDialog[open]{display:flex;flex-direction:column}
+.ernestoAppDialog::backdrop{background:rgba(22,32,34,.5)}
+.ernestoAppDialogHeader{display:flex;gap:15px;align-items:flex-start;justify-content:space-between;padding:25px 27px 20px;border-bottom:1px solid #e6eae7;flex:0 0 auto}
+.ernestoAppDialogHeading{min-width:0;display:grid;gap:6px}
+.ernestoAppDialogKicker{font-size:10px;letter-spacing:.10em;font-weight:720;color:#73837c}
+.ernestoAppDialogHeading h2{margin:0;font-size:24px;letter-spacing:-.032em;font-weight:680;line-height:1.18;color:#243a3d}
+.ernestoAppDialogHeading p{margin:2px 0 0;color:#6b7975;font-size:12px;line-height:1.5}
+.ernestoAppClose{display:grid;place-items:center;flex:0 0 33px;width:33px;height:33px;border:1px solid #dae1dd;border-radius:8px;background:#fff;color:#4c615c;font-size:23px;line-height:1;cursor:pointer}
+.ernestoAppClose:hover{background:#f2f5f3}
+.ernestoAppDialogBody{padding:21px 27px 28px;overflow-y:auto;min-height:0;overscroll-behavior:contain;scrollbar-width:thin}
+.ernestoAppDeviceTabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:21px}
+.ernestoAppDeviceTabs button{min-height:42px;border:1px solid #dce3df;border-radius:7px;background:#f7f8f7;color:#6c7b76;font-size:13px;font-weight:690;cursor:pointer}
+.ernestoAppDeviceTabs button.is-active{background:#e9f0ec;color:#2c5447;border-color:#a7bdb2}
+.ernestoAppBrowserHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.ernestoAppBrowserHeading>span{font-weight:740;font-size:14px;letter-spacing:-.015em;color:#2a4340}
+.ernestoAppBrowserChoice{display:flex;gap:3px;padding:3px;background:#f1f3f1;border:1px solid #e4e8e5;border-radius:7px}
+.ernestoAppBrowserChoice button{border:0;border-radius:5px;min-height:30px;padding:5px 11px;background:transparent;color:#62716a;font-size:11px;font-weight:670;cursor:pointer}
+.ernestoAppBrowserChoice button.is-active{background:#fff;color:#2b4c45;box-shadow:0 1px 3px rgba(30,50,42,.08)}
+.ernestoAppSteps{list-style:none;padding:0;margin:0;display:grid}
+.ernestoAppSteps li{display:grid;grid-template-columns:31px minmax(0,1fr);align-items:baseline;gap:12px;padding:13px 1px;border-bottom:1px solid #edf0ed;color:#4a5c55;font-size:13px;line-height:1.52}
+.ernestoAppSteps li:last-child{border-bottom:none}
+.ernestoAppStepNumber{font-variant-numeric:tabular-nums;font-weight:720;font-size:12px;color:#6a8678}
+.ernestoAppDone{margin-top:15px;padding:12px 14px;border-left:2px solid #769586;background:#f5f7f5;border-radius:0 6px 6px 0}
+.ernestoAppDone strong{display:block;font-size:12px;font-weight:730;color:#36544a}
+.ernestoAppDone p{font-size:12px;color:#63746c;line-height:1.55;margin:4px 0 0}
+.ernestoAppNote{font-size:11px;line-height:1.55;color:#839089;margin:14px 0 0}
+.ernestoAppDialog :is(button):focus-visible{outline:2px solid #355b59;outline-offset:2px}
+@media(max-width:640px){
+  .ernestoAppEntry{margin-top:12px;padding:11px 12px;min-height:63px;gap:8px}
+  .ernestoAppEntryText strong{font-size:13px}
+  .ernestoAppEntryText small{font-size:10px}
+  .ernestoAppEntryAction{font-size:0;gap:0}
+  .ernestoAppEntryAction span{font-size:17px}
+  .ernestoAppDialog{width:100vw;height:100dvh;max-height:100dvh;max-width:none;border:0;border-radius:0}
+  .ernestoAppDialogHeader{padding:22px 18px 17px}
+  .ernestoAppDialogHeading h2{font-size:22px}
+  .ernestoAppDialogBody{padding:18px 18px calc(30px + env(safe-area-inset-bottom,0px))}
+  .ernestoAppSteps li{padding:12px 0;font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.ernestoAppEntry{transition:none}}

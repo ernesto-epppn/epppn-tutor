@@ -292,7 +292,6 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
             </div>)}
             {!filtered.length&&<p className="ers-empty">Aucune recette correspondante.</p>}
           </div>
-          <div className="ers-libraryFoot">Source : <strong>Fiches recettes EPPPN 2025</strong><span>Une formule d'origine, des variantes contrôlées.</span></div>
         </aside>
 
         <div className="ers-content">
@@ -315,7 +314,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
               <div className="ers-recipeManage"><button type="button" onClick={()=>setEditBase({...safeRecipe,id:""})}>Dupliquer et personnaliser</button>{safeRecipe.id.startsWith("personal:")?<button type="button" onClick={()=>setEditBase(safeRecipe)}>Modifier</button>:null}</div>
               <button type="button" className="ers-jumpTutor"
                 onClick={()=>tutorRef.current?.scrollIntoView({behavior:"smooth",block:"center"})}>
-                ✳ Une question ? Parler à Ernesto ↗
+                Poser une question à Ernesto
               </button>
             </div>
             <div className="ers-formulaState"><span className={modified||safeRecipe.id.startsWith("personal:")?"ers-personal":"ers-original"}>{safeRecipe.id.startsWith("personal:")?"Ma recette":safeRecipe.managed?"Version atelier":modified?"Ma variante":"Formule EPPPN"}</span>{safeRecipe.page>0?<span>Page {safeRecipe.page} / 21</span>:null}</div>
@@ -413,21 +412,21 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
               {notice?<div role="status" className="ers-notice">{notice}</div>:null}
             </div>
 
-            <aside className="ers-protocol">
-              <div className="ers-blockTitle"><span>Préparation et cuisson</span><strong>De la pâte au four</strong></div>
+            <aside className="ers-protocol" aria-label="Protocole de préparation et cuisson">
+              <div className="ers-blockTitle"><span>Étapes de travail</span><strong>Protocole</strong></div>
               <div className="ers-processMeta">
                 <div><span>Fermentation</span><strong>{safeRecipe.fermentation}</strong></div>
                 {safeRecipe.targetDoughTemp?<div><span>Température pâte</span><strong>{safeRecipe.targetDoughTemp}</strong></div>:null}
               </div>
-              <ol className="ers-steps">
+              <ol className="ers-steps" aria-label="Étapes de préparation">
                 {safeRecipe.steps.map((step,i)=><li key={i}><span className="ers-stepIndex">{String(i+1).padStart(2,"0")}</span><div><strong>{step.name}</strong><p>{step.detail}</p></div></li>)}
               </ol>
-              {safeRecipe.bake?<div className="ers-bake"><span>CUISSON · SOURCE</span><strong>{safeRecipe.bake}</strong></div>:null}
+              {safeRecipe.bake?<div className="ers-bake"><span>CUISSON</span><strong>{safeRecipe.bake}</strong></div>:null}
               {safeRecipe.sourceNotes?.length?<div className="ers-note"><strong>Repères EPPPN</strong>{safeRecipe.sourceNotes.map((n,i)=><p key={i}>{n}</p>)}</div>:null}
               {safeRecipe.caution?<div className="ers-caution"><strong>Point à vérifier</strong><p>{safeRecipe.caution}</p></div>:null}
 
               <div className="ers-tutor" ref={tutorRef}>
-                <div className="ers-tutorTop"><span aria-hidden="true">✳</span><div><strong>Un doute ? Ernesto est là.</strong><small>La recette et vos doses suivent la question.</small></div></div>
+                <div className="ers-tutorTop"><div><strong>Besoin d’un conseil ?</strong><small>La recette et vos doses sont jointes à la question.</small></div></div>
                 <div className="ers-promptOptions">
                   {shortPrompts.map(q=><button key={q} type="button" onClick={()=>setQuestion(q)}>{q}</button>)}
                 </div>
@@ -437,7 +436,7 @@ export default function ErnestoRecipeStudio({open,onClose,onHome,onAsk,accountId
               </div>
             </aside>
           </div>
-          <div className="ers-bottomNotes">{safeRecipe.id.startsWith("personal:")?"Recette personnelle":safeRecipe.managed?"Version atelier, éditée par administration":"Fiches recettes EPPPN 2025 · Source p. "+safeRecipe.page} · Calcul en pourcentages boulangers, sans génération IA. {storageKey?"Vos préférences restent sur cet appareil.":""}</div>
+          <div className="ers-bottomNotes">Calcul en pourcentages boulangers. {storageKey?"Vos préférences restent sur cet appareil.":""}</div>
         </div>
       </div>
     </section>
