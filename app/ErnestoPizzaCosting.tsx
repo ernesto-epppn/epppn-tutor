@@ -3,9 +3,11 @@ import {useEffect,useMemo,useState} from "react";
 import type {SupabaseClient} from "@supabase/supabase-js";
 import type {Recipe} from "./recipeData";
 import {calculateRecipe,recipeDefaults} from "./recipeMath";
+import {advisePizzaPriceHt,PIZZA_COST_COEFFICIENT,PIZZA_REFERENCE_SHARE} from "./pizzaPricing";
+import type {PizzaArea} from "./pizzaPricing";
 
 type Line={id:string;name:string;grams:number;priceKg:number|null;kind:"pate"|"garniture"};
-type Area="centre"|"quartier"|"peripherie"|"bourg"|"rural";
+type Area=PizzaArea;
 type Costing={id:string;name:string;recipeId:string;lines:Line[];packagingHt:number;otherHt:number;
   laborHt:number;energyHt:number;sellingHt:number;monthlyFixedHt:number;monthlyVolume:number;
   targetPct:number;segment:"simple"|"standard"|"speciale";area:Area;version:2};
@@ -13,8 +15,6 @@ type RecordRow={id:string;kind:string;payload:Record<string,unknown>;updated_at:
 type Props={supabase:SupabaseClient;userId?:string;records:RecordRow[];recipes:Recipe[];onStored:()=>void};
 const money=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:2});
 const fmt=new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2});
-const MARKET_FR_HT=13.24/1.10; // GIRA Indice Pizza 2026; repère national indicatif HT.
-const AREA_FACTOR:Record<Area,number>={centre:1.08,quartier:1.04,peripherie:1,bourg:0.97,rural:0.95};
 function number(value:unknown){const n=Number(value);return Number.isFinite(n)&&n>=0&&n<=1000000?n:0;}
 function initial(recipe?:Recipe):Costing{
  const id="pizza:"+crypto.randomUUID();
@@ -67,9 +67,9 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
  const gross=activeCost.sellingHt>0&&unknown.length===0?activeCost.sellingHt-grossCost:null;
  const grossPct=gross!==null?gross/activeCost.sellingHt*100:null;
  const foodPct=activeCost.sellingHt>0&&unknown.length===0?ingredients/activeCost.sellingHt*100:null;
- // Ajustement géographique indicatif, et non une mesure des tarifs locaux.
- const marketGuide=MARKET_FR_HT*AREA_FACTOR[activeCost.area];
- const recommended=Math.ceil(Math.max(grossCost/0.38,marketGuide)*2)/2;
+ // Contribution commerciale + coût direct majoré, sans prix plancher national.
+ const pricing=advisePizzaPriceHt(grossCost,activeCost.area);
+ const recommended=pricing.recommendedHt;
  const suggestedMargin=Math.max(0,recommended-grossCost);
  function load(row:{cost:Costing}){setNewRecipe(row.cost.recipeId);setCost(row.cost);setAdvice(false);setError("");setNotice("");}
  function create(recipeId:string){
@@ -155,6 +155,13 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
         <div className="epcProposalAmount"><strong>{money.format(recommended)}</strong>
           <button type="button" onClick={()=>patch({sellingHt:recommended})}>Appliquer ce prix</button>
         </div>
+        <div className="epcPriceMethod">
+          <strong>Comment le prix est calculé</strong>
+          <div><span>Coût direct × {fmt.format(PIZZA_COST_COEFFICIENT)}</span><b>{money.format(pricing.costPartHt)}</b></div>
+          <div><span>Base commerciale de la zone</span><b>{money.format(pricing.areaReferenceHt)}</b></div>
+          <div className="epcPriceMethodTotal"><span>Total avant arrondi</span><b>{money.format(pricing.unroundedHt)}</b></div>
+          <small>Base = {fmt.format(PIZZA_REFERENCE_SHARE*100)} % du repère national HT ajusté selon l'environnement. Chaque 1 € supplémentaire de matières et d'emballage ajoute {money.format(PIZZA_COST_COEFFICIENT)} avant l'arrondi supérieur à 0,50 €.</small>
+        </div>
         <div className="epcMicroChart" role="img" aria-label={`Répartition estimée : ingrédients ${money.format(ingredients)}, emballage ${money.format(packaging)}, marge brute ${money.format(suggestedMargin)}`}>
           <span className="epcMicroIngredients" style={{width:(ingredients/recommended*100)+"%"}}/>
           <span className="epcMicroPackaging" style={{width:(packaging/recommended*100)+"%"}}/>
@@ -165,7 +172,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
           <span><i className="epcDot epcDotPackaging"/>Emballage {money.format(packaging)}</span>
           <span><i className="epcDot epcDotMargin"/>Marge brute {money.format(suggestedMargin)}</span>
         </div>
-        <p>Repère indicatif fondé sur le coût direct, la moyenne nationale <a href="https://www.giraconseil.fr/newsletter-no43" target="_blank" rel="noopener noreferrer">GIRA 2026</a> et un ajustement modéré selon l'environnement choisi. Il ne remplace pas une comparaison des prix pratiqués à proximité.</p>
+        <p>Repère indicatif basé sur le coût direct et l'<a href="https://www.giraconseil.fr/newsletter-no43" target="_blank" rel="noopener noreferrer">Indice Pizza GIRA 2026</a> (13,24 € TTC, converti en HT avec une hypothèse de TVA à 10 %). Les coefficients géographiques sont illustratifs et non issus de relevés locaux. Ce prix ne garantit pas la rentabilité : confrontez-le aux prix voisins et à vos charges réelles.</p>
       </div>:null}
     </div>
     <p className="epcMuted">Un prix vide signifie « non renseigné ». Saisissez 0 uniquement si le coût est réellement nul. Le calcul de la pâte inclut la farine.</p>
