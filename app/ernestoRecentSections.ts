@@ -16,15 +16,18 @@ function isSection(value:unknown):value is ErnestoSection{
 /** Never trust persisted browser data and never mix activity between accounts. */
 export function normalizeRecentSections(value:unknown):RecentSection[]{
   if(!Array.isArray(value))return [];
-  const seen=new Set<ErnestoSection>();
-  return value.filter((row):row is RecentSection=>{
+  const valid=value.filter((row):row is RecentSection=>{
     if(!row||typeof row!=="object")return false;
     const item=row as Partial<RecentSection>;
-    if(!isSection(item.section)||seen.has(item.section))return false;
-    if(typeof item.visitedAt!=="number"||!Number.isSafeInteger(item.visitedAt)||item.visitedAt<=0||item.visitedAt>Date.now()+60_000)return false;
+    return isSection(item.section)&&typeof item.visitedAt==="number"&&
+      Number.isSafeInteger(item.visitedAt)&&item.visitedAt>0&&item.visitedAt<=Date.now()+60_000;
+  }).sort((a,b)=>b.visitedAt-a.visitedAt);
+  const seen=new Set<ErnestoSection>();
+  return valid.filter(item=>{
+    if(seen.has(item.section))return false;
     seen.add(item.section);
     return true;
-  }).sort((a,b)=>b.visitedAt-a.visitedAt).slice(0,MAX_RECENT);
+  }).slice(0,MAX_RECENT);
 }
 
 export function recordRecentSection(previous:RecentSection[],section:ErnestoSection,visitedAt:number):RecentSection[]{
