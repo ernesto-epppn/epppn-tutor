@@ -34,6 +34,7 @@ import "./ernesto-editorial-identity.css";
 import "./ernesto-help-polish.css";
 import "./ernesto-recipe-layout.css";
 import "./ernesto-app-guide.css";
+import "./ernesto-recent-activities.css";
 
 const approvedErnestoIcon = "/logo-ernesto-approved.png";
 

@@ -79,12 +79,29 @@ assert.match(appGuide, /<dialog/, "Installation instructions must open in a real
 assert.match(appGuide, /showModal\(\)/, "Guide uses the browser top layer");
 assert.match(appGuide, /createPortal\(/, "Guide stays outside overflow-clipped workspace containers");
 assert.match(appGuide, /<button[^>]*role="tab"/s, "Guide includes phone tabs");
-for(const label of ["iPhone","Android","Safari","Chrome","Sur l’écran d’accueil","Installer et créer un raccourci"]){
+for(const label of ["iPhone","Android","Ernesto App sur votre téléphone","Ajoutez Ernesto App","Ouvrez le lien","Sur l’écran d’accueil"]){
   assert.ok(appGuide.includes(label), "Installation guide missing "+label);
 }
+assert.doesNotMatch(appGuide, /Safari|Chrome|ernestoAppBrowserChoice|type Browser/, "Installation guide must only offer iPhone and Android");
+assert.match(appGuide, /const steps:Record<Phone,string\[\]>/, "Install steps are defined by phone, not browser");
 assert.match(guideStyle, /max-height:100dvh/, "Mobile guide must fit the viewport");
 assert.match(guideStyle, /safe-area-inset-bottom/, "Mobile dialog needs bottom safe-area space");
 assert.match(layout, /ernesto-app-guide\.css/, "Include installation guide CSS");
 assert.ok(layout.indexOf('ernesto-recipe-layout.css')>layout.indexOf('ernesto-editorial-identity.css'), "Recipe layout must override the editorial theme when needed");
+
+// Home must surface up to four recent workspaces, not three recent dossiers.
+assert.match(home, /Activités récentes/, "Home displays recent activity header");
+assert.match(home, /<ErnestoAppGuide\/>[\s\S]*Activités récentes/, "Recent activity is below Ernesto App");
+assert.match(home, /recentActivities\.slice\(0,4\)/, "Limit to four last-used workspaces");
+assert.doesNotMatch(home, /Dossiers récents|recent\.map\(p|onSelectDossier|onAllDossiers/, "Home should not render recent dossiers");
+assert.match(page, /useErnestoRecentSections/, "Workspace visits must be recorded by the main page");
+assert.match(page, /recentActivities=\{recentActivities\}/, "Home receives real recent workspace usage");
+const recentSource=read("app/ernestoRecentSections.ts");
+const activityCss=read("app/ernesto-recent-activities.css");
+assert.match(recentSource, /ernesto-recent-sections-v1:/, "Recent section usage needs account-scoped storage");
+assert.match(recentSource, /localStorage\.setItem/, "Recent activity must survive a reload");
+assert.match(recentSource, /MAX_RECENT=4/, "Keep four distinct recent workspaces");
+assert.match(activityCss, /@media\(max-width:570px\)/, "Recent activities must fit mobile");
+assert.match(layout, /ernesto-recent-activities\.css/, "Load recent activity CSS");
 
 console.log("Ernesto UI contracts verified.");

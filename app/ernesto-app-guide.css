@@ -24,11 +24,6 @@
 .ernestoAppDeviceTabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:21px}
 .ernestoAppDeviceTabs button{min-height:42px;border:1px solid #dce3df;border-radius:7px;background:#f7f8f7;color:#6c7b76;font-size:13px;font-weight:690;cursor:pointer}
 .ernestoAppDeviceTabs button.is-active{background:#e9f0ec;color:#2c5447;border-color:#a7bdb2}
-.ernestoAppBrowserHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
-.ernestoAppBrowserHeading>span{font-weight:740;font-size:14px;letter-spacing:-.015em;color:#2a4340}
-.ernestoAppBrowserChoice{display:flex;gap:3px;padding:3px;background:#f1f3f1;border:1px solid #e4e8e5;border-radius:7px}
-.ernestoAppBrowserChoice button{border:0;border-radius:5px;min-height:30px;padding:5px 11px;background:transparent;color:#62716a;font-size:11px;font-weight:670;cursor:pointer}
-.ernestoAppBrowserChoice button.is-active{background:#fff;color:#2b4c45;box-shadow:0 1px 3px rgba(30,50,42,.08)}
 .ernestoAppSteps{list-style:none;padding:0;margin:0;display:grid}
 .ernestoAppSteps li{display:grid;grid-template-columns:31px minmax(0,1fr);align-items:baseline;gap:12px;padding:13px 1px;border-bottom:1px solid #edf0ed;color:#4a5c55;font-size:13px;line-height:1.52}
 .ernestoAppSteps li:last-child{border-bottom:none}

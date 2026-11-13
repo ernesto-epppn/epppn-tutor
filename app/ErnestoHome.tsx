@@ -3,23 +3,22 @@
 import ErnestoSectionHelp from "./ErnestoSectionHelp";
 import ErnestoAppGuide from "./ErnestoAppGuide";
 
-type RecentDossier = {
-  id: string;
-  title: string;
-  count: number;
-  updatedAt: number;
-  active: boolean;
-  color: string;
-};
+import type {ErnestoSection,RecentSection} from "./ernestoRecentSections";
 
 type Props = {
-  dossiers: RecentDossier[];
-  onTutor: () => void;
-  onRecipes: () => void;
-  onCarnet: () => void;
-  onCommercial: () => void;
-  onSelectDossier: (id: string) => void;
-  onAllDossiers: () => void;
+  recentActivities:RecentSection[];
+  onTutor:()=>void;
+  onRecipes:()=>void;
+  onCarnet:()=>void;
+  onCommercial:()=>void;
+};
+
+const timeFormat=new Intl.DateTimeFormat("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+const sectionTitles:Record<ErnestoSection,string>={
+  chat:"Tuteur Ernesto",
+  recipes:"Recettes",
+  commercial:"Commercial",
+  carnet:"Mon carnet",
 };
 
 function MiniIcon({ name }: { name: "chat" | "recipes" | "carnet" | "commercial" }) {
@@ -34,19 +33,18 @@ function MiniIcon({ name }: { name: "chat" | "recipes" | "carnet" | "commercial"
 }
 
 export default function ErnestoHome({
-  dossiers, onTutor, onRecipes, onCarnet, onCommercial, onSelectDossier, onAllDossiers,
-}: Props) {
-  const actions = [
-    { key: "chat" as const, title: "Tuteur Ernesto", action: onTutor },
-    { key: "recipes" as const, title: "Recettes", action: onRecipes },
-    { key: "commercial" as const, title: "Commercial", action: onCommercial },
-    { key: "carnet" as const, title: "Mon carnet", action: onCarnet },
+  recentActivities,onTutor,onRecipes,onCarnet,onCommercial,
+}:Props){
+  const actions=[
+    {key: "chat" as const, title: "Tuteur Ernesto", action: onTutor},
+    {key: "recipes" as const, title: "Recettes", action: onRecipes},
+    {key: "commercial" as const, title: "Commercial", action: onCommercial},
+    {key: "carnet" as const, title: "Mon carnet", action: onCarnet},
   ];
-
-  const recent = [...dossiers]
-    .filter((dossier) => dossier.count > 0)
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, 3);
+  const openSection:Record<ErnestoSection,()=>void>={
+    chat:onTutor,recipes:onRecipes,commercial:onCommercial,carnet:onCarnet,
+  };
+  const recent=recentActivities.slice(0,4);
 
   return <section className="ernestoHomeDashboard" aria-labelledby="ernesto-home-title">
     <header className="ernestoHomeIntro">
@@ -66,20 +64,20 @@ export default function ErnestoHome({
     </div>
     <ErnestoAppGuide/>
 
-    {recent.length ? <section className="ernestoHomeRecent" aria-label="Reprendre un dossier">
+    <section className="ernestoHomeRecent" aria-label="Quatre dernières activités">
       <div className="ernestoHomeRecentHeading">
-        <div><h2>Dossiers récents</h2></div>
-        <button type="button" onClick={onAllDossiers}>Voir tous</button>
+        <div><h2>Activités récentes</h2><p>Les derniers espaces consultés sur cet appareil.</p></div>
       </div>
-      <div className="ernestoHomeDossierList">
-        {recent.map(p => <button type="button" key={p.id} onClick={() => onSelectDossier(p.id)}
-          className="ernestoHomeDossier">
-          <span className="ernestoHomeDossierDot" style={{background:p.color}}/>
-          <span className="ernestoHomeDossierName">{p.title || "Dossier général"}</span>
-          <span className="ernestoHomeDossierMeta">{p.count} message{p.count!==1?"s":""}</span>
-        </button>)}
+      <div className="ernestoHomeActivityList">
+        {recent.length?recent.map(item=><button type="button" key={item.section}
+          className="ernestoHomeActivity" onClick={openSection[item.section]}
+          aria-label={`Ouvrir ${sectionTitles[item.section]}, utilisé le ${timeFormat.format(item.visitedAt)}`}>
+          <span className="ernestoHomeActivityIcon"><MiniIcon name={item.section}/></span>
+          <span className="ernestoHomeActivityName">{sectionTitles[item.section]}</span>
+          <time dateTime={new Date(item.visitedAt).toISOString()}>{timeFormat.format(item.visitedAt)}</time>
+        </button>):<p className="ernestoHomeNoActivity">Vos derniers espaces utilisés apparaîtront ici.</p>}
       </div>
-    </section> : null}
+    </section>
 
   </section>;
 }

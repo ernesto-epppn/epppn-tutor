@@ -1,0 +1,23 @@
+/* Home — recent workspaces, without dossier metadata or dashboard chrome. */
+.appRoot .ernestoHomeRecent{margin-top:27px}
+.appRoot .ernestoHomeRecentHeading{margin-bottom:12px}
+.appRoot .ernestoHomeRecentHeading h2{margin:0;font-size:16px;font-weight:670;letter-spacing:-.02em;color:#2b4143}
+.appRoot .ernestoHomeRecentHeading p{margin:5px 0 0;font-size:11px;line-height:1.45;color:#82908a}
+.appRoot .ernestoHomeActivityList{display:grid;border-top:1px solid #e1e6e2;border-bottom:1px solid #e1e6e2}
+.appRoot .ernestoHomeActivity{width:100%;min-width:0;min-height:56px;padding:12px 9px;display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:12px;border:0;border-bottom:1px solid #edf0ed;border-radius:0;background:transparent;cursor:pointer;text-align:left;color:#344c45}
+.appRoot .ernestoHomeActivity:last-child{border-bottom:0}
+.appRoot .ernestoHomeActivity:hover{background:#f6f8f6}
+.appRoot .ernestoHomeActivity:focus-visible{outline:2px solid #4e7563;outline-offset:-2px}
+.appRoot .ernestoHomeActivityIcon{display:grid;place-items:center;width:26px;height:26px;color:#607b70}
+.appRoot .ernestoHomeActivityIcon svg{width:19px;height:19px;stroke-width:1.5}
+.appRoot .ernestoHomeActivityName{min-width:0;font-size:13px;font-weight:640;letter-spacing:-.012em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appRoot .ernestoHomeActivity time{font-size:11px;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums;color:#81918a}
+.appRoot .ernestoHomeNoActivity{padding:15px 9px;margin:0;color:#81918a;font-size:12px;line-height:1.5}
+@media(max-width:570px){
+  .appRoot .ernestoHomeRecent{margin-top:23px}
+  .appRoot .ernestoHomeRecentHeading p{font-size:10px}
+  .appRoot .ernestoHomeActivity{min-height:53px;padding:11px 5px;grid-template-columns:24px minmax(0,1fr) auto;gap:9px}
+  .appRoot .ernestoHomeActivityName{font-size:12px}
+  .appRoot .ernestoHomeActivity time{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){.appRoot .ernestoHomeActivity{transition:none}}
