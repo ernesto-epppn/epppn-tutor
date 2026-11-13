@@ -36,10 +36,10 @@ export default function ErnestoHome({
   recentActivities,onTutor,onRecipes,onCarnet,onCommercial,
 }:Props){
   const actions=[
-    {key:"chat" as const,title:"Tuteur Ernesto",action:onTutor},
-    {key:"recipes" as const,title:"Recettes",action:onRecipes},
-    {key:"commercial" as const,title:"Commercial",action:onCommercial},
-    {key:"carnet" as const,title:"Mon carnet",action:onCarnet},
+    {key: "chat" as const, title: "Tuteur Ernesto", action: onTutor},
+    {key: "recipes" as const, title: "Recettes", action: onRecipes},
+    {key: "commercial" as const, title: "Commercial", action: onCommercial},
+    {key: "carnet" as const, title: "Mon carnet", action: onCarnet},
   ];
   const openSection:Record<ErnestoSection,()=>void>={
     chat:onTutor,recipes:onRecipes,commercial:onCommercial,carnet:onCarnet,
