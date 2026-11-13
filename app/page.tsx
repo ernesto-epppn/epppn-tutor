@@ -5,6 +5,7 @@ import ErnestoRecipeStudio from "./ErnestoRecipeStudio";
 import ErnestoExperienceCarnet from "./ErnestoExperienceCarnet";
 import ErnestoCommercialStudio from "./ErnestoCommercialStudio";
 import ErnestoHome from "./ErnestoHome";
+import {useErnestoRecentSections} from "./ernestoRecentSections";
 import ErnestoSectionHelp from "./ErnestoSectionHelp";
 import {
   ActionFlowchart,
@@ -505,6 +506,13 @@ export default function Page() {
   }, []);
 
   const [session, setSession] = useState<any>(null);
+  const currentSection= !session?.user?.id?null:
+    recipeStudioOpen?"recipes" as const:
+    commercialStudioOpen?"commercial" as const:
+    carnetOpen?"carnet" as const:
+    workspaceView==="tutor"?"chat" as const:null;
+  const recentActivities=useErnestoRecentSections(session?.user?.id||null,currentSection);
+
   const [email, setEmail] = useState("");
   const [authInfo, setAuthInfo] = useState<string | null>(null);
   const [payingPlan, setPayingPlan] = useState<null | BillingPlan>(null);
@@ -2454,16 +2462,11 @@ export default function Page() {
           ) : null}
           {session && workspaceView === "home" ? (
             <ErnestoHome
-              dossiers={projects.map((p) => ({
-                id: p.id, title: p.title, count: p.chat.length,
-                updatedAt: p.updatedAt, color: projectColor(p), active: p.id === activeProjectId,
-              }))}
+              recentActivities={recentActivities}
               onTutor={() => setWorkspaceView("tutor")}
               onRecipes={() => setRecipeStudioOpen(true)}
               onCarnet={() => {setCarnetPrefill(null);setCarnetOpen(true);}}
               onCommercial={() => setCommercialStudioOpen(true)}
-              onSelectDossier={selectProject}
-              onAllDossiers={() => setProjectsOpen(true)}
             />
           ) : null}
         {session ? (
