@@ -9,13 +9,13 @@ type Browser="safari"|"chrome";
 const steps: Record<Phone,Record<Browser,string[]>>={
   iphone:{
     safari:[
-      "Ouvrez ernesto.epppn.fr dans Safari.",
+      "Ouvrez le lien https://ernesto.epppn.fr dans Safari.",
       "Touchez Partager (ou Menu de la page, puis Partager).",
       "Choisissez « Sur l’écran d’accueil » et activez « Ouvrir comme app web » si proposé.",
       "Touchez « Ajouter ». L’icône Ernesto apparaît sur l’écran d’accueil."
     ],
     chrome:[
-      "Ouvrez ernesto.epppn.fr dans Chrome.",
+      "Ouvrez le lien https://ernesto.epppn.fr dans Chrome.",
       "Touchez Partager, à droite de la barre d’adresse.",
       "Choisissez « Ajouter à l’écran d’accueil ».",
       "Vérifiez le nom Ernesto puis touchez « Ajouter »."
@@ -24,7 +24,7 @@ const steps: Record<Phone,Record<Browser,string[]>>={
   android:{
     safari:[],
     chrome:[
-      "Ouvrez ernesto.epppn.fr dans Chrome.",
+      "Ouvrez le lien https://ernesto.epppn.fr dans Chrome.",
       "Touchez le menu ⋮, à droite de la barre d’adresse.",
       "Choisissez « Installer et créer un raccourci », « Installer l’application » ou « Ajouter à l’écran d’accueil » selon votre version.",
       "Confirmez l’installation ou l’ajout. Retrouvez Ernesto sur l’écran d’accueil."
@@ -87,8 +87,8 @@ export default function ErnestoAppGuide(){
         <div className="ernestoAppDialogHeader">
           <div className="ernestoAppDialogHeading">
             <span className="ernestoAppDialogKicker">ACCÈS RAPIDE</span>
-            <h2 id={titleId}>Ernesto sur votre téléphone</h2>
-            <p>Ajoutez Ernesto à votre écran d’accueil pour l’ouvrir d’un geste.</p>
+            <h2 id={titleId}>Ernesto App sur votre téléphone</h2>
+            <p>Ajoutez Ernesto App à votre écran d’accueil pour l’ouvrir d’un geste.</p>
           </div>
           <button type="button" className="ernestoAppClose" onClick={closeGuide} aria-label="Fermer la méthode">×</button>
         </div>
