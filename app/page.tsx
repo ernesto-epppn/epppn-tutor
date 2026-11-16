@@ -107,6 +107,8 @@ type Project = {
   id: string;
   title: string;
   chat: ChatMsg[];
+  // Réponses historiques effacées de la vue : la mémoire durable reste conservée.
+  archivedReplyCount?: number;
   updatedAt: number;
   color?: string;
   objective?: string;
@@ -468,6 +470,7 @@ export default function Page() {
   const [workspaceView, setWorkspaceView] = useState<"home" | "tutor">("home");
   const [visibleChatCount, setVisibleChatCount] = useState(8);
   const [expandedChatIds, setExpandedChatIds] = useState<string[]>([]);
+  const [tutorResetNotice,setTutorResetNotice] = useState(false);
 
   const [message, setMessage] = useState("");
   const [recipeStudioOpen, setRecipeStudioOpen] = useState(false);
@@ -796,6 +799,7 @@ export default function Page() {
             color: typeof p.color === "string" && p.color ? p.color : PROJECT_COLORS[idx % PROJECT_COLORS.length].value,
             objective: typeof p.objective === "string" ? p.objective : "",
             chat: Array.isArray(p.chat) ? p.chat : [],
+            archivedReplyCount: Math.max(0, Number(p.archivedReplyCount) || 0),
             updatedAt: Number(p.updatedAt) || Date.now(),
           }));
         setProjects(cleaned);
@@ -907,6 +911,7 @@ export default function Page() {
     }
 
     setWorkspaceView("tutor");
+    setTutorResetNotice(false);
     setPaywall(null); // close paywall on new ask attempt
     const responseIndex = chat.filter((m) => m.role === "ernesto").length + 1;
     setPizzaDone(false);
@@ -1079,6 +1084,7 @@ export default function Page() {
     setProjects((prev) => [p, ...prev].slice(0, 30));
     setActiveProjectId(p.id);
     setChat([]);
+    setTutorResetNotice(false);
     setMessage("");
     setSelectedImages([]);
     setDossierSummaryOpen(false);
@@ -1092,6 +1098,38 @@ export default function Page() {
     setProjectsOpen(false);
   }
 
+  // Nouvelle discussion dans le même dossier : seul l'historique de chat local est effacé.
+  // La mémoire durable, le profil, les recettes, le carnet et les autres dossiers restent intacts.
+  function resetTutorConversation() {
+    if (loading || !projectsHydrated || !activeProjectId) return;
+    if (chat.length && !window.confirm(
+      "Effacer les messages de la discussion en cours sur cet appareil ?\n\n" +
+      "La mémoire du dossier, son objectif, votre profil, vos recettes et votre carnet seront conservés.\n" +
+      "Les messages effacés ne pourront pas être récupérés."
+    )) return;
+    const completedReplies=chat.filter(item=>item.role==="ernesto").length;
+    setProjects(previous=>previous.map(project=>project.id===activeProjectId
+      ? {...project,chat:[],archivedReplyCount:(project.archivedReplyCount||0)+completedReplies,updatedAt:Date.now()}
+      : project));
+    setChat([]);
+    setMessage("");
+    setSelectedImages([]);
+    if (fileRef.current) fileRef.current.value="";
+    setRecipeContext("");
+    setActiveRecipeName(null);
+    setSelectedQuestion(null);
+    setPaywall(null);
+    setDossierSummaryOpen(false);
+    setDossierSummaryError("");
+    setVisibleChatCount(8);
+    setExpandedChatIds([]);
+    setEditingAnswerId(null);
+    setEditingAnswerText("");
+    setProjectsOpen(false);
+    setTutorResetNotice(true);
+    setWorkspaceView("tutor");
+  }
+
   function newConversation() {
     setCreateDossierOpen(true);
     setProjectsOpen(true);
@@ -1101,6 +1139,7 @@ export default function Page() {
     const p = projects.find((item) => item.id === id);
     if (!p) return;
     setWorkspaceView("tutor");
+    setTutorResetNotice(false);
     setActiveProjectId(id);
     setRecipeContext("");
     setActiveRecipeName(null);
@@ -2458,6 +2497,18 @@ export default function Page() {
                 <span className="ernestoGlobalLocation">/ Tuteur Ernesto</span>
               ) : null}
               {workspaceView === "tutor" ? <ErnestoSectionHelp topic="tutor" /> : null}
+              {workspaceView === "tutor" ? (
+                <button type="button" className="ernestoTutorReset"
+                  onClick={resetTutorConversation}
+                  disabled={loading || !projectsHydrated}
+                  title="Vider la discussion sans effacer la mémoire du dossier"
+                  aria-label="Repartir à zéro dans le tuteur sans effacer la mémoire">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 2.8-6.4M3 4v5h5"/>
+                  </svg>
+                  Nouvelle discussion
+                </button>
+              ) : null}
             </div>
           ) : null}
           {session && workspaceView === "home" ? (
@@ -2846,7 +2897,9 @@ export default function Page() {
           </div>
         ) : null}
         {chat.length === 0 ? (
-          <div style={{ opacity: 0.72, fontSize: 14, padding: "8px 2px" }}>Commencez par une situation concrète : une pâte qui colle, un levain trop acide, une cuisson irrégulière, une photo de cornicione ou une question d’organisation au banc.</div>
+          <div role={tutorResetNotice?"status":undefined} style={{ opacity: 0.72, fontSize: 14, padding: "8px 2px" }}>
+            {tutorResetNotice?<p className="ernestoTutorResetNotice">Nouvelle discussion prête. La mémoire de votre dossier est conservée.</p>:null}
+            Commencez par une situation concrète : une pâte qui colle, un levain trop acide, une cuisson irrégulière, une photo de cornicione ou une question d’organisation au banc.</div>
         ) : (
           visibleChat.map((m) => (
             <div
