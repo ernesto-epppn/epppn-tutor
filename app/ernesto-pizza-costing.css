@@ -85,6 +85,7 @@
 .epcCircleHeader{display:grid;gap:5px;margin-bottom:16px}
 .epcCircleHeader>strong{font-size:14px;font-weight:760;letter-spacing:-.02em;color:#315145}
 .epcCircleHeader>span{font-size:10px;color:#819187}
+.epcChartStale{display:block;margin:-4px 0 13px;padding:8px 10px;border-left:2px solid #b7a27a;border-radius:0 5px 5px 0;background:#f8f6f1;color:#746950;font-size:10px;line-height:1.5}
 .epcCircleLayout{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;align-items:center}
 .epcDonut{width:128px;height:128px;border-radius:50%;padding:15px;display:grid;place-items:center;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(50,76,59,.04)}
 .epcDonutCenter{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;width:100%;height:100%;background:#fff;border-radius:50%;color:#355547}
