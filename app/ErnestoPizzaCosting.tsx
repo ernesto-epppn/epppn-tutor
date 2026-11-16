@@ -67,7 +67,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
  const ingredients=activeCost.lines.reduce((n,l)=>n+l.grams/1000*(l.priceKg||0),0);
  const packaging=activeCost.packagingHt;
  const grossCost=ingredients+(packaging??0);
- const ready=unknown.length===0&&activeCost.lines.some(l=>l.grams>0)&&ingredients>0&&packaging!==null;
+ const ready=unknown.length===0&&activeCost.lines.some(l=>l.grams>0)&&ingredients>0;
  // Le prix conseillé sert de référence tant qu'aucun prix de vente n'est saisi.
  const pricing=advisePizzaPriceHt(grossCost,activeCost.area);
  const recommended=pricing.recommendedHt;
@@ -91,7 +91,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
  }
  async function save(){
   if(!userId)return;
-  if(!ready||!activeCost.name.trim()||activeCost.lines.some(l=>!l.name.trim())){setError("Renseignez les ingrédients, les prix HT/kg et l’emballage HT par pizza avant d’enregistrer.");return;}
+  if(!ready||!activeCost.name.trim()||activeCost.lines.some(l=>!l.name.trim())){setError("Renseignez le nom de la pizza, les ingrédients et les prix HT/kg avant d’enregistrer.");return;}
   setBusy(true);setError("");setNotice("");
   try{
    const item=saved.find(x=>x.cost.id===activeCost.id);
@@ -143,7 +143,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
     </div>)}
     <button className="epcAdd" type="button" onClick={addLine}>+ Ajouter un ingrédient</button>
     <div className="epcOther">
-      <label>Emballage HT / pizza <span className="epcRequired">À renseigner</span>
+      <label>Emballage HT / pizza <span className="epcOptional">Facultatif</span>
         <PriceField nullable value={packaging} onChange={v=>patch({packagingHt:v})}/>
       </label>
     </div>
@@ -181,6 +181,28 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
       <button className="epcSave" type="button" disabled={busy||!ready} onClick={()=>void save()}>Enregistrer cette pizza</button>
       {saved.some(x=>x.cost.id===activeCost.id)?<button className="epcDelete" type="button" disabled={busy} onClick={()=>void remove()}>Supprimer la fiche</button>:null}
     </div>
+
+        <p className="epcMuted">Renseignez les prix HT/kg des ingrédients. L’emballage est facultatif : si son prix n’est pas indiqué, le calcul considère 0 €. La farine est incluse dans le coût.</p>
+   </div>
+   <div className="epcCard epcSummary">
+    <label>Prix de vente HT / pizza (modifiable)<PriceField nullable value={activeCost.sellingHt>0?activeCost.sellingHt:null} onChange={v=>patch({sellingHt:v||0})}/></label>
+    <p className="epcPriceBasis">{metrics?(metrics.origin==="conseillé"?
+      <>Calculs basés sur le prix conseillé de <strong>{money.format(recommended)}</strong>. Saisissez un prix pour recalculer.</>:
+      <>Calculs basés sur votre prix de vente saisi.</>):"Renseignez les prix HT/kg des matières pour afficher les marges."}</p>
+    <div className="epcMetrics">
+      <div><span>Food cost matières HT</span><strong>{ready?money.format(ingredients):"Incomplet"}</strong></div>
+      <div><span>Emballage HT</span><strong>{packaging===null?"Non renseigné (0 €)":money.format(packaging)}</strong></div>
+      <div><span>Coût direct HT (matières + emballage)</span><strong>{ready?money.format(grossCost):"Incomplet"}</strong></div>
+      <div><span>Marge brute HT (vente − matières − emballage)</span><strong>{ready&&gross!==null?money.format(gross):"—"}</strong></div>
+      <div><span>Taux de marge brute</span><strong>{ready&&grossPct!==null?fmt.format(grossPct)+" %":"—"}</strong></div>
+      <div><span>Food cost / prix HT</span><strong>{ready&&foodPct!==null?fmt.format(foodPct)+" %":"—"}</strong></div>
+
+    </div>
+    <div className="epcFloor"><span>Coût direct HT / pizza</span>
+      <strong>{ready?money.format(grossCost):"—"}</strong>
+      <small>Matières et emballage renseigné uniquement. Un emballage non renseigné compte pour 0 €. Les autres charges ne sont pas déduites.</small>
+    </div>
+
     {metrics?<section className="epcCirclePanel" aria-label="Répartition du prix de vente HT">
       <div className="epcCircleHeader"><strong>Répartition du prix de vente</strong>
         <span>{metrics.origin==="conseillé"?"Sur la base du prix conseillé HT":"Sur la base du prix saisi HT"}</span></div>
@@ -191,34 +213,13 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
         </div>
         <div className="epcCircleLegend">
           <div><span><i className="epcCircleDot is-matiere"/>Matières</span><strong>{money.format(ingredients)}</strong></div>
-          <div><span><i className="epcCircleDot is-emballage"/>Emballage</span><strong>{money.format(packaging??0)}</strong></div>
+          <div><span><i className="epcCircleDot is-emballage"/>Emballage{packaging===null?" (non renseigné)":""}</span><strong>{money.format(packaging??0)}</strong></div>
           <div><span><i className="epcCircleDot is-marge"/>Marge brute</span><strong>{money.format(metrics.grossMarginHt)}</strong></div>
           <div className="epcCircleFoot"><span>Prix de vente HT</span><strong>{money.format(metrics.saleHt)}</strong></div>
         </div>
       </div>}
       <p>La marge brute n’est pas le bénéfice net : elle ne déduit pas les autres charges.</p>
     </section>:null}
-        <p className="epcMuted">Saisissez tous les prix HT/kg et l’emballage. Indiquez 0 € pour l’emballage seulement si vous n’en utilisez pas. La farine est incluse dans le coût.</p>
-   </div>
-   <div className="epcCard epcSummary">
-    <label>Prix de vente HT / pizza (modifiable)<PriceField nullable value={activeCost.sellingHt>0?activeCost.sellingHt:null} onChange={v=>patch({sellingHt:v||0})}/></label>
-    <p className="epcPriceBasis">{metrics?(metrics.origin==="conseillé"?
-      <>Calculs basés sur le prix conseillé de <strong>{money.format(recommended)}</strong>. Saisissez un prix pour recalculer.</>:
-      <>Calculs basés sur votre prix de vente saisi.</>):"Renseignez les prix des matières et l’emballage pour afficher les marges."}</p>
-    <div className="epcMetrics">
-      <div><span>Food cost matières HT</span><strong>{ready?money.format(ingredients):"Incomplet"}</strong></div>
-      <div><span>Emballage HT</span><strong>{packaging===null?"À renseigner":money.format(packaging)}</strong></div>
-      <div><span>Coût direct HT (matières + emballage)</span><strong>{ready?money.format(grossCost):"Incomplet"}</strong></div>
-      <div><span>Marge brute HT (vente − matières − emballage)</span><strong>{ready&&gross!==null?money.format(gross):"—"}</strong></div>
-      <div><span>Taux de marge brute</span><strong>{ready&&grossPct!==null?fmt.format(grossPct)+" %":"—"}</strong></div>
-      <div><span>Food cost / prix HT</span><strong>{ready&&foodPct!==null?fmt.format(foodPct)+" %":"—"}</strong></div>
-
-    </div>
-    <div className="epcFloor"><span>Coût direct HT / pizza</span>
-      <strong>{ready?money.format(grossCost):"—"}</strong>
-      <small>Matières et emballage uniquement. Les autres charges ne sont pas déduites de la marge brute.</small>
-    </div>
-
     <p className="epcMuted">Les frais fixes et les autres charges restent à couvrir par la marge brute.</p>
    </div>
   </div>
