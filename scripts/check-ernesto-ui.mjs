@@ -104,4 +104,20 @@ assert.match(recentSource, /MAX_RECENT=4/, "Keep four distinct recent workspaces
 assert.match(activityCss, /@media\(max-width:570px\)/, "Recent activities must fit mobile");
 assert.match(layout, /ernesto-recent-activities\.css/, "Load recent activity CSS");
 
+
+// Commercial must never display fictitious zero packaging or hidden/empty margin indicators.
+const costing=read("app/ErnestoPizzaCosting.tsx");
+const costingCss=read("app/ernesto-pizza-costing.css");
+assert.match(costing, /packagingHt:null/, "Packaging starts as a blank mandatory field");
+assert.match(costing, /<PriceField nullable value=\{packaging\}/, "Packaging input remains blank until entered");
+assert.match(costing, /packaging!==null/, "Advisor and save require entered packaging");
+assert.match(costing, /pizzaMoneyMetrics\(/, "Margins are derived consistently from the advised or manually entered price");
+assert.match(costing, /metrics\.origin==="conseillé"/, "Explain which price was used to calculate gross margin");
+assert.match(costing, /className="epcDonut"/, "Compact circular breakdown should appear under saving the pizza");
+assert.ok(costing.indexOf('className="epcSave"')<costing.indexOf('className="epcDonut"'), "Donut appears below Save");
+assert.doesNotMatch(costing, /epcMicroChart|epcMicroLegend/, "Old stacked mini bar must be removed");
+assert.doesNotMatch(costingCss, /\.epcMicroChart\{/, "Old chart styles must be removed");
+assert.match(costingCss, /\.epcCircleLayout\{display:grid;/, "Circular chart has a responsive layout");
+assert.match(costingCss, /@media\(max-width:680px\)/, "Commercial layout adapts to small phones");
+
 console.log("Ernesto UI contracts verified.");
