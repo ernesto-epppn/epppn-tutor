@@ -173,6 +173,13 @@ export async function POST(req: Request) {
   }
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  // A reset starts a new transcript, but continues the same durable dossier memory.
+  const previousMemory = [
+    existing?.summary ? "Synthèse précédente : " + cleanText(existing.summary,850) : "",
+    Array.isArray(existing?.facts) && existing.facts.length
+      ? "Repères enregistrés : " + existing.facts.map((fact: any) => cleanText(fact?.fact,260)).filter(Boolean).join(" ; ")
+      : "",
+  ].filter(Boolean).join("\n");
   const transcript = chat
     .map((item) => `${item.role === "user" ? "UTILISATEUR" : "ERNESTO"}: ${item.text}`)
     .join("\n\n");
@@ -185,7 +192,7 @@ export async function POST(req: Request) {
         content: [
           {
             type: "input_text",
-            text: `Tu construis la mémoire durable d'un dossier pédagogique Ernesto. Retourne uniquement un JSON valide avec cette forme : {"summary":"...","facts":[{"category":"...","fact":"...","confidence":"high|medium"}],"open_questions":["..."]}.\n\nRègles :\n- mémorise seulement 5 à 10 faits qui seront réellement utiles à de futures réponses ;\n- ne privilégie PAS les paramètres chiffrés : une information qualitative réellement contextuelle compte autant qu’une température ou une hydratation si elle change l’interprétation du cas ;\n- conserve en priorité, quand elles sont explicites, les dimensions suivantes : type de produit ou style visé, étape précise du procédé, matériel et configuration, ingrédients pertinents, contraintes de production ou de service, environnement de travail, symptôme observé, objectif recherché, chronologie du problème, action déjà essayée et résultat obtenu, comparaison avant/après ou condition dans laquelle le problème apparaît ;\n- les mesures et coefficients (hydratation, température, temps, W, P/L, pH, quantités) sont des repères parmi d’autres, pas une condition pour enrichir la mémoire ;\n- distingue les faits de l'utilisateur des hypothèses d'Ernesto ; ne transforme jamais une hypothèse en fait ;\n- n'enregistre pas de bavardage, formules de politesse, données d'authentification ni contenu personnel sans intérêt pédagogique ;\n- summary : 4 à 7 phrases courtes maximum ;\n- open_questions : maximum 3 informations manquantes qui changeraient réellement le diagnostic ;\n- écris dans la langue dominante de l'échange.`,
+            text: `Tu construis la mémoire durable d'un dossier pédagogique Ernesto. Retourne uniquement un JSON valide avec cette forme : {"summary":"...","facts":[{"category":"...","fact":"...","confidence":"high|medium"}],"open_questions":["..."]}.\n\nRègles :\n- mémorise seulement 5 à 10 faits qui seront réellement utiles à de futures réponses ;\n- conserve les informations pertinentes de la mémoire précédente même si la discussion courante a été réinitialisée ; actualise seulement les faits contredits ou devenus obsolètes ;\n- ne privilégie PAS les paramètres chiffrés : une information qualitative réellement contextuelle compte autant qu’une température ou une hydratation si elle change l’interprétation du cas ;\n- conserve en priorité, quand elles sont explicites, les dimensions suivantes : type de produit ou style visé, étape précise du procédé, matériel et configuration, ingrédients pertinents, contraintes de production ou de service, environnement de travail, symptôme observé, objectif recherché, chronologie du problème, action déjà essayée et résultat obtenu, comparaison avant/après ou condition dans laquelle le problème apparaît ;\n- les mesures et coefficients (hydratation, température, temps, W, P/L, pH, quantités) sont des repères parmi d’autres, pas une condition pour enrichir la mémoire ;\n- distingue les faits de l'utilisateur des hypothèses d'Ernesto ; ne transforme jamais une hypothèse en fait ;\n- n'enregistre pas de bavardage, formules de politesse, données d'authentification ni contenu personnel sans intérêt pédagogique ;\n- summary : 4 à 7 phrases courtes maximum ;\n- open_questions : maximum 3 informations manquantes qui changeraient réellement le diagnostic ;\n- écris dans la langue dominante de l'échange.`,
           },
         ],
       },
@@ -194,7 +201,7 @@ export async function POST(req: Request) {
         content: [
           {
             type: "input_text",
-            text: `Titre du dossier : ${title}\nObjectif déclaré : ${objective || "(non renseigné)"}\nNombre total de réponses Ernesto dans ce dossier : ${turnCount}\n\nÉchanges récents :\n${transcript}`,
+            text: `Titre du dossier : ${title}\nObjectif déclaré : ${objective || "(non renseigné)"}\nNombre total de réponses Ernesto dans ce dossier : ${turnCount}\n\nMémoire durable antérieure (à préserver si encore pertinente) :\n${previousMemory || "(aucune)"}\n\nÉchanges récents :\n${transcript}`,
           },
         ],
       },

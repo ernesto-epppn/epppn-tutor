@@ -189,3 +189,22 @@
     font-size:9px!important;max-width:75px;text-align:center
   }
 }
+
+
+/* Tuteur : deliberate fresh start, never a memory or dossier deletion action. */
+.appRoot .ernestoTutorReset{
+  margin-left:auto;min-height:34px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:7px 11px;border:1px solid #dfe5e2;border-radius:8px;background:#fff;
+  color:#53636a;-webkit-text-fill-color:#53636a;font-size:11px;font-weight:610;
+  white-space:nowrap;cursor:pointer;box-shadow:none;transition:background .15s,border-color .15s;
+}
+.appRoot .ernestoTutorReset svg{width:15px;height:15px;flex:0 0 15px}
+.appRoot .ernestoTutorReset:hover:not(:disabled){background:#f2f5f4;border-color:#bdcfc9}
+.appRoot .ernestoTutorReset:focus-visible{outline:2px solid #456676;outline-offset:2px}
+.appRoot .ernestoTutorReset:disabled{opacity:.46;cursor:not-allowed}
+.appRoot .ernestoTutorResetNotice{font-size:12px;font-weight:550;color:#456658;margin:0 0 10px}
+@media(max-width:550px){
+ .appRoot .ernestoTutorReset{min-height:32px;padding:6px 8px;gap:5px;font-size:10px}
+ .appRoot .ernestoTutorReset svg{width:13px;height:13px;flex-basis:13px}
+}
+@media(prefers-reduced-motion:reduce){.appRoot .ernestoTutorReset{transition:none}}

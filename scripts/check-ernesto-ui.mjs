@@ -140,4 +140,31 @@ assert.doesNotMatch(costingCss, /\.epcMicroChart\{/, "Old chart styles must be r
 assert.match(costingCss, /\.epcCircleLayout\{display:grid;/, "Circular chart has a responsive layout");
 assert.match(costingCss, /@media\(max-width:680px\)/, "Commercial layout adapts to small phones");
 
+
+// Tutor 'Nouvelle discussion' clears only the current working conversation.
+const tutorReset=page.match(/function resetTutorConversation\(\) \{([\s\S]*?)\n  \}\n\n  function newConversation/);
+assert.ok(tutorReset, "Tutor has a dedicated reset function");
+assert.match(tutorReset[1], /if \(loading \|\| !projectsHydrated \|\| !activeProjectId\) return/, "Never erase messages while the answer is being generated");
+assert.match(tutorReset[1], /window\.confirm\(/, "Require confirmation before removing past messages");
+assert.match(tutorReset[1], /setChat\(\[\]\)/, "Clear the current tutor transcript");
+assert.match(tutorReset[1], /setMessage\(""\)/, "Clear the draft question");
+assert.match(tutorReset[1], /setSelectedImages\(\[\]\)/, "Clear unsent photos");
+assert.match(tutorReset[1], /setRecipeContext\(""\)/, "Clear temporary recipe context");
+assert.match(tutorReset[1], /stopDictRef\.current\?\.\(\)/, "Stop microphone dictation on reset");
+assert.match(tutorReset[1], /sessionStorage\.removeItem\("ernesto_v144_pending_followup"\)/, "Remove only temporary follow-up data");
+
+assert.match(tutorReset[1], /archivedReplyCount:\(project\.archivedReplyCount\|\|0\)\+completedReplies/, "Preserve the lifetime response count");
+assert.doesNotMatch(tutorReset[1], /setPersonalProfile|setWorkContext|deleteProject|fetch\(|supabase\.from|localStorage\.removeItem/, "Reset must never delete saved memory or other workspaces");
+assert.match(page, /onClick=\{resetTutorConversation\}/, "Reset button must be actionable in Tutor");
+assert.match(page, /title="Vider la discussion sans effacer la mémoire du dossier"/, "Explain retained memory before clicking");
+assert.match(page, /Nouvelle discussion prête\. La mémoire de votre dossier est conservée\./, "Confirm memory preservation after clearing");
+const memoryEnhancer=read("app/ErnestoV144Enhancer.tsx");
+assert.match(memoryEnhancer, /previousReplies\+fullChat\.filter/, "Dossier sync must include responses from cleared discussions");
+const memoryApi=read("app/api/dossier-memory/route.ts");
+assert.match(memoryApi, /previousMemory/, "Dossier memory summaries must incorporate existing memories");
+assert.match(memoryApi, /conserve les informations pertinentes de la mémoire précédente/, "Do not forget durable facts during later summaries");
+const tutorResetStyles=read("app/ernesto-workspace-navigation.css");
+assert.match(tutorResetStyles, /\.appRoot \.ernestoTutorReset\{/, "Style the clean action discreetly");
+assert.match(tutorResetStyles, /@media\(max-width:550px\)/, "Keep the action usable on phones");
+
 console.log("Ernesto UI contracts verified.");
