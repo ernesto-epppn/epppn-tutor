@@ -5,7 +5,7 @@ import type {Recipe} from "./recipeData";
 import {calculateRecipe,recipeDefaults} from "./recipeMath";
 import {advisePizzaPriceHt,PIZZA_COST_COEFFICIENT,PIZZA_REFERENCE_SHARE} from "./pizzaPricing";
 import type {PizzaArea} from "./pizzaPricing";
-import {pizzaMoneyMetrics} from "./pizzaCostMetrics";
+import {pizzaMoneyMetrics,type PizzaMoneyMetrics} from "./pizzaCostMetrics";
 
 type Line={id:string;name:string;grams:number;priceKg:number|null;kind:"pate"|"garniture"};
 type Area=PizzaArea;
@@ -57,6 +57,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
  const [notice,setNotice]=useState("");
  const [error,setError]=useState("");
  const [advice,setAdvice]=useState(false);
+ const [chartSnapshot,setChartSnapshot]=useState<{metrics:PizzaMoneyMetrics;packagingOmitted:boolean;fingerprint:string}|null>(null);
  const [newRecipe,setNewRecipe]=useState("");
  useEffect(()=>{if(!cost)setCost(initial());},[cost]);
  if(!cost)return null;
@@ -78,13 +79,26 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
  const gross=metrics?.grossMarginHt??null;
  const grossPct=metrics?.grossMarginPct??null;
  const foodPct=metrics?.foodCostPct??null;
- const donutStyle=metrics&&!metrics.isLoss?{
-  background:`conic-gradient(#547d70 0 ${metrics.foodCostPct}%,#bba477 ${metrics.foodCostPct}% ${metrics.directCostPct}%,#dce8dc ${metrics.directCostPct}% 100%)`,
+ // The graph is a snapshot created only by the price-advice button.
+ // Editing amounts never mutates its data; show a discreet stale-data hint instead.
+ const fingerprint=JSON.stringify({
+  lines:activeCost.lines.map(l=>[l.grams,l.priceKg]),
+  packaging,area:activeCost.area,sellingHt:activeCost.sellingHt,
+ });
+ const graphMetrics=chartSnapshot?.metrics??null;
+ const chartNeedsRefresh=chartSnapshot!==null&&chartSnapshot.fingerprint!==fingerprint;
+ const donutStyle=graphMetrics&&!graphMetrics.isLoss?{
+  background:`conic-gradient(#547d70 0 ${graphMetrics.foodCostPct}%,#bba477 ${graphMetrics.foodCostPct}% ${graphMetrics.directCostPct}%,#dce8dc ${graphMetrics.directCostPct}% 100%)`,
  }:undefined;
- function load(row:{cost:Costing}){setNewRecipe(row.cost.recipeId);setCost(row.cost);setAdvice(false);setError("");setNotice("");}
+ function calculatePriceAdvice(){
+  if(!ready||!metrics)return;
+  setAdvice(true);
+  setChartSnapshot({metrics,packagingOmitted:packaging===null,fingerprint});
+ }
+ function load(row:{cost:Costing}){setNewRecipe(row.cost.recipeId);setCost(row.cost);setAdvice(false);setChartSnapshot(null);setError("");setNotice("");}
  function create(recipeId:string){
   const r=recipes.find(x=>x.id===recipeId);
-  setCost(initial(r));setNewRecipe(recipeId);setAdvice(false);setError("");setNotice("");
+  setCost(initial(r));setNewRecipe(recipeId);setAdvice(false);setChartSnapshot(null);setError("");setNotice("");
  }
  function addLine(){
   patch({lines:[...activeCost.lines,{id:crypto.randomUUID(),name:"",grams:0,priceKg:null,kind:"garniture"}]});
@@ -111,7 +125,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
   setBusy(true);
   const {error:err}=await supabase.from("ernesto_activity_records").delete().eq("id",item.row.id).eq("user_id",userId);
   setBusy(false);
-  if(err)setError("Suppression impossible.");else{setCost(initial());setNotice("Fiche supprimée.");onStored();}
+  if(err)setError("Suppression impossible.");else{setCost(initial());setChartSnapshot(null);setAdvice(false);setNotice("Fiche supprimée.");onStored();}
  }
  return <div className="epc">
   <div className="epcTop">
@@ -158,7 +172,7 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
           <option value="rural">Commune rurale</option>
         </select>
       </label>
-      <button type="button" disabled={!ready} className="epcRecommend" onClick={()=>setAdvice(true)}>
+      <button type="button" disabled={!ready} className="epcRecommend" onClick={calculatePriceAdvice}>
         <span>Calculer le prix conseillé</span><span aria-hidden="true">↗</span>
       </button>
       {advice&&ready?<div className="epcProposal" role="status">
@@ -203,19 +217,20 @@ export default function ErnestoPizzaCosting({supabase,userId,records,recipes,onS
       <small>Matières et emballage renseigné uniquement. Un emballage non renseigné compte pour 0 €. Les autres charges ne sont pas déduites.</small>
     </div>
 
-    {metrics?<section className="epcCirclePanel" aria-label="Répartition du prix de vente HT">
+    {graphMetrics?<section className="epcCirclePanel" aria-label="Répartition du prix de vente HT">
       <div className="epcCircleHeader"><strong>Répartition du prix de vente</strong>
-        <span>{metrics.origin==="conseillé"?"Sur la base du prix conseillé HT":"Sur la base du prix saisi HT"}</span></div>
-      {metrics.isLoss?<p className="epcCostWarning">Le prix saisi est inférieur au coût direct : marge brute négative de {money.format(Math.abs(metrics.grossMarginHt))}.</p>:
+        <span>{graphMetrics.origin==="conseillé"?"Sur la base du prix conseillé HT":"Sur la base du prix saisi HT"}</span></div>
+      {chartNeedsRefresh?<span className="epcChartStale" role="status">Données modifiées. Cliquez sur « Calculer le prix conseillé » pour actualiser le graphique.</span>:null}
+      {graphMetrics.isLoss?<p className="epcCostWarning">Le prix saisi est inférieur au coût direct : marge brute négative de {money.format(Math.abs(graphMetrics.grossMarginHt))}.</p>:
       <div className="epcCircleLayout">
-        <div className="epcDonut" style={donutStyle} role="img" aria-label={`Répartition du prix HT : matières ${fmt.format(metrics.foodCostPct)} %, emballage ${fmt.format(metrics.packagingPct)} %, marge brute ${fmt.format(metrics.grossMarginPct)} %`}>
-          <div className="epcDonutCenter"><small>Marge brute</small><strong>{fmt.format(metrics.grossMarginPct)} %</strong><span>{money.format(metrics.grossMarginHt)} HT</span></div>
+        <div className="epcDonut" style={donutStyle} role="img" aria-label={`Répartition du prix HT : matières ${fmt.format(graphMetrics.foodCostPct)} %, emballage ${fmt.format(graphMetrics.packagingPct)} %, marge brute ${fmt.format(graphMetrics.grossMarginPct)} %`}>
+          <div className="epcDonutCenter"><small>Marge brute</small><strong>{fmt.format(graphMetrics.grossMarginPct)} %</strong><span>{money.format(graphMetrics.grossMarginHt)} HT</span></div>
         </div>
         <div className="epcCircleLegend">
-          <div><span><i className="epcCircleDot is-matiere"/>Matières</span><strong>{money.format(ingredients)}</strong></div>
-          <div><span><i className="epcCircleDot is-emballage"/>Emballage{packaging===null?" (non renseigné)":""}</span><strong>{money.format(packaging??0)}</strong></div>
-          <div><span><i className="epcCircleDot is-marge"/>Marge brute</span><strong>{money.format(metrics.grossMarginHt)}</strong></div>
-          <div className="epcCircleFoot"><span>Prix de vente HT</span><strong>{money.format(metrics.saleHt)}</strong></div>
+          <div><span><i className="epcCircleDot is-matiere"/>Matières</span><strong>{money.format(graphMetrics.ingredientHt)}</strong></div>
+          <div><span><i className="epcCircleDot is-emballage"/>Emballage{chartSnapshot?.packagingOmitted?" (non renseigné)":""}</span><strong>{money.format(graphMetrics.packagingHt)}</strong></div>
+          <div><span><i className="epcCircleDot is-marge"/>Marge brute</span><strong>{money.format(graphMetrics.grossMarginHt)}</strong></div>
+          <div className="epcCircleFoot"><span>Prix de vente HT</span><strong>{money.format(graphMetrics.saleHt)}</strong></div>
         </div>
       </div>}
       <p>La marge brute n’est pas le bénéfice net : elle ne déduit pas les autres charges.</p>
