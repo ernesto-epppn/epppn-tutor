@@ -56,8 +56,8 @@
 .epcProposalAmount{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:9px}
 .epcProposalAmount strong{font-size:clamp(26px,3vw,35px);letter-spacing:-.045em;color:#244e43;font-variant-numeric:tabular-nums}
 .epcProposalAmount button{background:#e8f0ec;border:1px solid #cdded5;color:#2a5347;font-size:11px;font-weight:750;min-height:34px;cursor:pointer}
-@media(max-width:680px){.epcAdviceLeft{padding:13px}.epcProposalAmount strong{font-size:29px}.epcMicroLegend>span{font-size:9px}}
-@media(prefers-reduced-motion:reduce){.epcAdviceLeft .epcRecommend,}
+@media(max-width:680px){.epcAdviceLeft{padding:13px}.epcProposalAmount strong{font-size:29px}}
+@media(prefers-reduced-motion:reduce){.epcAdviceLeft .epcRecommend{transition:none}}
 
 /* Une formule lisible, sans élément de tableau de bord superflu. */
 .epcPriceMethod{border:1px solid #e5ece7;border-radius:9px;padding:10px 11px;display:grid;gap:7px;background:#fafcfb}
