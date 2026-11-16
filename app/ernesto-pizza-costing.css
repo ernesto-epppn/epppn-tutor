@@ -72,7 +72,7 @@
 .epcCard{padding:17px 18px;border-radius:12px}
 .epcOther{grid-template-columns:minmax(0,1fr);margin-top:14px;padding-top:12px}
 .epcOther>label{max-width:330px}
-.epcRequired{color:#697c71;font-size:10px;font-weight:500}
+.epcOptional{color:#809185;font-size:10px;font-weight:500}
 .epcOther .epcPrice{min-height:39px;padding-inline:9px}
 .epcOther .epcPrice input{font-size:15px}
 .epcPriceBasis{font-size:11px;line-height:1.55;color:#72857a;margin:7px 0 15px}
@@ -81,12 +81,12 @@
 .epcSaveArea{display:flex;gap:12px;align-items:center;margin-top:17px;padding-top:14px;border-top:1px solid #e6ece7}
 .epcSaveArea .epcSave{flex:1;max-width:320px;margin:0}
 .epcSaveArea .epcDelete{flex:0 0 auto}
-.epcCirclePanel{margin-top:17px;border:1px solid #dce6de;border-radius:12px;background:#f9fbf9;padding:16px}
+.epcCirclePanel{margin-top:15px;border:1px solid #dce6de;border-radius:12px;background:#f9fbf9;padding:16px}
 .epcCircleHeader{display:grid;gap:5px;margin-bottom:16px}
 .epcCircleHeader>strong{font-size:14px;font-weight:760;letter-spacing:-.02em;color:#315145}
 .epcCircleHeader>span{font-size:10px;color:#819187}
-.epcCircleLayout{display:grid;grid-template-columns:160px minmax(0,1fr);gap:17px;align-items:center}
-.epcDonut{width:154px;height:154px;border-radius:50%;padding:17px;display:grid;place-items:center;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(50,76,59,.04)}
+.epcCircleLayout{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;align-items:center}
+.epcDonut{width:128px;height:128px;border-radius:50%;padding:15px;display:grid;place-items:center;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(50,76,59,.04)}
 .epcDonutCenter{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;width:100%;height:100%;background:#fff;border-radius:50%;color:#355547}
 .epcDonutCenter small{font-size:10px;color:#809184}
 .epcDonutCenter strong{font-size:22px;letter-spacing:-.045em;font-weight:800;font-variant-numeric:tabular-nums}
@@ -104,7 +104,7 @@
 .epcCostWarning{padding:12px!important;margin:0!important;background:#fbf0e8;border-left:2px solid #c18258;color:#925d3f!important;font-size:12px!important}
 @media(max-width:1000px){
  .epcGrid{grid-template-columns:1fr}
- .epcCircleLayout{grid-template-columns:160px minmax(0,1fr)}
+ .epcCircleLayout{grid-template-columns:130px minmax(0,1fr)}
 }
 @media(max-width:680px){
  .epcCard{padding:12px}
