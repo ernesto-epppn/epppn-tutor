@@ -56,17 +56,8 @@
 .epcProposalAmount{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:9px}
 .epcProposalAmount strong{font-size:clamp(26px,3vw,35px);letter-spacing:-.045em;color:#244e43;font-variant-numeric:tabular-nums}
 .epcProposalAmount button{background:#e8f0ec;border:1px solid #cdded5;color:#2a5347;font-size:11px;font-weight:750;min-height:34px;cursor:pointer}
-.epcMicroChart{height:11px;border-radius:999px;display:flex;overflow:hidden;background:#e5eae5;margin-top:5px}
-.epcMicroChart span{display:block;min-width:0;transition:width .2s ease}
-.epcMicroIngredients{background:#4c796f}
-.epcMicroPackaging{background:#d8a46a}
-.epcMicroMargin{background:#cddfd3}
-.epcMicroLegend{display:flex;flex-wrap:wrap;gap:6px 12px}
-.epcMicroLegend>span{display:inline-flex;gap:5px;align-items:center;font-size:10px;color:#5d7569;white-space:nowrap}
-.epcDot{display:inline-block;width:7px;height:7px;border-radius:2px;flex-shrink:0}
-.epcDotIngredients{background:#4c796f}.epcDotPackaging{background:#d8a46a}.epcDotMargin{background:#cddfd3}
 @media(max-width:680px){.epcAdviceLeft{padding:13px}.epcProposalAmount strong{font-size:29px}.epcMicroLegend>span{font-size:9px}}
-@media(prefers-reduced-motion:reduce){.epcAdviceLeft .epcRecommend,.epcMicroChart span{transition:none}}
+@media(prefers-reduced-motion:reduce){.epcAdviceLeft .epcRecommend,}
 
 /* Une formule lisible, sans élément de tableau de bord superflu. */
 .epcPriceMethod{border:1px solid #e5ece7;border-radius:9px;padding:10px 11px;display:grid;gap:7px;background:#fafcfb}
@@ -75,3 +66,61 @@
 .epcPriceMethod b{font-variant-numeric:tabular-nums;color:#37584c;font-weight:800;font-size:11px;white-space:nowrap}
 .epcPriceMethod .epcPriceMethodTotal{padding-top:7px;border-top:1px solid #e5ece7;color:#385647;font-weight:700}
 .epcPriceMethod small{font-size:10px;line-height:1.55;color:#829084;font-weight:400}
+
+/* Commercial — restrained, numeric-first layout for the eight-trainee pilot. */
+.epcGrid{grid-template-columns:minmax(0,1.13fr) minmax(320px,.87fr);gap:15px;align-items:start}
+.epcCard{padding:17px 18px;border-radius:12px}
+.epcOther{grid-template-columns:minmax(0,1fr);margin-top:14px;padding-top:12px}
+.epcOther>label{max-width:330px}
+.epcRequired{color:#697c71;font-size:10px;font-weight:500}
+.epcOther .epcPrice{min-height:39px;padding-inline:9px}
+.epcOther .epcPrice input{font-size:15px}
+.epcPriceBasis{font-size:11px;line-height:1.55;color:#72857a;margin:7px 0 15px}
+.epcPriceBasis strong{color:#3b5e50;font-weight:730}
+.epcSummary .epcMetrics{margin-bottom:15px}
+.epcSaveArea{display:flex;gap:12px;align-items:center;margin-top:17px;padding-top:14px;border-top:1px solid #e6ece7}
+.epcSaveArea .epcSave{flex:1;max-width:320px;margin:0}
+.epcSaveArea .epcDelete{flex:0 0 auto}
+.epcCirclePanel{margin-top:17px;border:1px solid #dce6de;border-radius:12px;background:#f9fbf9;padding:16px}
+.epcCircleHeader{display:grid;gap:5px;margin-bottom:16px}
+.epcCircleHeader>strong{font-size:14px;font-weight:760;letter-spacing:-.02em;color:#315145}
+.epcCircleHeader>span{font-size:10px;color:#819187}
+.epcCircleLayout{display:grid;grid-template-columns:160px minmax(0,1fr);gap:17px;align-items:center}
+.epcDonut{width:154px;height:154px;border-radius:50%;padding:17px;display:grid;place-items:center;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(50,76,59,.04)}
+.epcDonutCenter{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;width:100%;height:100%;background:#fff;border-radius:50%;color:#355547}
+.epcDonutCenter small{font-size:10px;color:#809184}
+.epcDonutCenter strong{font-size:22px;letter-spacing:-.045em;font-weight:800;font-variant-numeric:tabular-nums}
+.epcDonutCenter span{font-size:10px;font-variant-numeric:tabular-nums;color:#6e877b}
+.epcCircleLegend{display:grid;gap:10px;min-width:0}
+.epcCircleLegend>div{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11px;color:#607669}
+.epcCircleLegend>div>span{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.epcCircleLegend>div>strong{font-variant-numeric:tabular-nums;font-size:11px;color:#344d40;font-weight:730;white-space:nowrap}
+.epcCircleDot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 8px}
+.epcCircleDot.is-matiere{background:#547d70}
+.epcCircleDot.is-emballage{background:#bba477}
+.epcCircleDot.is-marge{background:#dce8dc;border:1px solid #bccfc0}
+.epcCircleLegend .epcCircleFoot{padding-top:10px;border-top:1px solid #e4ebe5;font-weight:700}
+.epcCirclePanel>p{margin:14px 0 0;color:#849489;font-size:10px;line-height:1.6}
+.epcCostWarning{padding:12px!important;margin:0!important;background:#fbf0e8;border-left:2px solid #c18258;color:#925d3f!important;font-size:12px!important}
+@media(max-width:1000px){
+ .epcGrid{grid-template-columns:1fr}
+ .epcCircleLayout{grid-template-columns:160px minmax(0,1fr)}
+}
+@media(max-width:680px){
+ .epcCard{padding:12px}
+ .epcOther>label{max-width:100%}
+ .epcCirclePanel{padding:14px}
+ .epcCircleLayout{grid-template-columns:128px minmax(0,1fr);gap:12px}
+ .epcDonut{width:126px;height:126px;padding:14px}
+ .epcDonutCenter strong{font-size:18px}
+ .epcDonutCenter span{font-size:9px}
+ .epcCircleLegend{gap:8px}
+ .epcCircleLegend>div{font-size:10px}
+ .epcCircleLegend>div>strong{font-size:10px}
+}
+@media(max-width:390px){
+ .epcCircleLayout{grid-template-columns:1fr;justify-items:center}
+ .epcCircleLegend{width:100%}
+ .epcSaveArea{flex-wrap:wrap}
+}
+@media print{.epcSaveArea{display:none!important}.epcCirclePanel{break-inside:avoid}}
