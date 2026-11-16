@@ -9,9 +9,10 @@
     "lint": "eslint",
     "check:ui": "node scripts/check-ernesto-ui.mjs",
     "check:recipes": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/check-recipes.ts",
-    "prebuild": "npm run check:recipes && npm run check:pricing && npm run check:recent && npm run check:ui",
+    "prebuild": "npm run check:recipes && npm run check:pricing && npm run check:costing && npm run check:recent && npm run check:ui",
     "check:pricing": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/check-pizza-pricing.ts",
-    "check:recent": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/check-recent-sections.ts"
+    "check:recent": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/check-recent-sections.ts",
+    "check:costing": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/check-pizza-cost-metrics.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.90.1",
