@@ -23,6 +23,7 @@ type LocalProject = {
   objective?: string;
   color?: string;
   chat: LocalChat[];
+  archivedReplyCount?: number;
   updatedAt?: number;
 };
 
@@ -347,8 +348,11 @@ export default function ErnestoV144Enhancer() {
 
       const recentChat = fullChat.slice(-12);
       const last = recentChat[recentChat.length - 1];
-      const totalTurnCount = fullChat.filter((item) => item.role === "ernesto").length;
-      const signature = `${project.title}|${project.objective || ""}|${fullChat.length}|${last?.id || ""}|${normalizeText(last?.text).slice(-160)}`;
+      // Keep the lifetime counter monotonic when an old chat is cleared.
+      // Otherwise the durable summary would stop refreshing after a fresh start.
+      const previousReplies=Math.max(0,Number(project.archivedReplyCount)||0);
+      const totalTurnCount = previousReplies+fullChat.filter((item) => item.role === "ernesto").length;
+      const signature = `${project.title}|${project.objective || ""}|${totalTurnCount}|${fullChat.length}|${last?.id || ""}|${normalizeText(last?.text).slice(-160)}`;
       if (clientSyncSignatures.get(project.id) === signature) return;
       clientSyncSignatures.set(project.id, signature);
 
