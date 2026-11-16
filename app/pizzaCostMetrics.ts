@@ -20,19 +20,21 @@ export function pizzaMoneyMetrics(params:{
   complete:boolean;
 }):PizzaMoneyMetrics|null{
   const {ingredientHt,packagingHt,sellingHt,recommendedHt,complete}=params;
-  if(!complete||packagingHt===null)return null;
-  if(![ingredientHt,packagingHt,sellingHt,recommendedHt].every(Number.isFinite))return null;
-  if(ingredientHt<0||packagingHt<0)return null;
+  if(!complete)return null;
+  // Packaging is optional; an empty field counts as zero without altering the saved value.
+  const effectivePackagingHt=packagingHt??0;
+  if(![ingredientHt,effectivePackagingHt,sellingHt,recommendedHt].every(Number.isFinite))return null;
+  if(ingredientHt<0||effectivePackagingHt<0)return null;
   const origin=sellingHt>0?"saisi" as const:"conseillé" as const;
   const saleHt=origin==="saisi"?sellingHt:recommendedHt;
   if(saleHt<=0)return null;
-  const directCostHt=ingredientHt+packagingHt;
+  const directCostHt=ingredientHt+effectivePackagingHt;
   const grossMarginHt=saleHt-directCostHt;
   return {
-    saleHt,origin,ingredientHt,packagingHt,directCostHt,grossMarginHt,
+    saleHt,origin,ingredientHt,packagingHt:effectivePackagingHt,directCostHt,grossMarginHt,
     grossMarginPct:grossMarginHt/saleHt*100,
     foodCostPct:ingredientHt/saleHt*100,
-    packagingPct:packagingHt/saleHt*100,
+    packagingPct:effectivePackagingHt/saleHt*100,
     directCostPct:directCostHt/saleHt*100,
     isLoss:grossMarginHt<0,
   };
