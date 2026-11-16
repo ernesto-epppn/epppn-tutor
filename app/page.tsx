@@ -1115,6 +1115,12 @@ export default function Page() {
     setMessage("");
     setSelectedImages([]);
     if (fileRef.current) fileRef.current.value="";
+    stopDictRef.current?.();
+    stopDictRef.current=null;
+    setDictating(false);
+    setDictationHint(null);
+    // An old pending follow-up must never contaminate the first new question.
+    try { window.sessionStorage.removeItem("ernesto_v144_pending_followup"); } catch { /* Session storage may be disabled. */ }
     setRecipeContext("");
     setActiveRecipeName(null);
     setSelectedQuestion(null);
