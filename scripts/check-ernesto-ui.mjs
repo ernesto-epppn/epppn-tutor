@@ -5,6 +5,12 @@ const read = (name) => readFileSync(new URL("../" + name, import.meta.url), "utf
 const home = read("app/ErnestoHome.tsx");
 const stylesheet = read("app/ernesto-editorial-identity.css");
 const layout = read("app/layout.tsx");
+const footer = read("app/ErnestoFooter.tsx");
+assert.match(layout, /<ErnestoFooter \/>/, "Render the site footer under the Ernesto application");
+assert.match(footer, /Version V14\.5/, "Display the publicly labeled Ernesto version in the footer");
+assert.match(footer, /Conçu et développé par la section « Apprentissage et Informatisation » de l’EPPPN/, "Credit the EPPPN development section");
+assert.match(footer, /flexDirection: "column"/, "Keep the footer credit readable on mobile");
+
 const notes = read("app/ErnestoExperienceCarnet.tsx");
 
 const actionKeys = [...home.matchAll(/key: "(chat|recipes|commercial|carnet)"/g)].map((match) => match[1]);
@@ -28,6 +34,8 @@ const recipeStudio = read("app/ErnestoRecipeStudio.tsx");
 const commercial = read("app/ErnestoCommercialStudio.tsx");
 const activity = read("app/ErnestoActivityStudio.tsx");
 const page = read("app/page.tsx");
+assert.match(page, /Version actuelle : V14\.5/, "Public footer version must agree with the existing tutor version");
+
 const visual = read("app/ernesto-help-polish.css");
 const keys = ["home", "tutor", "recipes", "cost", "journal", "stock", "suppliers", "carnet"];
 for (const key of keys) {
