@@ -150,6 +150,9 @@ assert.match(tutorReset[1], /setChat\(\[\]\)/, "Clear the current tutor transcri
 assert.match(tutorReset[1], /setMessage\(""\)/, "Clear the draft question");
 assert.match(tutorReset[1], /setSelectedImages\(\[\]\)/, "Clear unsent photos");
 assert.match(tutorReset[1], /setRecipeContext\(""\)/, "Clear temporary recipe context");
+assert.match(tutorReset[1], /stopDictRef\.current\?\.\(\)/, "Stop microphone dictation on reset");
+assert.match(tutorReset[1], /sessionStorage\.removeItem\("ernesto_v144_pending_followup"\)/, "Remove only temporary follow-up data");
+
 assert.match(tutorReset[1], /archivedReplyCount:\(project\.archivedReplyCount\|\|0\)\+completedReplies/, "Preserve the lifetime response count");
 assert.doesNotMatch(tutorReset[1], /setPersonalProfile|setWorkContext|deleteProject|fetch\(|supabase\.from|localStorage\.removeItem/, "Reset must never delete saved memory or other workspaces");
 assert.match(page, /onClick=\{resetTutorConversation\}/, "Reset button must be actionable in Tutor");
