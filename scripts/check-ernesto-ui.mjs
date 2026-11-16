@@ -115,7 +115,16 @@ assert.match(costing, /Facultatif/, "Packaging input must be explicitly optional
 assert.match(costing, /Non renseigné \(0 €\)/, "Blank packaging must be visibly counted as zero");
 assert.match(costing, /pizzaMoneyMetrics\(/, "Margins are derived consistently from the advised or manually entered price");
 assert.match(costing, /metrics\.origin==="conseillé"/, "Explain which price was used to calculate gross margin");
-assert.match(costing, /className="epcDonut"/, "Compact circular breakdown should appear under saving the pizza");
+assert.match(costing, /const \[chartSnapshot,setChartSnapshot\]=useState</, "Chart starts hidden and stores an explicit calculation snapshot");
+assert.match(costing, /setChartSnapshot\(\{metrics,packagingOmitted:packaging===null,fingerprint\}\)/, "Price advice click is the only point updating the snapshot");
+assert.match(costing, /onClick=\{calculatePriceAdvice\}/, "Calculate button activates advice and graph together");
+assert.match(costing, /\{graphMetrics\?<section className="epcCirclePanel"/, "Render the chart only after an explicit calculation");
+assert.match(costing, /const graphMetrics=chartSnapshot\?\.metrics\?\?null;/, "Chart uses frozen snapshot rather than live calculated values");
+assert.match(costing, /chartSnapshot\.fingerprint!==fingerprint/, "Detect changed prices without recalculating graph");
+assert.match(costing, /chartNeedsRefresh\?<span className="epcChartStale"/, "Clearly mark the chart as out of date until recalculated");
+assert.match(costing, /setChartSnapshot\(null\)/, "Loading another pizza must discard the previous chart");
+assert.match(costingCss, /\.epcChartStale\{/, "Display the recalculation hint");
+assert.match(costing, /className="epcDonut"/, "Compact circular breakdown should remain in the right summary");
 assert.ok(costing.indexOf('className="epcDonut"')>costing.indexOf('className="epcFloor"'), "Donut appears in summary below direct cost");
 assert.ok(costing.indexOf('className="epcDonut"')<costing.indexOf('Les frais fixes et les autres charges'), "Donut stays inside the right summary");
 assert.doesNotMatch(costing, /epcMicroChart|epcMicroLegend/, "Old stacked mini bar must be removed");
